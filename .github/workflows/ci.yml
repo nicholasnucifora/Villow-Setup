@@ -1,0 +1,70 @@
+name: Verify setup
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt,clippy
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run native:test
+      - run: npm run native:check
+      - run: node scripts/native.mjs fmt --all -- --check
+      - run: npm run security:scan
+      - run: npm audit --audit-level=moderate
+      - run: cargo install cargo-audit --version 0.22.0 --locked
+      - run: node scripts/native.mjs audit
+      - run: node scripts/mutation-check.mjs
+      - run: npm run desktop:build
+      - name: Install, launch, interrupt and reopen development package
+        shell: pwsh
+        run: ./scripts/package-smoke.ps1
+      - name: Build from an unrelated directory with fresh dependencies
+        run: npm run portability
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: setup-verification
+          path: |
+            artifacts/portability.json
+            artifacts/package-smoke.json
+          if-no-files-found: ignore
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: SENTINEL-CI-DISPOSABLE-DB
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: rustup toolchain install 1.90.0 --profile minimal
+      - run: node scripts/native.mjs test --locked --no-default-features --test postgres_protocol -- --ignored --test-threads=1
+        env:
+          VILLOW_LOCAL_DB_TESTS: disposable-local-cluster
+          VILLOW_LOCAL_DB_PORT: "5432"
+          VILLOW_LOCAL_DB_PASSWORD: SENTINEL-CI-DISPOSABLE-DB

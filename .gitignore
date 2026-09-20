@@ -1,0 +1,17 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+.tools/
+.cache/
+artifacts/
+*.log
+.env*
+*.pfx
+*.p12
+*.key
+*.pem
+*.sqlite*
+coverage/
+playwright-report/
+test-results/

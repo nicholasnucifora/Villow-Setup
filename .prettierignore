@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.tools/
+.cache/
+artifacts/
+src-tauri/
+package-lock.json

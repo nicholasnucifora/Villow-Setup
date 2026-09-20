@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-installation"
+description = "Enables the start_installation command without any pre-configured scope."
+commands.allow = ["start_installation"]
+
+[[permission]]
+identifier = "deny-start-installation"
+description = "Denies the start_installation command without any pre-configured scope."
+commands.deny = ["start_installation"]

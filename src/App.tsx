@@ -1,0 +1,1457 @@
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import type { FormEvent, ReactNode } from "react";
+import { nativeBridge } from "./bridge";
+import { DemoBridge, type Failure } from "./demo";
+import { ReconciliationForm } from "./ReconciliationForm";
+import type {
+  Accounts,
+  Bridge,
+  Google,
+  Installation,
+  Snapshot,
+  Step,
+} from "./types";
+
+const stages: { key: Step; title: string; detail: string }[] = [
+  {
+    key: "projects",
+    title: "Your accounts",
+    detail: "Choose where your app lives",
+  },
+  { key: "origin", title: "Your address", detail: "Reserve a permanent home" },
+  {
+    key: "google",
+    title: "Connect Google",
+    detail: "Allow your video subscriptions",
+  },
+  {
+    key: "database",
+    title: "Prepare the database",
+    detail: "Set up your private storage",
+  },
+  {
+    key: "configuration",
+    title: "Configure your app",
+    detail: "Connect the services securely",
+  },
+  {
+    key: "deployment",
+    title: "Build your app",
+    detail: "Prepare it on Vercel",
+  },
+  { key: "health", title: "Make it yours", detail: "Sign in and verify" },
+];
+const nextLabels: Record<Step, string> = {
+  projects: "Create the next project",
+  origin: "Reserve my address",
+  google: "Continue to my database",
+  database: "Prepare my database",
+  configuration: "Connect my services",
+  deployment: "Build my app on Vercel",
+  health: "Check my installation",
+  complete: "Open my Villow",
+};
+function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      {Children.map(children, (child) =>
+        isValidElement<{ id?: string; "aria-describedby"?: string }>(child) &&
+        ["input", "select", "textarea"].includes(String(child.type))
+          ? cloneElement(child, {
+              id,
+              "aria-describedby": hint ? `${id}-hint` : undefined,
+            })
+          : child,
+      )}
+      {hint && <small id={`${id}-hint`}>{hint}</small>}
+    </div>
+  );
+}
+function CheckBox({
+  children,
+  checked,
+  onChange,
+}: {
+  children: ReactNode;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="checkbox">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+export function App({
+  initialBridge = nativeBridge,
+}: {
+  initialBridge?: Bridge;
+}) {
+  const [bridge, setBridge] = useState<Bridge>(initialBridge);
+  const [data, setData] = useState<Snapshot | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [accounts, setAccounts] = useState<Accounts | null>(null);
+  const [tools, setTools] = useState(false);
+  const [removeConfirm, setRemoveConfirm] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [failure, setFailure] = useState<Failure>("none");
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const recoveryRef = useRef<HTMLElement>(null);
+  const s = data?.installation;
+  const screen = data
+    ? `${s?.id ?? "welcome"}:${s?.read_only ? "recovered" : (s?.step ?? "welcome")}`
+    : null;
+  useLayoutEffect(() => {
+    if (!screen) return;
+    headingRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [bridge, screen]);
+  useLayoutEffect(() => {
+    const target = error ? errorRef.current : notice ? noticeRef.current : null;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [error, notice]);
+  useLayoutEffect(() => {
+    if (!tools) return;
+    recoveryRef.current?.focus({ preventScroll: true });
+    recoveryRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [tools]);
+  useEffect(() => {
+    let active = true;
+    setData(null);
+    setError("");
+    setAccounts(null);
+    setNotice("");
+    setTools(false);
+    setRemoveConfirm(false);
+    setConfirmation("");
+    setFailure("none");
+    bridge
+      .call<Snapshot>("snapshot")
+      .then((v) => {
+        if (active) setData(v);
+      })
+      .catch((e) => {
+        if (active) setError(String(e));
+      });
+    return () => {
+      active = false;
+    };
+  }, [bridge]);
+  const run = async (fn: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      try {
+        setData(await bridge.call<Snapshot>("snapshot"));
+      } catch {
+        /* Keep the last visible checkpoint. */
+      }
+    } finally {
+      if (bridge instanceof DemoBridge) setFailure(bridge.failure);
+      setBusy(false);
+    }
+  };
+  const action: Action = (command, args, onSuccess) =>
+    run(async () => {
+      setData(await bridge.call<Snapshot>(command, args));
+      onSuccess?.();
+    });
+  const open = (step: string) =>
+    run(async () => {
+      await bridge.call("open_step", { step });
+      if (bridge.demo)
+        setNotice(
+          "Demo: this button opens the official service in your system browser in the desktop app.",
+        );
+    });
+  const advance = () => action("advance");
+  const stage =
+    s?.step === "complete"
+      ? stages.length
+      : stages.findIndex((x) => x.key === s?.step);
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            v
+          </span>
+          <div>
+            villow<span>SETUP</span>
+          </div>
+        </div>
+        <p className="sidebar-intro">
+          A little setup.
+          <br />A space of your own.
+        </p>
+        <nav aria-label="Setup progress">
+          <ol className="steps">
+            <li className={!s ? "current" : "past"}>
+              <span className="step-number">{s ? "✓" : "1"}</span>
+              <div>
+                Welcome<small>Understand your setup</small>
+              </div>
+            </li>
+            {stages.map((x, i) => (
+              <li
+                key={x.key}
+                className={stage === i ? "current" : stage > i ? "past" : ""}
+                aria-current={stage === i ? "step" : undefined}
+              >
+                <span className="step-number">{stage > i ? "✓" : i + 2}</span>
+                <div>
+                  {x.title}
+                  <small>{x.detail}</small>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <div className="sidebar-footer">
+          <span className="tiny-dot" />
+          Runs on your computer
+          <small>
+            Setup {data?.manager_version ?? "0.1.0"} · Windows development build
+          </small>
+        </div>
+      </aside>
+      <div className="main-shell">
+        <header className="topbar">
+          <span>{s ? s.name : "Your own Villow, at your pace"}</span>
+          <div>
+            {bridge.demo ? (
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() => setBridge(nativeBridge)}
+              >
+                Leave demo
+              </button>
+            ) : (
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() => setBridge(new DemoBridge())}
+              >
+                Explore demo
+              </button>
+            )}
+            {s && (
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() => setTools(!tools)}
+                aria-expanded={tools}
+              >
+                Recovery & settings
+              </button>
+            )}
+          </div>
+        </header>
+        <main>
+          {bridge.demo && (
+            <div className="demo-banner">
+              <div>
+                <strong>Demo mode</strong>
+                <span>
+                  Everything here is simulated. No cloud resources or real
+                  credentials.
+                </span>
+              </div>
+              <label>
+                Next operation
+                <select
+                  aria-label="Demo failure"
+                  value={failure}
+                  onChange={(e) => {
+                    const f = e.target.value as Failure;
+                    setFailure(f);
+                    if (bridge instanceof DemoBridge) bridge.failure = f;
+                  }}
+                >
+                  <option value="none">None</option>
+                  <option value="lost_response">Lost creation response</option>
+                  <option value="offline">Offline</option>
+                  <option value="expired">Expired token</option>
+                  <option value="rate_limit">Rate limit</option>
+                  <option value="health">Failed sign-in check</option>
+                </select>
+              </label>
+            </div>
+          )}
+          {error && (
+            <div
+              className="alert error"
+              role="alert"
+              ref={errorRef}
+              tabIndex={-1}
+            >
+              <strong>This step needs attention</strong>
+              <p>{error}</p>
+              <small>
+                Saved resources remain in your account. Closing this window does
+                not remove them.
+              </small>
+            </div>
+          )}
+          {notice && (
+            <div className="alert" role="status" ref={noticeRef} tabIndex={-1}>
+              {notice}
+            </div>
+          )}
+          {busy && (
+            <div role="status" className="working">
+              <span className="spinner" />
+              Working on this step. Please leave the window open until it
+              returns.
+            </div>
+          )}
+          {!data && !error && <p role="status">Opening your saved setup…</p>}
+          {data && !s && (
+            <>
+              <div className="eyebrow">WELCOME TO VILLOW</div>
+              <h1 ref={headingRef} tabIndex={-1}>
+                Make room for
+                <br />
+                <em>intentional watching.</em>
+              </h1>
+              <p className="lead">
+                Put Villow in accounts you own. This app connects the pieces and
+                keeps your place along the way.
+              </p>
+              <div className="ownership-grid">
+                <article>
+                  <span className="service-icon">V</span>
+                  <h2>A home for your app</h2>
+                  <p>
+                    Vercel runs your website, even when this computer is off.
+                  </p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => open("vercel_signup")}
+                  >
+                    Vercel account ↗
+                  </button>
+                </article>
+                <article>
+                  <span className="service-icon">S</span>
+                  <h2>A place for your data</h2>
+                  <p>
+                    Supabase stores your settings, subscriptions and library.
+                  </p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => open("supabase_signup")}
+                  >
+                    Supabase account ↗
+                  </button>
+                </article>
+                <article>
+                  <span className="service-icon">G</span>
+                  <h2>Your video connection</h2>
+                  <p>
+                    Google Cloud lets your instance access your YouTube
+                    subscriptions.
+                  </p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => open("google_project")}
+                  >
+                    Google Cloud ↗
+                  </button>
+                </article>
+              </div>
+              <p className="quiet">
+                You do not need GitHub, Git or a terminal. Account verification
+                and provider limits still apply. Services may charge for usage;
+                setup never chooses a paid upgrade for you.
+              </p>
+              {!data.trust_configured && (
+                <div className="alert">
+                  <strong>
+                    Public installation is not available in this build
+                  </strong>
+                  <p>{data.message}</p>
+                  <p>
+                    The signed Villow release, safe database baseline and
+                    intended-owner bootstrap must be published first.
+                  </p>
+                </div>
+              )}
+              {data.trust_configured && (
+                <ReleaseForm
+                  bridge={bridge}
+                  data={data}
+                  busy={busy}
+                  action={action}
+                />
+              )}
+              {!data.trust_configured && (
+                <button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => setBridge(new DemoBridge())}
+                >
+                  Explore the setup demo <span>→</span>
+                </button>
+              )}
+              <button
+                className="text-button recovery-link"
+                disabled={busy || bridge.demo}
+                onClick={() => action("import_recovery")}
+              >
+                Open a recovery file
+              </button>
+              <p className="privacy-note">
+                Your management credentials stay on this computer and go
+                directly to your chosen providers. The Villow website never
+                receives them.
+              </p>
+            </>
+          )}
+          {s && (
+            <>
+              <div className="eyebrow">
+                {s.step === "complete"
+                  ? "YOUR SPACE IS READY"
+                  : `STEP ${Math.max(0, stage) + 2} OF 8`}
+              </div>
+              <h1 className="step-title" ref={headingRef} tabIndex={-1}>
+                {s.read_only
+                  ? "Your recovered instance"
+                  : s.step === "complete"
+                    ? bridge.demo
+                      ? "You’ve finished the demo."
+                      : "Welcome to your Villow."
+                    : stages[stage]?.title}
+              </h1>
+              <div className="instance-line">
+                <span>App {s.app_version}</span>
+                <span>Owner: {s.owner_email}</span>
+              </div>
+              {s.read_only ? (
+                <div className="alert">
+                  <strong>Recovery information, awaiting verification</strong>
+                  <p>
+                    This file restores your resource inventory. It does not
+                    prove ownership or authorize changes. Automated repair and
+                    legacy adoption are planned for a later release.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {s.credentials_removed && (
+                    <div className="alert">
+                      <strong>Saved credentials removed</strong>
+                      <p>
+                        Your hosted app continues to run. Reconnecting requires
+                        your original account access and any existing encryption
+                        secret; setup will never replace it automatically.
+                      </p>
+                    </div>
+                  )}
+                  {(s.step === "projects" || s.credentials_removed) && (
+                    <AccountForm
+                      bridge={bridge}
+                      s={s}
+                      busy={busy}
+                      accounts={accounts}
+                      setAccounts={setAccounts}
+                      refresh={setData}
+                      action={action}
+                      run={run}
+                      open={open}
+                    />
+                  )}
+                  {s.step === "origin" && (
+                    <p className="lead">
+                      Your permanent address will also be used by Google to
+                      return you to Villow after sign-in. Setup verifies that it
+                      belongs to your hosting project.
+                    </p>
+                  )}
+                  {s.step === "google" && (
+                    <GoogleForm
+                      s={s}
+                      busy={busy}
+                      demo={bridge.demo}
+                      action={action}
+                      open={open}
+                    />
+                  )}
+                  {s.step === "database" && (
+                    <DatabaseStep
+                      s={s}
+                      busy={busy}
+                      demo={bridge.demo}
+                      action={action}
+                    />
+                  )}
+                  {s.step === "configuration" && (
+                    <>
+                      <p className="lead">Connect the services securely.</p>
+                      <p>
+                        Setup sends your Google client secret, database service
+                        key and the encryption key to your own Vercel project.
+                        Public browser settings are kept separate from server
+                        secrets.
+                      </p>
+                      <div className="alert">
+                        <strong>One encryption key for this instance</strong>
+                        <p>
+                          It is generated once and preserved through retries.
+                          Losing or replacing it may make encrypted app data
+                          unreadable. Your nonsecret recovery file does not
+                          include it.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  {s.step === "deployment" && (
+                    <>
+                      <p className="lead">
+                        Vercel will build the verified release in your account.
+                      </p>
+                      <p>
+                        This uses the pinned source archive, without linking a
+                        GitHub account. The app opens in a protected bootstrap
+                        state until the intended owner signs in.
+                      </p>
+                    </>
+                  )}
+                  {s.step === "health" && (
+                    <>
+                      <p className="lead">
+                        Sign in as {s.owner_email} to make this instance yours.
+                      </p>
+                      <p>
+                        Open your app in the system browser, complete Google
+                        sign-in, then return here. Setup checks the actual
+                        owner, schema, configuration and a bounded authenticated
+                        app operation.
+                      </p>
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => open("app")}
+                      >
+                        Open my app to sign in ↗
+                      </button>
+                      <p className="quiet">
+                        A successful build alone does not complete setup. Google
+                        publishing is your confirmation; provider and app checks
+                        are recorded separately.
+                      </p>
+                    </>
+                  )}
+                  {s.step === "complete" && (
+                    <>
+                      <p className="lead">
+                        {bridge.demo
+                          ? "The simulated checks passed. A real installation must pass them against your provider accounts and hosted app."
+                          : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
+                      </p>
+                      <div className="address">{s.origin}</div>
+                      <p>
+                        Only the owner needs Villow Setup. Your friends use your
+                        hosted web address. Optional Google Tasks and Todoist
+                        connections can be set up later in Villow.
+                      </p>
+                    </>
+                  )}
+                  {s.step !== "google" &&
+                    (!s.credentials_removed || s.step === "complete") && (
+                      <div className="action-row">
+                        <button
+                          className="primary"
+                          disabled={busy || !s.selection}
+                          onClick={
+                            s.step === "complete" ? () => open("app") : advance
+                          }
+                        >
+                          {nextLabels[s.step]} <span>→</span>
+                        </button>
+                        {s.step !== "complete" && (
+                          <span className="quiet">
+                            Progress saves after every operation.
+                          </span>
+                        )}
+                      </div>
+                    )}
+                </>
+              )}
+              {!bridge.demo && !s.read_only && (
+                <ReconciliationForm
+                  s={s}
+                  busy={busy}
+                  action={action}
+                  open={open}
+                />
+              )}
+              <ResourceSummary s={s} demo={bridge.demo} />
+              {tools && (
+                <section
+                  className="recovery-panel"
+                  ref={recoveryRef}
+                  tabIndex={-1}
+                  aria-label="Recovery and settings"
+                >
+                  <h2>Keep a way back</h2>
+                  <p>
+                    A recovery file contains resource IDs, your owner email and
+                    version details. It contains no passwords or tokens. Review
+                    it before sharing.
+                  </p>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        const saved =
+                          await bridge.call<boolean>("export_recovery");
+                        setNotice(
+                          saved
+                            ? bridge.demo
+                              ? "Demo: recovery export simulated. Real exports use a native save dialog."
+                              : "Recovery information saved without credentials."
+                            : "Export cancelled.",
+                        );
+                      })
+                    }
+                  >
+                    Save recovery information
+                  </button>
+                  <details>
+                    <summary>Review diagnostic information</summary>
+                    <p>
+                      Only the nonsecret checkpoint below is available. No
+                      provider response bodies or viewing data are collected.
+                    </p>
+                    <pre>
+                      {JSON.stringify(
+                        {
+                          id: s.id,
+                          step: s.step,
+                          effects: s.effects,
+                          checks: s.checks,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </details>
+                  {!s.read_only && (
+                    <details>
+                      <summary>Reconnect expired provider access</summary>
+                      <p>
+                        Replace only your management tokens. Saved app secrets,
+                        encryption key and resource IDs are preserved. Use the
+                        same provider identities you selected originally.
+                      </p>
+                      <AccountForm
+                        reconnect
+                        bridge={bridge}
+                        s={s}
+                        busy={busy}
+                        accounts={accounts}
+                        setAccounts={setAccounts}
+                        refresh={setData}
+                        action={action}
+                        run={run}
+                        open={open}
+                      />
+                    </details>
+                  )}
+                  <h3>Remove saved credentials</h3>
+                  <p>
+                    This removes local management tokens and setup secrets. It
+                    does not revoke provider tokens or remove the copies needed
+                    by your hosted app. Revoke management tokens in the provider
+                    dashboards separately.
+                  </p>
+                  <CheckBox checked={removeConfirm} onChange={setRemoveConfirm}>
+                    I understand this removes this computer’s saved access,
+                    including its encryption-key copy.
+                  </CheckBox>
+                  <button
+                    className="secondary"
+                    disabled={busy || !removeConfirm || s.credentials_removed}
+                    onClick={() =>
+                      action("remove_credentials", undefined, () => {
+                        setRemoveConfirm(false);
+                        setNotice(
+                          bridge.demo
+                            ? "Demo: saved access removed. Your simulated instance is still available."
+                            : "Saved credentials removed from this computer. Your cloud app and provider billing continue.",
+                        );
+                      })
+                    }
+                  >
+                    Remove local credentials
+                  </button>
+                  <h3>Forget this instance</h3>
+                  <p>
+                    Remove the local checkpoint and saved credentials. Your
+                    cloud app and provider billing continue.
+                  </p>
+                  <Field label={`Type ${s.name} to forget it`}>
+                    <input
+                      value={confirmation}
+                      onChange={(e) => setConfirmation(e.target.value)}
+                    />
+                  </Field>
+                  <button
+                    className="danger-button"
+                    disabled={busy || confirmation !== s.name}
+                    onClick={() => action("forget_instance", { confirmation })}
+                  >
+                    Forget this instance locally
+                  </button>
+                  <h3>Maintenance</h3>
+                  <p>
+                    Automated upgrades, repair and cloud removal are not
+                    available in this version. Use your provider dashboards to
+                    inspect resources, bills and backups. Uninstalling Setup
+                    does not close those accounts.
+                  </p>
+                  <div className="link-row">
+                    {["vercel", "supabase", "google"].map((p) => (
+                      <button
+                        key={p}
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => open(`${p}_dashboard`)}
+                      >
+                        {p} dashboard ↗
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </main>
+        <footer className="footer">
+          Your accounts. Your instance. Your pace.
+          <span>
+            Independent software · not an official Google or YouTube product
+          </span>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+type Action = (
+  command: string,
+  args?: Record<string, unknown>,
+  onSuccess?: () => void,
+) => Promise<void>;
+function ReleaseForm({
+  bridge,
+  data,
+  busy,
+  action,
+}: {
+  bridge: Bridge;
+  data: Snapshot;
+  busy: boolean;
+  action: Action;
+}) {
+  const [name, setName] = useState("my-villow"),
+    [email, setEmail] = useState(""),
+    [consent, setConsent] = useState(false);
+  const digest = bridge.demo ? "demo-digest" : (data.release_digest ?? "");
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void action("start_installation", { name, email, digest });
+  };
+  return (
+    <section className="form-section">
+      <h2>Choose your starting point</h2>
+      {!data.release ? (
+        <button
+          className="primary"
+          disabled={busy}
+          onClick={() => action("check_release")}
+        >
+          Check the official release
+        </button>
+      ) : (
+        <>
+          <div className="release-line">
+            <strong>Villow {data.release.app_version}</strong>
+            <span>
+              {bridge.demo ? "Simulated release" : "Authenticated release"}
+            </span>
+          </div>
+          <details>
+            <summary>Release notes & technical details</summary>
+            <p className="plain-notes">{data.release.notes}</p>
+            <code>{data.release.commit}</code>
+            <p>
+              Last checked:{" "}
+              {data.release_checked_at
+                ? new Date(data.release_checked_at).toLocaleString()
+                : "Not checked"}
+            </p>
+          </details>
+          <form onSubmit={submit}>
+            <div className="form-grid">
+              <Field
+                label="Give your instance a name"
+                hint="Lowercase letters, numbers and hyphens."
+              >
+                <input
+                  required
+                  pattern="[a-z0-9][a-z0-9-]{0,31}"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Your Google account email"
+                hint="This account will become the intended owner."
+              >
+                <input
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </Field>
+            </div>
+            <CheckBox checked={consent} onChange={setConsent}>
+              I’ll use dedicated projects in my own accounts and review provider
+              charges and verification requirements.
+            </CheckBox>
+            <button className="primary" disabled={busy || !consent || !digest}>
+              Start my setup <span>→</span>
+            </button>
+          </form>
+        </>
+      )}
+    </section>
+  );
+}
+function AccountForm({
+  bridge,
+  s,
+  busy,
+  accounts,
+  setAccounts,
+  refresh,
+  action,
+  run,
+  open,
+  reconnect = false,
+}: {
+  bridge: Bridge;
+  s: Installation;
+  busy: boolean;
+  accounts: Accounts | null;
+  setAccounts: (v: Accounts) => void;
+  refresh: (v: Snapshot) => void;
+  action: Action;
+  run: (fn: () => Promise<void>) => Promise<void>;
+  open: (s: string) => Promise<void>;
+  reconnect?: boolean;
+}) {
+  const [vercel, setVercel] = useState(""),
+    [supabase, setSupabase] = useState(""),
+    [team, setTeam] = useState(""),
+    [org, setOrg] = useState(""),
+    [costs, setCosts] = useState(false),
+    [region, setRegion] = useState("ap-southeast-2"),
+    [connected, setConnected] = useState(false);
+  const connect = () =>
+    run(async () => {
+      setConnected(false);
+      try {
+        refresh(
+          await bridge.call<Snapshot>("save_credentials", {
+            vercel: bridge.demo ? "demo" : vercel,
+            supabase: bridge.demo ? "demo" : supabase,
+          }),
+        );
+        const a = await bridge.call<Accounts>("discover_accounts");
+        setAccounts(a);
+        setTeam(a.vercel[0]?.id ?? "");
+        setOrg(a.supabase[0]?.id ?? "");
+        setConnected(true);
+      } finally {
+        setVercel("");
+        setSupabase("");
+      }
+    });
+  return (
+    <section>
+      <p className="lead">Your services, connected from this computer.</p>
+      {!s.selection || s.credentials_removed || reconnect ? (
+        <>
+          <p>
+            Use short-lived management tokens. A Supabase personal token can
+            carry your account’s permissions; it is different from a database
+            password or app API key. Choose the smallest available scope and
+            revoke it when you finish.
+          </p>
+          {!bridge.demo && (
+            <div className="form-grid">
+              <Field
+                label="Vercel access token"
+                hint="Select only the account you will use and a short expiry."
+              >
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={vercel}
+                  onChange={(e) => {
+                    setVercel(e.target.value);
+                    setConnected(false);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => open("vercel_token")}
+                >
+                  Create in Vercel ↗
+                </button>
+              </Field>
+              <Field
+                label="Supabase management token"
+                hint="A personal token may reach all organizations you can manage."
+              >
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={supabase}
+                  onChange={(e) => {
+                    setSupabase(e.target.value);
+                    setConnected(false);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => open("supabase_token")}
+                >
+                  Create in Supabase ↗
+                </button>
+              </Field>
+            </div>
+          )}
+          <button
+            className="secondary"
+            disabled={busy || (!bridge.demo && !vercel && !supabase)}
+            onClick={connect}
+          >
+            {bridge.demo
+              ? "Load demo accounts"
+              : "Save tokens & read my accounts"}
+          </button>
+          {connected && !s.credentials_removed && (
+            <p role="status">
+              {bridge.demo ? "Demo accounts loaded." : "Account access loaded."}
+              {s.selection &&
+                " Continue setup to check access against your saved accounts."}
+            </p>
+          )}
+          {accounts && !s.selection && (
+            <div className="form-section">
+              <div className="form-grid">
+                <Field label="Vercel account">
+                  <select
+                    value={team}
+                    onChange={(e) => setTeam(e.target.value)}
+                  >
+                    {accounts.vercel.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} · {a.id}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Supabase organization">
+                  <select value={org} onChange={(e) => setOrg(e.target.value)}>
+                    {accounts.supabase.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} · {a.id}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Database region">
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                  >
+                    <option value="ap-southeast-2">Sydney</option>
+                    <option value="us-east-1">US East</option>
+                    <option value="eu-west-1">Ireland</option>
+                    <option value="ap-southeast-1">Singapore</option>
+                  </select>
+                </Field>
+              </div>
+              <CheckBox checked={costs} onChange={setCosts}>
+                These are my intended accounts. Creating projects can use my
+                plan’s resources and incur charges; I have reviewed my provider
+                plan.
+              </CheckBox>
+              <button
+                className="primary"
+                disabled={busy || !team || !org || !costs}
+                onClick={() =>
+                  action("select_accounts", {
+                    selection: {
+                      vercel_user: accounts.vercel_user,
+                      supabase_user: accounts.supabase_user,
+                      vercel_account: team,
+                      supabase_organization: org,
+                      supabase_slug: accounts.supabase.find((a) => a.id === org)
+                        ?.slug,
+                      region,
+                      costs_acknowledged: costs,
+                    },
+                  })
+                }
+              >
+                Confirm these accounts
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="alert">
+          <strong>Accounts confirmed</strong>
+          <p>
+            Each next action creates one dedicated project. Setup checks account
+            and resource ownership before continuing. Keep your provider
+            dashboards available for any billing or identity checks.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+function GoogleForm({
+  s,
+  busy,
+  demo,
+  action,
+  open,
+}: {
+  s: Installation;
+  busy: boolean;
+  demo: boolean;
+  action: Action;
+  open: (s: string) => Promise<void>;
+}) {
+  const [project, setProject] = useState(
+      s.google?.project_id ?? (demo ? "demo-google-project" : ""),
+    ),
+    [client, setClient] = useState(
+      s.google?.client_id ?? (demo ? "demo.apps.googleusercontent.com" : ""),
+    ),
+    [secret, setSecret] = useState("");
+  const [enabled, setEnabled] = useState(
+      s.google?.api_enabled_confirmed ?? false,
+    ),
+    [published, setPublished] = useState(
+      s.google?.consent_published_confirmed ?? false,
+    ),
+    [audience, setAudience] = useState(
+      s.google?.audience ?? "external_production",
+    ),
+    [secretPending, setSecretPending] = useState(false),
+    [copied, setCopied] = useState("");
+  const matchesSaved =
+    !!s.google &&
+    project === s.google.project_id &&
+    client === s.google.client_id &&
+    enabled === s.google.api_enabled_confirmed &&
+    published === s.google.consent_published_confirmed &&
+    audience === s.google.audience &&
+    !secretPending;
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied("Copied.");
+    } catch {
+      setCopied("Select and copy the address above.");
+    }
+  };
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const google: Google = {
+      project_id: project,
+      client_id: client,
+      api_enabled_confirmed: enabled,
+      audience,
+      consent_published_confirmed: published,
+    };
+    try {
+      await action(
+        "set_google",
+        {
+          google,
+          secret: demo ? "demo-secret" : secret,
+        },
+        () => setSecretPending(false),
+      );
+    } finally {
+      setSecret("");
+    }
+  };
+  return (
+    <section>
+      <p className="lead">
+        Allow your instance to connect to your Google account.
+      </p>
+      <ol className="instructions">
+        <li>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => open("google_project")}
+          >
+            Create or select a Google Cloud project ↗
+          </button>
+          <p>
+            Use a dedicated project you own. Accept any account verification
+            steps in Google’s browser window.
+          </p>
+        </li>
+        <li>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => open("google_api")}
+          >
+            Enable YouTube Data API v3 ↗
+          </button>
+          <p>An API key alone cannot authorize your private subscriptions.</p>
+        </li>
+        <li>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => open("google_audience")}
+          >
+            Configure branding, audience and data access ↗
+          </button>
+          <p>
+            Include the YouTube permission and identity scopes listed below. For
+            a personal external project, publish the audience when ready.
+            Publishing and Google verification are different processes.
+          </p>
+        </li>
+        <li>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => open("google_client")}
+          >
+            Create a Web application OAuth client ↗
+          </button>
+          <p>
+            Use these exact hosted addresses, then return with the client ID and
+            secret.
+          </p>
+        </li>
+      </ol>
+      <div className="copy-row">
+        <div>
+          <small>Authorized JavaScript origin</small>
+          <code>{s.origin}</code>
+        </div>
+        <button className="secondary" onClick={() => copy(s.origin ?? "")}>
+          Copy origin
+        </button>
+      </div>
+      <div className="copy-row">
+        <div>
+          <small>Authorized redirect URI</small>
+          <code>{s.origin}/api/auth</code>
+        </div>
+        <button
+          className="secondary"
+          onClick={() => copy(`${s.origin}/api/auth`)}
+        >
+          Copy callback
+        </button>
+      </div>
+      {copied && <p role="status">{copied}</p>}
+      <details>
+        <summary>Required Google permissions</summary>
+        <ul>
+          {s.google_scopes.map((scope) => (
+            <li key={scope}>
+              <code>{scope}</code>
+            </li>
+          ))}
+        </ul>
+        <p>
+          The YouTube permission includes account write access used by Villow.
+          Google Tasks and Todoist are optional later. Gemini is not required.
+        </p>
+      </details>
+      <div className="alert">
+        <strong>Testing mode expires</strong>
+        <p>
+          With Villow’s YouTube permission, an external app left in Google’s
+          Testing mode typically loses refresh access after seven days.
+          Personal-use exceptions may apply to verification, but warning-free
+          access is not guaranteed.
+        </p>
+      </div>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Google Cloud project ID">
+            <input
+              required
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+            />
+          </Field>
+          <Field label="OAuth Web client ID">
+            <input
+              required
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+            />
+          </Field>
+          {!demo && (
+            <Field label="OAuth client secret">
+              <input
+                required
+                type="password"
+                autoComplete="off"
+                value={secret}
+                onChange={(e) => {
+                  setSecret(e.target.value);
+                  setSecretPending(true);
+                }}
+              />
+            </Field>
+          )}
+          <Field label="Audience">
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+            >
+              <option value="external_production">
+                External · In production
+              </option>
+              <option value="internal">
+                Internal · my Workspace organization only
+              </option>
+              <option value="external_testing">External · still Testing</option>
+            </select>
+          </Field>
+        </div>
+        <CheckBox checked={enabled} onChange={setEnabled}>
+          I enabled YouTube Data API v3 in this Google project.
+        </CheckBox>
+        <CheckBox checked={published} onChange={setPublished}>
+          I configured the audience, required scopes and exact callback. My
+          external app is published, or this is an eligible internal Workspace
+          app.
+        </CheckBox>
+        {s.google && (
+          <p role="status">
+            {matchesSaved
+              ? "Google configuration saved."
+              : "Save your Google changes before continuing."}
+          </p>
+        )}
+        <div className="action-row">
+          <button
+            className={s.google ? "secondary" : "primary"}
+            disabled={
+              busy ||
+              matchesSaved ||
+              !enabled ||
+              !published ||
+              audience === "external_testing"
+            }
+          >
+            Save my Google configuration
+          </button>
+          {s.google && !s.credentials_removed && (
+            <button
+              type="button"
+              className="primary"
+              disabled={busy || !matchesSaved}
+              onClick={() => action("advance")}
+            >
+              Continue to my database →
+            </button>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+function DatabaseStep({
+  s,
+  busy,
+  demo,
+  action,
+}: {
+  s: Installation;
+  busy: boolean;
+  demo: boolean;
+  action: Action;
+}) {
+  const [host, setHost] = useState(
+      s.db_connection?.host ?? `db.${s.database?.id}.supabase.co`,
+    ),
+    [user, setUser] = useState(s.db_connection?.user ?? "postgres"),
+    [password, setPassword] = useState("");
+  return (
+    <section>
+      <p className="lead">
+        Prepare a fresh database from the authenticated release.
+      </p>
+      <p>
+        Setup checks for existing app data, applies the signed migration plan
+        under a database lock, and verifies its postconditions. If the schema
+        differs, it stops for review.
+      </p>
+      {demo ? (
+        <p className="quiet">
+          The demo uses a fictional database. No connection details or password
+          are needed.
+        </p>
+      ) : (
+        <details>
+          <summary>Connection settings for IPv4-only networks</summary>
+          <p>
+            The direct connection uses IPv6. In Supabase’s Connect dialog,
+            choose Session pooler (port 5432) if your network needs IPv4. Copy
+            only the host and username here. The generated database password is
+            already saved.
+          </p>
+          <div className="form-grid">
+            <Field label="Database host">
+              <input value={host} onChange={(e) => setHost(e.target.value)} />
+            </Field>
+            <Field label="Database user">
+              <input value={user} onChange={(e) => setUser(e.target.value)} />
+            </Field>
+            <Field label="Database password, only if changed">
+              <input
+                type="password"
+                autoComplete="off"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+          </div>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                await action("set_database_connection", {
+                  connection: { host, user },
+                  password,
+                });
+              } finally {
+                setPassword("");
+              }
+            }}
+          >
+            Save connection settings
+          </button>
+        </details>
+      )}
+    </section>
+  );
+}
+function ResourceSummary({ s, demo }: { s: Installation; demo: boolean }) {
+  return (
+    <section className="resource-summary">
+      <h2>{demo ? "Simulated resources" : "Your saved resources"}</h2>
+      <dl>
+        <div>
+          <dt>Hosting project</dt>
+          <dd>{s.vercel?.id ?? "Not created"}</dd>
+        </div>
+        <div>
+          <dt>Database project</dt>
+          <dd>{s.database?.id ?? "Not created"}</dd>
+        </div>
+        <div>
+          <dt>Production address</dt>
+          <dd>{s.origin ?? "Not reserved"}</dd>
+        </div>
+        <div>
+          <dt>Schema</dt>
+          <dd>
+            {s.schema_revision} ·{" "}
+            {s.effects.migrate?.status === "verified"
+              ? "verified"
+              : "not verified"}
+          </dd>
+        </div>
+      </dl>
+      {s.checks.length > 0 && (
+        <details>
+          <summary>Evidence from completed checks</summary>
+          <ul className="check-list">
+            {s.checks.map((c, i) => (
+              <li key={`${c.title}-${i}`}>
+                <span>{c.kind}</span>
+                <div>
+                  {c.title}
+                  <small>{new Date(c.at).toLocaleString()}</small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}

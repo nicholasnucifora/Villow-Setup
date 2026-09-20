@@ -1,0 +1,17 @@
+#[cfg(feature = "desktop")]
+mod desktop;
+pub mod engine;
+pub mod error;
+pub mod http;
+pub mod manager;
+pub mod migration;
+pub mod model;
+pub mod providers;
+pub mod reconcile;
+pub mod recovery;
+pub mod release;
+pub mod sql_guard;
+pub mod store;
+pub mod vault;
+#[cfg(feature = "desktop")]
+pub use desktop::run;

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-google"
+description = "Enables the set_google command without any pre-configured scope."
+commands.allow = ["set_google"]
+
+[[permission]]
+identifier = "deny-set-google"
+description = "Denies the set_google command without any pre-configured scope."
+commands.deny = ["set_google"]

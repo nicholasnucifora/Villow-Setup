@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-database-connection"
+description = "Enables the set_database_connection command without any pre-configured scope."
+commands.allow = ["set_database_connection"]
+
+[[permission]]
+identifier = "deny-set-database-connection"
+description = "Denies the set_database_connection command without any pre-configured scope."
+commands.deny = ["set_database_connection"]

@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "app_contract_revision": null,
+  "official_release_digest": null,
+  "publisher_identity_verified": false,
+  "real_no_github_fresh_install": false,
+  "real_interrupted_resume": false,
+  "real_intended_owner_sign_in": false,
+  "real_schema_and_rls_verification": false,
+  "clean_signed_windows_install": false,
+  "clean_signed_windows_reopen": false,
+  "credential_removal_verified": false,
+  "security_findings_reviewed": false,
+  "evidence_record": null
+}

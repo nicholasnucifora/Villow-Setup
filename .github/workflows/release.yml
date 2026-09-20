@@ -1,0 +1,61 @@
+name: Prepare signed release for review
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualify:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run release:gate
+      - run: npm run build
+      - run: npm test
+      - run: npm run native:test
+      - run: npm run security:scan
+      - run: npm audit --audit-level=moderate
+  sign:
+    needs: qualify
+    environment: production-release
+    runs-on: [self-hosted, Windows, X64, villow-signing]
+    timeout-minutes: 45
+    env:
+      VILLOW_CERT_SHA1: ${{ vars.VILLOW_CERT_SHA1 }}
+      VILLOW_PRODUCTION_IDENTIFIER: ${{ vars.VILLOW_PRODUCTION_IDENTIFIER }}
+      VILLOW_TIMESTAMP_URL: ${{ vars.VILLOW_TIMESTAMP_URL }}
+      VILLOW_CERT_SUBJECT: ${{ vars.VILLOW_CERT_SUBJECT }}
+    steps:
+      # Restrict this protected environment to reviewed immutable tags. This
+      # runner must never execute pull-request or arbitrary branch workflows.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          clean: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: node scripts/prepare-release.mjs
+      - run: node scripts/tauri.mjs build --bundles nsis --config artifacts/tauri.release.conf.json
+      - name: Verify both Authenticode signatures
+        shell: pwsh
+        run: |
+          ./scripts/verify-signature.ps1 -Path ./src-tauri/target/release/villow-setup.exe -ExpectedThumbprint $env:VILLOW_CERT_SHA1 -ExpectedSubject $env:VILLOW_CERT_SUBJECT
+          $installers = @(Get-ChildItem -LiteralPath ./src-tauri/target/release/bundle/nsis -Filter '*-setup.exe')
+          if ($installers.Count -ne 1) { throw 'Expected one installer' }
+          ./scripts/verify-signature.ps1 -Path $installers[0].FullName -ExpectedThumbprint $env:VILLOW_CERT_SHA1 -ExpectedSubject $env:VILLOW_CERT_SUBJECT
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-installer-awaiting-review
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+      # Publishing is a separate maintainer action after clean signed Windows
+      # visual/install checks. This workflow has no release-write permission.

@@ -1,0 +1,23 @@
+fn main() {
+    #[cfg(feature = "desktop")]
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
+        tauri_build::AppManifest::new().commands(&[
+            "snapshot",
+            "check_release",
+            "start_installation",
+            "save_credentials",
+            "discover_accounts",
+            "select_accounts",
+            "set_google",
+            "set_database_connection",
+            "advance",
+            "open_step",
+            "export_recovery",
+            "import_recovery",
+            "remove_credentials",
+            "forget_instance",
+            "reconcile_created",
+        ]),
+    ))
+    .expect("Tauri capability build failed")
+}

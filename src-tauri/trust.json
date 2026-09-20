@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "repository": "nicholasnucifora/Villow-Setup",
+  "channel": "stable",
+  "manifest_url": "https://github.com/nicholasnucifora/Villow-Setup/releases/download/villow-channel/channel.json",
+  "public_keys": {},
+  "minimum_sequence": 1,
+  "publisher": null
+}
