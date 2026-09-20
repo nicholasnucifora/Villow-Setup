@@ -13,7 +13,7 @@ export const nativeBridge: Bridge = {
           release: null,
           release_checked_at: null,
           message:
-            "Browser preview. Real setup runs in the installed desktop application. Use the separate demo to explore.",
+            "Browser preview. Read the account guide here; real setup runs in the installed desktop application.",
         } satisfies Snapshot as T;
       throw new Error(
         "Open the installed desktop application to use this action.",

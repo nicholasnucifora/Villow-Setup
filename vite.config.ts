@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   root: realpathSync.native(fileURLToPath(new URL(".", import.meta.url))),
   plugins: [react()],
+  define: {
+    __TESTING_TOOLS__: process.env.VILLOW_SETUP_TESTING === "1",
+    __UNSIGNED_ALPHA__: process.env.VILLOW_SETUP_ALPHA === "1",
+  },
   clearScreen: false,
   server: {
     host: "127.0.0.1",

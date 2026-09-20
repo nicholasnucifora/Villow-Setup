@@ -36,7 +36,7 @@ impl Manager {
         Ok(Snapshot { manager_version: env!("CARGO_PKG_VERSION").into(), trust_configured: self.trust.configured(),
             installation: self.store.load()?, release: None, release_checked_at: None, release_digest: None,
             message: if self.trust.configured() { "Release status has not been checked this session." } else {
-                "Development build: the official signed Villow release and publisher are not configured. Cloud setup is unavailable. Explore the separate demo to review the journey."
+                "The official signed Villow release and publisher are not configured. Cloud setup is unavailable; you can read the account guide without creating accounts or tokens."
             }.into() })
     }
     pub fn release(&self, pinned: Option<&str>) -> Result<VerifiedRelease> {

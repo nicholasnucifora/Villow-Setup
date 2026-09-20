@@ -4,6 +4,19 @@ Started 2026-09-20. This is the ongoing backlog for the developer and both repos
 
 **Owners:** “You” means the maintainer; “Setup agent” works in `nicholasnucifora/Villow-Setup`; “web agent” works in `nicholasnucifora/Villow` (the local `disconnect` project). Both agents can continue implementation in separate repos. You need not keep the projects nested or translate this checklist into code yourself.
 
+## Unsigned-alpha handoff follow-up — 2026-09-20
+
+The maintainer explicitly deferred Windows signing and requested the web agent's follow-up handoff be implemented here. [Unsigned alpha](unsigned-alpha.md) now records the separate build command, exact public trust fields, artifact names and ownership. This supersedes any interpretation below that Windows enrollment must precede local real-account alpha qualification; signed public release gates are unchanged.
+
+- [x] **Setup agent:** Review the pending account walkthrough/testing exclusion work and add an explicit `desktop:build:alpha` profile with its own name/identifier and no testing UI. Validate genuine public-trust configuration before invoking its build; do not generate release keys here.
+- [x] **Setup agent:** Require the disposable database in the opt-in app-release test; check new-session resume, full native ledger checksums and installation/release ownership, and reject ledger/schema drift. Document the unproven crash/COMMIT-response scenarios separately.
+- [x] **Web agent (handoff received; interface inspected):** Implement explicit clean Setup-root/full-SHA validation and refusal of zero native tests. This is still web working-tree source, not evidence of a final published app candidate or hosted workflow run.
+- [ ] **Both agents:** Record the final immutable pair, pin Setup in the web workflow and run its full release qualification against the reviewed app commit. The Setup agent returns its committed candidate plus local results; synthetic app working-tree smoke checks are not an official app release.
+- [ ] **Web-release maintainer:** Supply the approved publisher label, genuine raw Ed25519 public key/key ID, signed channel sequence/expiry and published immutable artifacts. Private-key custody remains on that side; no provider tokens are required for this handoff.
+- [ ] **Setup agent, after authentic artifacts exist:** Commit the matching public trust, build the actual unsigned alpha, record its installer hash and inspect installation/reopen. Then coordinate the real disposable-account journey and owner consent.
+
+No qualification booleans or production trust values have been filled by this follow-up. Earlier entries and artifact hashes below are dated results, not the final alpha's identity.
+
 ## 1. Finish the repository move — do now
 
 - [x] **Setup agent:** Complete [standalone-handoff.md](standalone-handoff.md). Confirm source and hidden configuration live at the new repository root, audit parent-relative paths, preserve application identity, and update current instructions. Keep generated files/secrets out of Git.
@@ -69,6 +82,18 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 - [ ] **You + both agents:** Maintain signing/account access, dependencies/security findings, provider API/OAuth changes, supported Windows/WebView2 behavior, compatibility pins and release evidence. Coordinate changes to manifest/schema/health/auth/environment contracts before shipping either side. Treat automatic updates/upgrades as future design work, not existing functionality.
 
 ## Progress and coordination record
+
+### 2026-09-20 — account walkthrough revision
+
+**Owner:** Setup agent. Implemented separate Vercel, Supabase and Google Cloud preparation pages with progress, back navigation, concise stopping points and six screenshot placeholders. Clarified that Setup creates Vercel/Supabase projects, generates the database password and later configures the database; Google project ID and OAuth details are requested at their respective steps. Improved real token-entry instructions, require both tokens for initial connection, clear inputs on success/failure and require successful discovery plus explicit account confirmation before creation. These UI checks supplement the existing Rust authorization boundary.
+
+Ordinary builds exclude testing UI and the demo engine. `desktop:dev:testing` / `desktop:build:testing` opt in and isolate application identity. The testing switch starts off; switching it off exits a running demo. Added build-variant assertions to CI and documented replacement of screenshot slots in [account-guide.md](account-guide.md). This work does not implement the older standalone-handoff assignments or change the separate web repository.
+
+**Passed:** `npm ci`; `npm run check`; `npm test` (20); `npm run build`; `npm run test:build-profiles`; `npm run native:test` (34 ordinary tests with normal Windows-account access); `node scripts/native.mjs fmt --all -- --check`; `npm run security:scan`; `npm run desktop:build`; `git diff --check`. The restricted native suite first hit the expected Credential Manager sandbox failure; the complete normal-access rerun passed. Existing five opt-in app/PostgreSQL tests were not run. The ordinary native welcome/Vercel/Supabase screens and ordinary browser preparation journey were visually inspected. The release gate rejected all unresolved production prerequisites as expected.
+
+**Artifact:** `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe`, SHA-256 `21DE76A46E76880FA6E7379C77320DA8E01D78D908DE13EE9305BB71C36AE740`, Authenticode `NotSigned`. The packaged frontend excludes testing controls. The native executable was launched directly; a new installer install/uninstall smoke cycle, clean-machine/high-DPI/minimum-size qualification and the separate testing NSIS build were not performed. These changes are local working-tree changes, not a new published release.
+
+**Still blocked:** A complete real-account walkthrough needs the authenticated app release and publisher configuration plus the established qualification process. The new build explains this before collecting tokens or asking the user to prepare accounts. Production trust, qualification flags and all cloud resources remain unchanged.
 
 Add a dated entry for each completed stage or concrete blocker:
 

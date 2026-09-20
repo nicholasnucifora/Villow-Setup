@@ -37,7 +37,7 @@ describe("owner-facing setup", () => {
     render(<App initialBridge={bridge} />);
     expect(
       await screen.findByText(
-        "Public installation is not available in this build",
+        "Cloud installation is not available in this build",
       ),
     ).toBeInTheDocument();
     expect(
@@ -68,6 +68,7 @@ describe("owner-facing setup", () => {
       } satisfies Snapshot),
     };
     const { container } = render(<App initialBridge={bridge} />);
+    await prepareAccounts(userEvent.setup());
     expect(await screen.findByText(attack)).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("script")).toBeNull();
@@ -76,6 +77,7 @@ describe("owner-facing setup", () => {
     const user = userEvent.setup();
     const demo = new DemoBridge();
     render(<App initialBridge={demo} />);
+    await prepareAccounts(user);
     await screen.findByRole("button", { name: /Start my setup/ });
     await user.type(
       screen.getByLabelText("Your Google account email"),
@@ -96,17 +98,23 @@ describe("owner-facing setup", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /Create the next project/ }),
+        screen.getByRole("button", {
+          name: /Create (?:Vercel|Supabase) project/,
+        }),
       ).toBeEnabled(),
     );
     await user.click(
-      screen.getByRole("button", { name: /Create the next project/ }),
+      screen.getByRole("button", {
+        name: /Create (?:Vercel|Supabase) project/,
+      }),
     );
     await waitFor(() =>
       expect(screen.getByText("demo-vercel-project")).toBeInTheDocument(),
     );
     await user.click(
-      screen.getByRole("button", { name: /Create the next project/ }),
+      screen.getByRole("button", {
+        name: /Create (?:Vercel|Supabase) project/,
+      }),
     );
     await user.click(
       await screen.findByRole("button", { name: /Reserve my address/ }),
@@ -163,16 +171,20 @@ describe("owner-facing setup", () => {
       const user = userEvent.setup();
       const demo = await selectedDemo();
       render(<App initialBridge={demo} />);
-      await screen.findByRole("heading", { name: "Your accounts" });
+      await screen.findByRole("heading", { name: "Connect your accounts" });
       await user.selectOptions(screen.getByLabelText("Demo failure"), failure);
       await user.click(
-        screen.getByRole("button", { name: /Create the next project/ }),
+        screen.getByRole("button", {
+          name: /Create (?:Vercel|Supabase) project/,
+        }),
       );
       expect(await screen.findByRole("alert")).toHaveFocus();
       expect(screen.getByLabelText("Demo failure")).toHaveValue("none");
       expect(screen.queryByText("demo-vercel-project")).not.toBeInTheDocument();
       await user.click(
-        screen.getByRole("button", { name: /Create the next project/ }),
+        screen.getByRole("button", {
+          name: /Create (?:Vercel|Supabase) project/,
+        }),
       );
       expect(
         await screen.findByText("demo-vercel-project"),
@@ -186,7 +198,9 @@ describe("owner-facing setup", () => {
     await demo.call("advance");
     render(<App initialBridge={demo} />);
     await user.click(
-      await screen.findByRole("button", { name: /Create the next project/ }),
+      await screen.findByRole("button", {
+        name: /Create (?:Vercel|Supabase) project/,
+      }),
     );
     expect(
       await screen.findByRole("heading", { name: "Your address" }),
@@ -355,13 +369,17 @@ describe("owner-facing setup", () => {
       (await demo.call<Snapshot>("snapshot")).installation?.credentials_removed,
     ).toBe(true);
     expect(
-      screen.queryByRole("button", { name: /Create the next project/ }),
+      screen.queryByRole("button", {
+        name: /Create (?:Vercel|Supabase) project/,
+      }),
     ).not.toBeInTheDocument();
     await user.click(
       screen.getAllByRole("button", { name: "Load demo accounts" })[0],
     );
     expect(
-      await screen.findByRole("button", { name: /Create the next project/ }),
+      await screen.findByRole("button", {
+        name: /Create (?:Vercel|Supabase) project/,
+      }),
     ).toBeEnabled();
     expect(remove).toBeDisabled();
     const forget = screen.getByRole("button", {
@@ -379,7 +397,7 @@ describe("owner-facing setup", () => {
     );
     await user.click(forget);
     expect(
-      await screen.findByRole("button", { name: /Start my setup/ }),
+      await screen.findByRole("button", { name: /Prepare my accounts/ }),
     ).toBeInTheDocument();
     expect((await demo.call<Snapshot>("snapshot")).installation).toBeNull();
   });
@@ -447,4 +465,15 @@ async function selectedDemo() {
     },
   });
   return demo;
+}
+
+async function prepareAccounts(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    await screen.findByRole("button", { name: /Prepare my accounts/ }),
+  );
+  for (const provider of ["Vercel", "Supabase", "Google Cloud"]) {
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(provider + " is ready") }),
+    );
+  }
 }

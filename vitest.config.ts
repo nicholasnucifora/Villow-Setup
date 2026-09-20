@@ -7,6 +7,7 @@ export default defineConfig({
   envDir: "./.no-environment-files",
   css: { postcss: { plugins: [] } },
   plugins: [react()],
+  define: { __TESTING_TOOLS__: true, __UNSIGNED_ALPHA__: false },
   test: {
     environment: "jsdom",
     include: ["tests/**/*.spec.ts", "tests/**/*.spec.tsx"],

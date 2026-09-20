@@ -275,5 +275,13 @@ fn missing_vault_never_falls_back_to_plaintext() {
 }
 #[test]
 fn unconfigured_build_is_fail_closed() {
-    assert!(!Trust::embedded().unwrap().configured());
+    // Test the missing-trust behavior without requiring every future build to
+    // have empty checked-in trust (a genuine alpha will configure public keys).
+    let mut trust = Trust::embedded().unwrap();
+    trust.public_keys.clear();
+    assert!(!trust.configured());
+    assert!(matches!(
+        verify_channel(b"{}", &trust, chrono::Utc::now()),
+        Err(Error::Unconfigured)
+    ));
 }

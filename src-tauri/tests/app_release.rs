@@ -1,5 +1,6 @@
 mod common;
 use std::{collections::BTreeMap, fs, path::PathBuf};
+use villow_setup::error::Error;
 use villow_setup::release::{verify_bundle, verify_channel, Trust};
 
 // Explicit local qualification input. Production trust remains unconfigured;
@@ -7,6 +8,11 @@ use villow_setup::release::{verify_bundle, verify_channel, Trust};
 #[test]
 #[ignore = "requires an app-owned disposable release fixture"]
 fn authenticates_the_app_release_and_transactional_baseline() {
+    assert_eq!(
+        std::env::var("VILLOW_LOCAL_DB_TESTS").as_deref(),
+        Ok("disposable-local-cluster"),
+        "App release qualification requires the web harness's disposable local database; database checks cannot be skipped"
+    );
     let dir = PathBuf::from(std::env::var("VILLOW_APP_RELEASE_TEST_DIR").unwrap());
     let public_key = fs::read_to_string(dir.join("test-public-key.txt")).unwrap();
     let trust = Trust {
@@ -35,22 +41,29 @@ fn authenticates_the_app_release_and_transactional_baseline() {
         &trust,
     )
     .unwrap();
-    if std::env::var("VILLOW_LOCAL_DB_TESTS").as_deref() == Ok("disposable-local-cluster") {
-        let mut client = postgres::Config::new()
-            .host("127.0.0.1")
-            .port(
-                std::env::var("VILLOW_LOCAL_DB_PORT")
-                    .unwrap()
-                    .parse()
-                    .unwrap(),
-            )
-            .user("postgres")
-            .password(std::env::var("VILLOW_LOCAL_DB_PASSWORD").unwrap())
-            .dbname("manager_check")
-            .connect(postgres::NoTls)
-            .unwrap();
+    {
+        let connect = || {
+            postgres::Config::new()
+                .host("127.0.0.1")
+                .port(
+                    std::env::var("VILLOW_LOCAL_DB_PORT")
+                        .unwrap()
+                        .parse()
+                        .unwrap(),
+                )
+                .user("postgres")
+                .password(std::env::var("VILLOW_LOCAL_DB_PASSWORD").unwrap())
+                .dbname("manager_check")
+                .connect(postgres::NoTls)
+                .unwrap()
+        };
+        let mut client = connect();
         let state = common::installation(&release);
         villow_setup::migration::apply(&mut client, &state, &release).unwrap();
+        drop(client);
+        // A new session models reopening after a completed SQL commit. It does
+        // not claim interruption inside a transaction or a lost COMMIT reply.
+        let mut client = connect();
         villow_setup::migration::apply(&mut client, &state, &release).unwrap();
         assert!(client
             .query_one("SELECT villow_setup_probe()", &[])
@@ -70,10 +83,37 @@ fn authenticates_the_app_release_and_transactional_baseline() {
                 .get::<_, i64>(0),
             0
         );
+        let owner = client.query_one("SELECT installation_id,release_digest FROM villow_setup.instance WHERE singleton=TRUE", &[]).unwrap();
+        assert_eq!(owner.get::<_, String>(0), state.id);
+        assert_eq!(owner.get::<_, String>(1), release.digest);
+        let rows = client.query("SELECT id,checksum,postcondition_checksum FROM villow_setup.migrations ORDER BY applied_at,id", &[]).unwrap();
+        assert_eq!(rows.len(), release.manifest.schema.migrations.len());
+        for (row, migration) in rows.iter().zip(&release.manifest.schema.migrations) {
+            assert_eq!(row.get::<_, String>(0), migration.id);
+            assert_eq!(
+                row.get::<_, String>(1),
+                release.manifest.files[&migration.file].sha256
+            );
+            assert_eq!(
+                row.get::<_, String>(2),
+                release.manifest.files[&migration.postcondition].sha256
+            );
+        }
+        client
+            .batch_execute("BEGIN; UPDATE villow_setup.migrations SET checksum='tampered'")
+            .unwrap();
+        assert_eq!(
+            villow_setup::migration::apply(&mut client, &state, &release),
+            Err(Error::SchemaDrift)
+        );
+        client.batch_execute("ROLLBACK").unwrap();
         client
             .batch_execute("ALTER TABLE users DROP COLUMN session_token")
             .unwrap();
-        assert!(villow_setup::migration::apply(&mut client, &state, &release).is_err());
+        assert_eq!(
+            villow_setup::migration::apply(&mut client, &state, &release),
+            Err(Error::SchemaDrift)
+        );
     }
     assert_eq!(release.manifest.schema.revision, "villow-fresh-158");
     assert!(release.manifest.configuration.contains_key("CRON_SECRET"));

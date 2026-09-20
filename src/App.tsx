@@ -1,5 +1,7 @@
 import {
   Children,
+  lazy,
+  Suspense,
   cloneElement,
   isValidElement,
   useEffect,
@@ -10,7 +12,8 @@ import {
 } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { nativeBridge } from "./bridge";
-import { DemoBridge, type Failure } from "./demo";
+import { AccountGuide, providers } from "./AccountGuide";
+import { GuideImage } from "./GuideImage";
 import { ReconciliationForm } from "./ReconciliationForm";
 import type {
   Accounts,
@@ -21,10 +24,14 @@ import type {
   Step,
 } from "./types";
 
+const TestingTools = __TESTING_TOOLS__
+  ? lazy(() => import("./TestingTools"))
+  : null;
+
 const stages: { key: Step; title: string; detail: string }[] = [
   {
     key: "projects",
-    title: "Your accounts",
+    title: "Connect your accounts",
     detail: "Choose where your app lives",
   },
   { key: "origin", title: "Your address", detail: "Reserve a permanent home" },
@@ -51,7 +58,7 @@ const stages: { key: Step; title: string; detail: string }[] = [
   { key: "health", title: "Make it yours", detail: "Sign in and verify" },
 ];
 const nextLabels: Record<Step, string> = {
-  projects: "Create the next project",
+  projects: "Create Vercel project",
   origin: "Reserve my address",
   google: "Continue to my database",
   database: "Prepare my database",
@@ -120,14 +127,15 @@ export function App({
   const [tools, setTools] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const [failure, setFailure] = useState<Failure>("none");
+  const [guidePage, setGuidePage] = useState(-1);
+  const [guideReady, setGuideReady] = useState([false, false, false]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const recoveryRef = useRef<HTMLElement>(null);
   const s = data?.installation;
   const screen = data
-    ? `${s?.id ?? "welcome"}:${s?.read_only ? "recovered" : (s?.step ?? "welcome")}`
+    ? `${s?.id ?? "welcome"}:${s?.read_only ? "recovered" : (s?.step ?? `guide-${guidePage}`)}`
     : null;
   useLayoutEffect(() => {
     if (!screen) return;
@@ -154,7 +162,8 @@ export function App({
     setTools(false);
     setRemoveConfirm(false);
     setConfirmation("");
-    setFailure("none");
+    setGuidePage(-1);
+    setGuideReady([false, false, false]);
     bridge
       .call<Snapshot>("snapshot")
       .then((v) => {
@@ -182,7 +191,6 @@ export function App({
         /* Keep the last visible checkpoint. */
       }
     } finally {
-      if (bridge instanceof DemoBridge) setFailure(bridge.failure);
       setBusy(false);
     }
   };
@@ -194,7 +202,7 @@ export function App({
   const open = (step: string) =>
     run(async () => {
       await bridge.call("open_step", { step });
-      if (bridge.demo)
+      if (__TESTING_TOOLS__ && bridge.demo)
         setNotice(
           "Demo: this button opens the official service in your system browser in the desktop app.",
         );
@@ -221,10 +229,23 @@ export function App({
         </p>
         <nav aria-label="Setup progress">
           <ol className="steps">
-            <li className={!s ? "current" : "past"}>
+            <li
+              className={!s && guidePage === -1 ? "current" : "past"}
+              aria-current={!s && guidePage === -1 ? "step" : undefined}
+            >
               <span className="step-number">{s ? "✓" : "1"}</span>
               <div>
                 Welcome<small>Understand your setup</small>
+              </div>
+            </li>
+            <li
+              className={!s && guidePage >= 0 ? "current" : s ? "past" : ""}
+              aria-current={!s && guidePage >= 0 ? "step" : undefined}
+            >
+              <span className="step-number">{s ? "✓" : "2"}</span>
+              <div>
+                Prepare your accounts
+                <small>Vercel · Supabase · Google Cloud</small>
               </div>
             </li>
             {stages.map((x, i) => (
@@ -233,7 +254,7 @@ export function App({
                 className={stage === i ? "current" : stage > i ? "past" : ""}
                 aria-current={stage === i ? "step" : undefined}
               >
-                <span className="step-number">{stage > i ? "✓" : i + 2}</span>
+                <span className="step-number">{stage > i ? "✓" : i + 3}</span>
                 <div>
                   {x.title}
                   <small>{x.detail}</small>
@@ -245,32 +266,13 @@ export function App({
         <div className="sidebar-footer">
           <span className="tiny-dot" />
           Runs on your computer
-          <small>
-            Setup {data?.manager_version ?? "0.1.0"} · Windows development build
-          </small>
+          <small>Setup {data?.manager_version ?? "0.1.0"} · Windows</small>
         </div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
           <span>{s ? s.name : "Your own Villow, at your pace"}</span>
           <div>
-            {bridge.demo ? (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => setBridge(nativeBridge)}
-              >
-                Leave demo
-              </button>
-            ) : (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => setBridge(new DemoBridge())}
-              >
-                Explore demo
-              </button>
-            )}
             {s && (
               <button
                 className="text-button"
@@ -284,35 +286,24 @@ export function App({
           </div>
         </header>
         <main>
-          {bridge.demo && (
-            <div className="demo-banner">
-              <div>
-                <strong>Demo mode</strong>
-                <span>
-                  Everything here is simulated. No cloud resources or real
-                  credentials.
-                </span>
-              </div>
-              <label>
-                Next operation
-                <select
-                  aria-label="Demo failure"
-                  value={failure}
-                  onChange={(e) => {
-                    const f = e.target.value as Failure;
-                    setFailure(f);
-                    if (bridge instanceof DemoBridge) bridge.failure = f;
-                  }}
-                >
-                  <option value="none">None</option>
-                  <option value="lost_response">Lost creation response</option>
-                  <option value="offline">Offline</option>
-                  <option value="expired">Expired token</option>
-                  <option value="rate_limit">Rate limit</option>
-                  <option value="health">Failed sign-in check</option>
-                </select>
-              </label>
+          {__UNSIGNED_ALPHA__ && (
+            <div className="alert" aria-label="Unsigned alpha">
+              <strong>Unsigned alpha · Fresh test installations</strong>
+              <p>
+                This version can create real cloud resources. Use dedicated test
+                resources and review the provider costs before continuing.
+              </p>
             </div>
+          )}
+          {TestingTools && (
+            <Suspense fallback={null}>
+              <TestingTools
+                bridge={bridge}
+                setBridge={setBridge}
+                nativeBridge={nativeBridge}
+                busy={busy}
+              />
+            </Suspense>
           )}
           {error && (
             <div
@@ -344,107 +335,173 @@ export function App({
           {!data && !error && <p role="status">Opening your saved setup…</p>}
           {data && !s && (
             <>
-              <div className="eyebrow">WELCOME TO VILLOW</div>
-              <h1 ref={headingRef} tabIndex={-1}>
-                Make room for
-                <br />
-                <em>intentional watching.</em>
-              </h1>
-              <p className="lead">
-                Put Villow in accounts you own. This app connects the pieces and
-                keeps your place along the way.
-              </p>
-              <div className="ownership-grid">
-                <article>
-                  <span className="service-icon">V</span>
-                  <h2>A home for your app</h2>
-                  <p>
-                    Vercel runs your website, even when this computer is off.
-                  </p>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => open("vercel_signup")}
-                  >
-                    Vercel account ↗
-                  </button>
-                </article>
-                <article>
-                  <span className="service-icon">S</span>
-                  <h2>A place for your data</h2>
-                  <p>
-                    Supabase stores your settings, subscriptions and library.
-                  </p>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => open("supabase_signup")}
-                  >
-                    Supabase account ↗
-                  </button>
-                </article>
-                <article>
-                  <span className="service-icon">G</span>
-                  <h2>Your video connection</h2>
-                  <p>
-                    Google Cloud lets your instance access your YouTube
-                    subscriptions.
-                  </p>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => open("google_project")}
-                  >
-                    Google Cloud ↗
-                  </button>
-                </article>
+              <div className="eyebrow">
+                {guidePage === -1
+                  ? "WELCOME TO VILLOW"
+                  : "STEP 2 OF 9 · PREPARE YOUR ACCOUNTS"}
               </div>
-              <p className="quiet">
-                You do not need GitHub, Git or a terminal. Account verification
-                and provider limits still apply. Services may charge for usage;
-                setup never chooses a paid upgrade for you.
-              </p>
-              {!data.trust_configured && (
-                <div className="alert">
-                  <strong>
-                    Public installation is not available in this build
-                  </strong>
-                  <p>{data.message}</p>
-                  <p>
-                    The signed Villow release, safe database baseline and
-                    intended-owner bootstrap must be published first.
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className={guidePage >= 0 ? "step-title" : undefined}
+              >
+                {guidePage === -1 ? (
+                  <>
+                    Make room for
+                    <br />
+                    <em>intentional watching.</em>
+                  </>
+                ) : guidePage < 3 ? (
+                  providers[guidePage]
+                ) : data.trust_configured ? (
+                  "Your accounts are ready"
+                ) : (
+                  "Account guide complete"
+                )}
+              </h1>
+              {!data.trust_configured &&
+                (guidePage >= 0 && guidePage < 3 ? (
+                  <p className="guide-preview-note">
+                    Guide preview · Account connection is unavailable in this
+                    build.
                   </p>
-                </div>
+                ) : (
+                  <div className="alert">
+                    <strong>
+                      Cloud installation is not available in this build
+                    </strong>
+                    <p>
+                      The verified Villow release and publisher are not
+                      configured yet. You can read the account guide, but this
+                      build cannot connect your accounts or create your app.
+                    </p>
+                    <p>
+                      You do not need to create accounts or tokens just to
+                      review the guide. An updated build with a verified release
+                      is required before installation can continue.
+                    </p>
+                  </div>
+                ))}
+              {guidePage === -1 && (
+                <>
+                  <p className="lead">
+                    Put Villow in accounts you own. We’ll guide you through each
+                    service, one at a time.
+                  </p>
+                  <div className="ownership-grid">
+                    <article>
+                      <span className="service-icon">V</span>
+                      <h2>Vercel</h2>
+                      <p>
+                        A home for your website. Create an account; Setup
+                        creates the project.
+                      </p>
+                    </article>
+                    <article>
+                      <span className="service-icon">S</span>
+                      <h2>Supabase</h2>
+                      <p>
+                        A place for your data. Choose an organization; Setup
+                        creates the database.
+                      </p>
+                    </article>
+                    <article>
+                      <span className="service-icon">G</span>
+                      <h2>Google Cloud</h2>
+                      <p>
+                        Your Google and YouTube connection. You create one
+                        project with our guidance.
+                      </p>
+                    </article>
+                  </div>
+                  <p className="quiet">
+                    You’ll need access to all three services for a real
+                    installation. Existing accounts are fine. You do not need
+                    GitHub, Git or a terminal. Review provider plans and limits;
+                    Setup never chooses a paid upgrade for you.
+                  </p>
+                  <button
+                    className="primary"
+                    disabled={busy}
+                    onClick={() => setGuidePage(0)}
+                  >
+                    {data.trust_configured
+                      ? "Prepare my accounts"
+                      : "Read the account guide"}
+                    <span>→</span>
+                  </button>
+                </>
               )}
-              {data.trust_configured && (
-                <ReleaseForm
-                  bridge={bridge}
-                  data={data}
+              {guidePage >= 0 && guidePage < 3 && (
+                <AccountGuide
+                  previewOnly={!data.trust_configured}
+                  page={guidePage}
+                  ready={guideReady}
                   busy={busy}
-                  action={action}
+                  open={open}
+                  navigate={setGuidePage}
+                  confirm={() => {
+                    const ready = guideReady.map(
+                      (value, index) => index === guidePage || value,
+                    );
+                    setGuideReady(ready);
+                    setGuidePage(
+                      guidePage < 2
+                        ? guidePage + 1
+                        : ready.every(Boolean)
+                          ? 3
+                          : ready.indexOf(false),
+                    );
+                  }}
                 />
               )}
-              {!data.trust_configured && (
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() => setBridge(new DemoBridge())}
-                >
-                  Explore the setup demo <span>→</span>
-                </button>
+              {guidePage === 3 && (
+                <>
+                  <p className="lead">
+                    Next, connect Vercel and Supabase so Setup can find your
+                    accounts and create your dedicated projects.
+                  </p>
+                  <p>
+                    You’ll paste an access token from each service into this
+                    app. Google’s client ID and secret come later, at Connect
+                    Google, once your website address is ready.
+                  </p>
+                  {data.trust_configured ? (
+                    <ReleaseForm
+                      bridge={bridge}
+                      data={data}
+                      busy={busy}
+                      action={action}
+                    />
+                  ) : (
+                    <p className="guide-takeaway">
+                      Account connection will become available in a build with a
+                      verified release. No tokens are needed in this build.
+                    </p>
+                  )}
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => setGuidePage(0)}
+                  >
+                    Review account instructions
+                  </button>
+                </>
               )}
-              <button
-                className="text-button recovery-link"
-                disabled={busy || bridge.demo}
-                onClick={() => action("import_recovery")}
-              >
-                Open a recovery file
-              </button>
-              <p className="privacy-note">
-                Your management credentials stay on this computer and go
-                directly to your chosen providers. The Villow website never
-                receives them.
-              </p>
+              <div className="form-section">
+                <button
+                  className="text-button"
+                  disabled={busy || (__TESTING_TOOLS__ && bridge.demo)}
+                  onClick={() => action("import_recovery")}
+                >
+                  Open a recovery file
+                </button>
+                <p className="privacy-note">
+                  Your management credentials stay on this computer and go
+                  directly to your chosen providers. The Villow website never
+                  receives them.
+                </p>
+              </div>
             </>
           )}
           {s && (
@@ -452,13 +509,13 @@ export function App({
               <div className="eyebrow">
                 {s.step === "complete"
                   ? "YOUR SPACE IS READY"
-                  : `STEP ${Math.max(0, stage) + 2} OF 8`}
+                  : `STEP ${Math.max(0, stage) + 3} OF 9`}
               </div>
               <h1 className="step-title" ref={headingRef} tabIndex={-1}>
                 {s.read_only
                   ? "Your recovered instance"
                   : s.step === "complete"
-                    ? bridge.demo
+                    ? __TESTING_TOOLS__ && bridge.demo
                       ? "You’ve finished the demo."
                       : "Welcome to your Villow."
                     : stages[stage]?.title}
@@ -512,7 +569,7 @@ export function App({
                     <GoogleForm
                       s={s}
                       busy={busy}
-                      demo={bridge.demo}
+                      demo={__TESTING_TOOLS__ && bridge.demo}
                       action={action}
                       open={open}
                     />
@@ -521,7 +578,7 @@ export function App({
                     <DatabaseStep
                       s={s}
                       busy={busy}
-                      demo={bridge.demo}
+                      demo={__TESTING_TOOLS__ && bridge.demo}
                       action={action}
                     />
                   )}
@@ -585,7 +642,7 @@ export function App({
                   {s.step === "complete" && (
                     <>
                       <p className="lead">
-                        {bridge.demo
+                        {__TESTING_TOOLS__ && bridge.demo
                           ? "The simulated checks passed. A real installation must pass them against your provider accounts and hosted app."
                           : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
                       </p>
@@ -598,6 +655,7 @@ export function App({
                     </>
                   )}
                   {s.step !== "google" &&
+                    (s.step !== "projects" || !!s.selection) &&
                     (!s.credentials_removed || s.step === "complete") && (
                       <div className="action-row">
                         <button
@@ -607,7 +665,12 @@ export function App({
                             s.step === "complete" ? () => open("app") : advance
                           }
                         >
-                          {nextLabels[s.step]} <span>→</span>
+                          {s.step === "projects"
+                            ? s.vercel
+                              ? "Create Supabase project"
+                              : "Create Vercel project"
+                            : nextLabels[s.step]}{" "}
+                          <span>→</span>
                         </button>
                         {s.step !== "complete" && (
                           <span className="quiet">
@@ -618,7 +681,7 @@ export function App({
                     )}
                 </>
               )}
-              {!bridge.demo && !s.read_only && (
+              {!(__TESTING_TOOLS__ && bridge.demo) && !s.read_only && (
                 <ReconciliationForm
                   s={s}
                   busy={busy}
@@ -626,7 +689,7 @@ export function App({
                   open={open}
                 />
               )}
-              <ResourceSummary s={s} demo={bridge.demo} />
+              <ResourceSummary s={s} demo={__TESTING_TOOLS__ && bridge.demo} />
               {tools && (
                 <section
                   className="recovery-panel"
@@ -649,7 +712,7 @@ export function App({
                           await bridge.call<boolean>("export_recovery");
                         setNotice(
                           saved
-                            ? bridge.demo
+                            ? __TESTING_TOOLS__ && bridge.demo
                               ? "Demo: recovery export simulated. Real exports use a native save dialog."
                               : "Recovery information saved without credentials."
                             : "Export cancelled.",
@@ -659,25 +722,27 @@ export function App({
                   >
                     Save recovery information
                   </button>
-                  <details>
-                    <summary>Review diagnostic information</summary>
-                    <p>
-                      Only the nonsecret checkpoint below is available. No
-                      provider response bodies or viewing data are collected.
-                    </p>
-                    <pre>
-                      {JSON.stringify(
-                        {
-                          id: s.id,
-                          step: s.step,
-                          effects: s.effects,
-                          checks: s.checks,
-                        },
-                        null,
-                        2,
-                      )}
-                    </pre>
-                  </details>
+                  {__TESTING_TOOLS__ && (
+                    <details>
+                      <summary>Review diagnostic information</summary>
+                      <p>
+                        Only the nonsecret checkpoint below is available. No
+                        provider response bodies or viewing data are collected.
+                      </p>
+                      <pre>
+                        {JSON.stringify(
+                          {
+                            id: s.id,
+                            step: s.step,
+                            effects: s.effects,
+                            checks: s.checks,
+                          },
+                          null,
+                          2,
+                        )}
+                      </pre>
+                    </details>
+                  )}
                   {!s.read_only && (
                     <details>
                       <summary>Reconnect expired provider access</summary>
@@ -718,7 +783,7 @@ export function App({
                       action("remove_credentials", undefined, () => {
                         setRemoveConfirm(false);
                         setNotice(
-                          bridge.demo
+                          __TESTING_TOOLS__ && bridge.demo
                             ? "Demo: saved access removed. Your simulated instance is still available."
                             : "Saved credentials removed from this computer. Your cloud app and provider billing continue.",
                         );
@@ -799,7 +864,10 @@ function ReleaseForm({
   const [name, setName] = useState("my-villow"),
     [email, setEmail] = useState(""),
     [consent, setConsent] = useState(false);
-  const digest = bridge.demo ? "demo-digest" : (data.release_digest ?? "");
+  const digest =
+    __TESTING_TOOLS__ && bridge.demo
+      ? "demo-digest"
+      : (data.release_digest ?? "");
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void action("start_installation", { name, email, digest });
@@ -820,7 +888,9 @@ function ReleaseForm({
           <div className="release-line">
             <strong>Villow {data.release.app_version}</strong>
             <span>
-              {bridge.demo ? "Simulated release" : "Authenticated release"}
+              {__TESTING_TOOLS__ && bridge.demo
+                ? "Simulated release"
+                : "Authenticated release"}
             </span>
           </div>
           <details>
@@ -906,11 +976,12 @@ function AccountForm({
   const connect = () =>
     run(async () => {
       setConnected(false);
+      setCosts(false);
       try {
         refresh(
           await bridge.call<Snapshot>("save_credentials", {
-            vercel: bridge.demo ? "demo" : vercel,
-            supabase: bridge.demo ? "demo" : supabase,
+            vercel: __TESTING_TOOLS__ && bridge.demo ? "demo" : vercel,
+            supabase: __TESTING_TOOLS__ && bridge.demo ? "demo" : supabase,
           }),
         );
         const a = await bridge.call<Accounts>("discover_accounts");
@@ -925,20 +996,26 @@ function AccountForm({
     });
   return (
     <section>
-      <p className="lead">Your services, connected from this computer.</p>
+      <p className="lead">Give Setup access to Vercel and Supabase.</p>
       {!s.selection || s.credentials_removed || reconnect ? (
         <>
           <p>
-            Use short-lived management tokens. A Supabase personal token can
-            carry your account’s permissions; it is different from a database
-            password or app API key. Choose the smallest available scope and
-            revoke it when you finish.
+            Paste the two access tokens below, then read your accounts. This
+            does not create projects. You’ll choose the accounts and confirm
+            before anything is created.
           </p>
-          {!bridge.demo && (
+          <p>
+            Tokens let Setup act on your behalf; they are not your sign-in
+            passwords. Use short-lived management tokens. A Supabase personal
+            token can carry your account’s permissions; it is different from a
+            database password or app API key. Choose the smallest available
+            scope and revoke it when you finish.
+          </p>
+          {!(__TESTING_TOOLS__ && bridge.demo) && (
             <div className="form-grid">
               <Field
                 label="Vercel access token"
-                hint="Select only the account you will use and a short expiry."
+                hint="In your personal account’s Settings → Tokens, name it Villow Setup, choose the account/team you’ll use and a short expiry. Copy the token while it is visible."
               >
                 <input
                   type="password"
@@ -959,7 +1036,7 @@ function AccountForm({
               </Field>
               <Field
                 label="Supabase management token"
-                hint="A personal token may reach all organizations you can manage."
+                hint="In Account → Access Tokens, generate a personal access token named Villow Setup. Copy it here. It may reach all organizations you can manage; this is not a project API key."
               >
                 <input
                   type="password"
@@ -980,24 +1057,53 @@ function AccountForm({
               </Field>
             </div>
           )}
+          {!(__TESTING_TOOLS__ && bridge.demo) && (
+            <details>
+              <summary>Show me where to create the tokens</summary>
+              <div className="form-grid">
+                <GuideImage name="vercel-token" />
+                <GuideImage name="supabase-token" />
+              </div>
+            </details>
+          )}
           <button
             className="secondary"
-            disabled={busy || (!bridge.demo && !vercel && !supabase)}
+            disabled={
+              busy ||
+              (!(__TESTING_TOOLS__ && bridge.demo) &&
+                (reconnect || s.credentials_removed
+                  ? !vercel.trim() && !supabase.trim()
+                  : !vercel.trim() || !supabase.trim()))
+            }
             onClick={connect}
           >
-            {bridge.demo
+            {__TESTING_TOOLS__ && bridge.demo
               ? "Load demo accounts"
               : "Save tokens & read my accounts"}
           </button>
           {connected && !s.credentials_removed && (
             <p role="status">
-              {bridge.demo ? "Demo accounts loaded." : "Account access loaded."}
+              {__TESTING_TOOLS__ && bridge.demo
+                ? "Demo accounts loaded."
+                : "Account access loaded."}
               {s.selection &&
                 " Continue setup to check access against your saved accounts."}
             </p>
           )}
-          {accounts && !s.selection && (
+          {accounts && connected && !s.selection && (
             <div className="form-section">
+              <h2>Choose where Villow will live</h2>
+              <p>
+                These names come from your providers. Choose the accounts you
+                prepared earlier and the region closest to your users.
+              </p>
+              {(!accounts.vercel.length || !accounts.supabase.length) && (
+                <p role="alert">
+                  No eligible account or organization was returned. Check the
+                  token permissions and that you have a Supabase organization,
+                  then reconnect.
+                </p>
+              )}
               <div className="form-grid">
                 <Field label="Vercel account">
                   <select
@@ -1152,13 +1258,14 @@ function GoogleForm({
           <button
             className="text-button"
             disabled={busy}
-            onClick={() => open("google_project")}
+            onClick={() => open("google_dashboard")}
           >
-            Create or select a Google Cloud project ↗
+            Open your prepared Google Cloud project ↗
           </button>
           <p>
-            Use a dedicated project you own. Accept any account verification
-            steps in Google’s browser window.
+            Select the project you prepared earlier from the top bar. You can
+            find its Project ID in Project info; there is no need to create a
+            second project.
           </p>
         </li>
         <li>
@@ -1199,6 +1306,7 @@ function GoogleForm({
           </p>
         </li>
       </ol>
+      <GuideImage name="google-oauth" />
       <div className="copy-row">
         <div>
           <small>Authorized JavaScript origin</small>
@@ -1246,7 +1354,10 @@ function GoogleForm({
       </div>
       <form onSubmit={submit}>
         <div className="form-grid">
-          <Field label="Google Cloud project ID">
+          <Field
+            label="Google Cloud project ID"
+            hint="Copy Project ID from Project info in your Google Cloud dashboard. Use the ID, not the project name or number."
+          >
             <input
               required
               value={project}
@@ -1351,12 +1462,14 @@ function DatabaseStep({
   return (
     <section>
       <p className="lead">
-        Prepare a fresh database from the authenticated release.
+        Your database project is created. Now add Villow’s tables and access
+        rules.
       </p>
       <p>
-        Setup checks for existing app data, applies the signed migration plan
-        under a database lock, and verifies its postconditions. If the schema
-        differs, it stops for review.
+        Setup already saved the generated database password; you do not need to
+        enter it again. Setup checks for existing app data, applies the signed
+        migration plan under a database lock, and verifies its postconditions.
+        If the schema differs, it stops for review.
       </p>
       {demo ? (
         <p className="quiet">

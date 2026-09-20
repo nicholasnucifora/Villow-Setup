@@ -13,13 +13,17 @@ npm ci
 npm run desktop:dev
 ```
 
-Choose **Explore demo** to try the wizard and interruption scenarios. The demo stores only fictional state in its own browser storage. It makes no provider requests and never accepts management tokens.
+Normal development and installer builds open the account guide without testing controls. Prepare Vercel, Supabase and Google Cloud on individual pages, then connect provider access when an authenticated release is available. The current build explains its release prerequisite before asking users to create accounts or tokens.
+
+To opt in to the isolated demo and interruption scenarios, run `npm run desktop:dev:testing` or build `npm run desktop:build:testing`. Enable **Show testing tools**, then choose **Explore demo**. The testing application has a separate name and data identifier. The demo stores only fictional state in its own browser storage, makes no provider requests and never accepts management tokens. Ordinary builds exclude its engine and controls entirely.
 
 ```powershell
 npm run desktop:build
 ```
 
 The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+
+For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. It requires genuine app-release public trust but does not require Windows signing or pretend public qualification is complete. It currently stops before building because the real public key and publisher label have not been provided. See [unsigned alpha and web-agent handoff](docs/unsigned-alpha.md).
 
 ## Implemented
 
@@ -32,7 +36,7 @@ The development installer is generated at `src-tauri/target/release/bundle/nsis/
 
 ## Boundaries and remaining gates
 
-Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are now implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed and the remaining external qualifications. Setup now develops independently from this repository root; the paired web release harness still needs an explicit pinned Setup checkout before cross-repository qualification is restored.
+Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are now implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed and the remaining external qualifications. Setup now develops independently from this repository root. The web agent has implemented the explicit Setup-checkout qualification interface locally; its reviewed immutable pin and final paired release evidence still need to be recorded.
 
 Automated upgrades, writable adoption after loss of local state, repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
 

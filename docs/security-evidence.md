@@ -2,6 +2,26 @@
 
 This describes tested properties of the development implementation, not proof that it has no vulnerabilities. All application data and credentials used in tests are synthetic. No real-provider deployment or Google sign-in was performed, and no production data was copied here.
 
+## Explicit unsigned-alpha preparation — 2026-09-20
+
+The maintainer authorized a real-account alpha while deferring Windows signing. `desktop:build:alpha` selects a distinct product/identifier, compiles out testing tools and validates public trust without changing the native verifier or public qualification record. Both the missing-public-trust alpha build and the unfinished public-release gate were exercised and refused as expected. `src-tauri/trust.json` and `docs/qualification.json` remain unchanged. No private key was generated or accepted by Setup.
+
+Passed: `npm ci`; `npm run check`; `npm test` (20 UI tests); `npm run build`; `npm run test:packaging` (5 build-profile tests); `npm run test:build-profiles` (normal/testing/alpha bundles); `npm run native:test` (34 ordinary tests); the updated 14-test native security suite; `npm run security:scan`; and `node scripts/test-postgres.mjs` (4 real disposable PostgreSQL tests). The native vault and PostgreSQL server needed normal Windows-account access after sandbox-only failures; the successful reruns did not bypass their checks. PostgreSQL stopped its own loopback cluster afterward. Test logs are under ignored `artifacts/`.
+
+The app-release native test now refuses absent disposable-database configuration (verified by an expected failing invocation), reconnects before repeat-apply, checks the full ledger and owner/release identity, and rejects altered ledger or schema. Its full actual-app execution requires the web-owned synthetic fixture and a clean committed Setup candidate. Local paired results are returned in `artifacts/setup-alpha-handoff.md` after the candidate commit; the final immutable web candidate, hosted pin and genuine published release remain separate work. See [unsigned-alpha.md](unsigned-alpha.md) for exact coverage and the remaining interruption/COMMIT-response tests.
+
+`npm run desktop:build` also passed. The rebuilt ordinary installer `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe` has SHA-256 `BFF330269D9859BF71DE373C8BC534A64D9E562B44FC61BD2A313DB7C2E6F7A9`; both installer and application report Authenticode `NotSigned`. It is for guide preview only with current trust. This pass does not establish a built/configured alpha, new install/uninstall verification, a signed Windows package, clean-Windows visual qualification or any real provider/OAuth journey. Existing account-guide visual observations remain dated below. Use the recorded installer, not an old installed EXE.
+
+## Account walkthrough and optional testing tools — 2026-09-20
+
+Normal frontend and desktop builds now exclude the demo engine, demo account controls, failure injection and diagnostic viewer. Testing builds opt in explicitly and use a separate application identity. CI now checks both frontend variants. Account preparation has separate Vercel, Supabase and Google Cloud pages with screenshot slots; real-mode token entry and account confirmation are covered with synthetic native responses. Readiness navigation never authorizes provider writes.
+
+Passed: `npm ci`, `npm run check`, `npm test` (20 tests), `npm run build`, `npm run test:build-profiles`, `npm run native:test` (34 ordinary tests), Rust formatting, `npm run security:scan` and `npm run desktop:build`. The sandbox vault test failed with `Vault`; the complete suite then passed with normal Windows-account access. Five opt-in app-release/PostgreSQL tests remain ignored. `release:gate` still rejects missing production trust and qualification.
+
+The rebuilt ordinary unsigned installer has SHA-256 `21DE76A46E76880FA6E7379C77320DA8E01D78D908DE13EE9305BB71C36AE740`. The native executable was launched and its welcome, Vercel and Supabase pages visually inspected. All three preparation pages and the guide completion screen were also inspected in the ordinary browser bundle. This does not establish clean Windows installation, exact minimum-size/high-DPI qualification, real token/provider behavior or a full real installation. The optional testing frontend was built and tested; a separate testing NSIS package was not produced in this pass.
+
+The signed app release, publisher identity and existing qualification gates are still prerequisites. No cloud resources, credentials or trust roots were changed. See [account guide](account-guide.md) for screenshot replacement and content sources.
+
 ## Standalone repository verification — 2026-09-20
 
 The repository-root adaptation and exact command results are recorded in the [maintainer release checklist](release-checklist.md). The final isolated portability run passed for 105 allowlisted files without parent dependencies. A current RustSec scan found RUSTSEC-2026-0285 in `rustls 0.23.44`; the lockfile was updated to `0.23.45`, after which 34 ordinary native tests, native checking, audit, development packaging, isolated install/two-launch/uninstall and portability verification passed. Seven allowed transitive maintenance/unsoundness warnings remain documented in the checklist.

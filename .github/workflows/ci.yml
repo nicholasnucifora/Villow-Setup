@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm run test:packaging
+      - run: npm run test:build-profiles
       - run: npm run native:test
       - run: npm run native:check
       - run: node scripts/native.mjs fmt --all -- --check

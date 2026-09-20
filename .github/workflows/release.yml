@@ -18,6 +18,8 @@ jobs:
       - run: npm run release:gate
       - run: npm run build
       - run: npm test
+      - run: npm run test:packaging
+      - run: npm run test:build-profiles
       - run: npm run native:test
       - run: npm run security:scan
       - run: npm audit --audit-level=moderate

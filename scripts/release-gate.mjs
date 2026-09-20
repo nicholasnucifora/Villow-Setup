@@ -9,6 +9,10 @@ export function releaseGate() {
       readFileSync(resolve(root, "docs/qualification.json"), "utf8"),
     );
   const errors = [];
+  if (process.env.VILLOW_SETUP_TESTING === "1")
+    errors.push("Testing tools must be disabled for public release.");
+  if (process.env.VILLOW_SETUP_ALPHA === "1")
+    errors.push("An unsigned alpha is not a qualified public release.");
   if (
     !trust.repository ||
     !trust.manifest_url ||

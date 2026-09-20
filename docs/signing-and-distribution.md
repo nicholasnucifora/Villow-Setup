@@ -1,5 +1,7 @@
 # Windows signing and distribution
 
+For the maintainer-authorized unsigned prototype, follow [unsigned-alpha.md](unsigned-alpha.md). App-release Ed25519 authentication remains mandatory, but that alpha does not require Windows certificate enrollment. The signed public release requirements below remain separate and unfulfilled.
+
 Status: the user selected **`nicholasnucifora/Villow-Setup`** for public distribution on 2026-09-11; GitHub's public API verified the repository. **Individual publishing is provisional**, with no organization established. The maintainer confirmed Australia on 2026-09-11. Legal publisher identity, issuer approval and signing credentials remain unconfirmed. `app.villow.setup.dev` and the unsigned development title make that explicit. Do not call the generated EXE a public release.
 
 ## Eligibility checked 2026-09-11

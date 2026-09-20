@@ -31,3 +31,8 @@ native application boundary.
 Use npm run desktop:build for an unsigned development installer. Public packaging
 requires the release gate and actual publisher signing. Do not claim a mock
 deployment or unsigned installer is ready for public use.
+
+The maintainer explicitly authorized a separate unsigned alpha for fresh-account
+qualification while Windows signing is deferred. Use `npm run desktop:build:alpha`
+and follow `docs/unsigned-alpha.md`. Genuine app-release authentication is still
+mandatory; never promote fixture keys or mark signed/public qualification passed.

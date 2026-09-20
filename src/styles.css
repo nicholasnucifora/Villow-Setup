@@ -668,6 +668,95 @@ details ul {
 .link-row button {
   text-transform: capitalize;
 }
+.provider-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 24px 0 30px;
+}
+.provider-progress button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px 12px;
+  font-size: 13px;
+  text-align: left;
+}
+.provider-progress button[aria-current="step"] {
+  border-color: var(--accent);
+  background: #eaf0e2;
+}
+.provider-progress span {
+  margin-right: 9px;
+}
+.provider-progress small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.guide-image {
+  border: 1px dashed #b8c4af;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 24px 0;
+  background: #f0f3e9;
+}
+.guide-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.image-placeholder {
+  min-height: 126px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #718264;
+  font-size: 12px;
+}
+.image-placeholder svg {
+  width: 40px;
+  height: 30px;
+}
+.guide-image figcaption {
+  padding: 12px 16px;
+  border-top: 1px dashed #cbd4c2;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  font-weight: 400;
+}
+.field .guide-image {
+  margin: 8px 0;
+}
+.field .image-placeholder {
+  min-height: 90px;
+}
+.guide-takeaway {
+  border-left: 3px solid #879b71;
+  padding: 4px 0 4px 18px;
+  font-size: 13px;
+  margin: 26px 0;
+}
+.guide-takeaway p {
+  margin: 4px 0;
+}
+.guide-actions {
+  justify-content: space-between;
+}
+.guide-preview-note {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #edf0e5;
+}
+.testing-tools .text-button {
+  display: block;
+  margin-top: 12px;
+}
 @media (max-width: 950px) {
   .sidebar {
     width: 210px;
