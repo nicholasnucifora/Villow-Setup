@@ -2,7 +2,7 @@
 
 A local Windows application for creating an owner-operated Villow instance in Vercel, Supabase and Google Cloud. The manager is separate from the hosted video app: closing or uninstalling it does not stop that app or cancel cloud billing.
 
-**Status: working development application, not a qualified public installer.** The unsigned Windows installer and isolated demo can be built now. Real adapters are implemented, but production creation deliberately stays disabled until the app maintainer publishes an authenticated release with the implemented fresh database baseline and intended-owner bootstrap, and the real installation journey is qualified. No existing cloud resources were used as tests.
+**Status: unsigned Alpha for fresh-account testing, not a qualified public installer.** Genuine app-release public trust is configured for Villow 0.1.0. The Alpha can authenticate that release and proceed to the real-account workflow. Real provider installation, owner sign-in and recovery still need qualification; Windows Authenticode signing remains deferred. No existing cloud resources were used as tests.
 
 ## Try the development application
 
@@ -23,7 +23,7 @@ npm run desktop:build
 
 The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
-For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. It requires genuine app-release public trust but does not require Windows signing or pretend public qualification is complete. It currently stops before building because the real public key and publisher label have not been provided. See [unsigned alpha and web-agent handoff](docs/unsigned-alpha.md).
+For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
 
 ## Implemented
 
@@ -36,7 +36,7 @@ For the maintainer's real-account prototype, `npm run desktop:build:alpha` selec
 
 ## Boundaries and remaining gates
 
-Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are now implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed and the remaining external qualifications. Setup now develops independently from this repository root. The web agent has implemented the explicit Setup-checkout qualification interface locally; its reviewed immutable pin and final paired release evidence still need to be recorded.
+Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed. Setup develops independently from this repository root. The web maintainer reports the frozen app/Setup pair passed its full qualification; exact commits and the separately verified genuine published artifacts are recorded in [the Alpha release record](docs/alpha-0.1.0.md).
 
 Automated upgrades, writable adoption after loss of local state, repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
 

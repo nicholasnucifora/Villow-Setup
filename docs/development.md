@@ -27,7 +27,7 @@ For a browser-only testing preview, set `VILLOW_SETUP_TESTING=1` in the command 
 
 ### Unsigned real-account alpha
 
-`npm run desktop:build:alpha` requires the maintainer's reviewed genuine public release trust and produces the separately named `Villow Setup Alpha_0.1.0_x64-setup.exe`. It disables testing tools, uses `app.villow.setup.alpha`, and does not require a Windows certificate or completed public qualification. The Rust release-verification path is unchanged. See [unsigned-alpha.md](unsigned-alpha.md) for exact trust fields, handoff order, package identity and remaining test requirements. No real-account alpha can be produced from today's empty public keys.
+`npm run desktop:build:alpha` uses the maintainer's reviewed genuine public release trust and produces the separately named `Villow Setup Alpha_0.1.0_x64-setup.exe`. It disables testing tools, uses `app.villow.setup.alpha`, and does not require a Windows certificate or completed public qualification. The Rust release-verification path is unchanged. See [unsigned-alpha.md](unsigned-alpha.md) for exact trust fields, handoff order, package identity and remaining test requirements. The supplied public key and published Villow 0.1.0 release are now configured; [alpha-0.1.0.md](alpha-0.1.0.md) records the verification and channel expiry.
 
 See [account guide images and content](account-guide.md) for the six screenshot placeholders, replacement instructions and provider sources. Readiness marks are in-memory navigation state only; provider identities and write authorization still come from Rust.
 

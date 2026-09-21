@@ -3,7 +3,9 @@
   "repository": "nicholasnucifora/Villow-Setup",
   "channel": "stable",
   "manifest_url": "https://github.com/nicholasnucifora/Villow-Setup/releases/download/villow-channel/channel.json",
-  "public_keys": {},
+  "public_keys": {
+    "villow-app-2026-01": "0krJkLcRpwiVW/ylclRklRX/YFNXE5CkcC6S1CK3+XU="
+  },
   "minimum_sequence": 1,
-  "publisher": null
+  "publisher": "Fix The Web"
 }

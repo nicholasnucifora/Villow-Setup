@@ -21,7 +21,7 @@ Implemented paths cover fresh setup, provider account selection, dedicated proje
 
 Management authorization uses a locally supplied Vercel token and Supabase management token. Supabase's documented integration exchange still needs a client secret; there is no shared desktop secret or maintainer-hosted broker. Google configuration is guided through official screens. These are explicit human operations, not dashboard scraping.
 
-The distribution repository is configured as **nicholasnucifora/Villow-Setup**, following the maintainer's choice. The implementation deliberately has **no production trust root or approved publisher configured**. Publishing the safe app release and validating publisher identity are real dependencies. Development/demo operation is visibly labelled; it never becomes a production authorization shortcut.
+The distribution repository is configured as **nicholasnucifora/Villow-Setup**, following the maintainer's choice. As of 2026-09-21, the maintainer's genuine app-release public key and publisher label are configured for the explicitly unsigned Alpha; its public channel/manifest/archive were independently authenticated. This does not establish a Windows signing identity or completed public qualification. Development/demo operation is visibly labelled; it never becomes a production authorization shortcut. Exact release identity and limits are recorded in [alpha-0.1.0.md](alpha-0.1.0.md).
 
 ## Recovery decisions
 

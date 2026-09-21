@@ -4,6 +4,16 @@ Started 2026-09-20. This is the ongoing backlog for the developer and both repos
 
 **Owners:** “You” means the maintainer; “Setup agent” works in `nicholasnucifora/Villow-Setup`; “web agent” works in `nicholasnucifora/Villow` (the local `disconnect` project). Both agents can continue implementation in separate repos. You need not keep the projects nested or translate this checklist into code yourself.
 
+## Published app / configured Alpha follow-up — 2026-09-21
+
+- [x] **Web-release maintainer:** Supply the genuine public key/key ID and publisher label, publish the immutable Villow 0.1.0 archive/manifest and signed channel, and report frozen-pair qualification (`1c6f949a3c0bc1b33f289b9684fa6ae84be766f4` web / `d01c07d012a961e008a733b9b22058e4421360b3` Setup). Publication and public repository visibility were owner-approved.
+- [x] **Setup agent:** Independently download all three assets without authentication, verify the signature/expiry and expected hashes, embed exactly the supplied public trust, and authenticate the release using the existing native manager twice across reopened local stores. Preserve false public-qualification flags.
+- [x] **Setup agent:** Run the ordinary checks and all three frontend profile checks with configured trust. No runtime implementation or contract changes were made; see [alpha-0.1.0.md](alpha-0.1.0.md) and the returned build receipt for the later Setup SHA and exact package verification.
+- [ ] **Maintainer + Setup agent:** Complete the first real dedicated-account setup and intended-owner sign-in; qualify uncertain writes, real provider recovery and credential removal. Local package/native release checks do not complete this item.
+- [ ] **Web-release maintainer:** Renew the signed channel before **27 September 2026, 3:45 pm Brisbane**, using the existing key and original immutable artifacts. Automatic renewal is not configured. Preserve expiry/replay checks; do not ask Setup to replace trust for an ordinary renewal.
+
+Windows signing remains deferred for this expressly unsigned Alpha. The signed public-release gates and earlier historical task records below remain separate.
+
 ## Unsigned-alpha handoff follow-up — 2026-09-20
 
 The maintainer explicitly deferred Windows signing and requested the web agent's follow-up handoff be implemented here. [Unsigned alpha](unsigned-alpha.md) now records the separate build command, exact public trust fields, artifact names and ownership. This supersedes any interpretation below that Windows enrollment must precede local real-account alpha qualification; signed public release gates are unchanged.

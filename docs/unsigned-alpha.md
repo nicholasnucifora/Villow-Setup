@@ -2,6 +2,8 @@
 
 The maintainer has explicitly deferred Windows Authenticode/SignPath while testing a real fresh installation. `npm run desktop:build:alpha` prepares that separate candidate once genuine app-release public trust is configured. It does not call the signed-public-release gate, change `docs/qualification.json`, replace release authentication, or establish public-release qualification.
 
+**2026-09-21:** Genuine public trust has been supplied and the published channel/manifest/archive verified anonymously. See [the 0.1.0 Alpha record](alpha-0.1.0.md) for the exact release and instructions. The field requirements below remain the maintainer contract for subsequent releases.
+
 ## What the build does
 
 - Uses `Villow Setup Alpha`, identifier `app.villow.setup.alpha`, a window titled “Villow Setup — unsigned alpha”, and a persistent unsigned-alpha notice. Its local checkpoint directory is separate from development, testing and eventual production. Credentials remain in Windows Credential Manager under each installation's UUID; this does not change existing vault entries.

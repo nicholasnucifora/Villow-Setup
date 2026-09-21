@@ -2,6 +2,16 @@
 
 This describes tested properties of the development implementation, not proof that it has no vulnerabilities. All application data and credentials used in tests are synthetic. No real-provider deployment or Google sign-in was performed, and no production data was copied here.
 
+## Genuine published release configured for unsigned Alpha — 2026-09-21
+
+The maintainer supplied the genuine public Ed25519 key, publisher label `Fix The Web`, immutable release URLs/hashes and publication approval. All three public downloads returned HTTP 200 anonymously; independent Ed25519 verification passed, the channel was unexpired, and manifest/archive hashes exactly matched the handoff. [The Alpha release record](alpha-0.1.0.md) preserves exact public identity, channel expiry and user instructions.
+
+Setup's existing native `Manager::check_release` then downloaded and authenticated the real release using embedded trust, verifying all 400 archive files and the SQL plan. It passed again through a newly opened store using the verified cache and current signed channel. This used a new ignored local directory with no installation state, provider credentials or cloud writes. The small verification driver lives only in ignored `artifacts/alpha-publication`; its initial standalone link attempt lacked a Windows library search path, which was corrected using Cargo's reported link paths. No runtime or contract implementation changed.
+
+Passed on the configured source: `npm ci`, `npm run check`, `npm test` (20), `npm run build`, `npm run native:test` (34 with normal Windows-account vault access), `npm run test:packaging` (5), `npm run test:build-profiles` (normal/testing/alpha), source/CSP/capability scan and Rust formatting. Five database/app-fixture tests remain opt-in; the web maintainer's frozen-pair results are recorded separately in the Alpha document, not claimed as rerun here. No implementation/contract change required a new paired baseline run. Final package, source commit and smoke-test results are recorded in the returned `artifacts/alpha-publication/build-receipt.md`.
+
+The only executable configuration change is the reviewed public trust in `src-tauri/trust.json`. `docs/qualification.json` is unchanged: real provider creation, owner consent, interruption recovery, clean signed Windows and final public qualification remain unfulfilled. The release private key was neither requested nor used. Historical missing-trust statements below describe earlier candidates.
+
 ## Explicit unsigned-alpha preparation — 2026-09-20
 
 The maintainer authorized a real-account alpha while deferring Windows signing. `desktop:build:alpha` selects a distinct product/identifier, compiles out testing tools and validates public trust without changing the native verifier or public qualification record. Both the missing-public-trust alpha build and the unfinished public-release gate were exercised and refused as expected. `src-tauri/trust.json` and `docs/qualification.json` remain unchanged. No private key was generated or accepted by Setup.
