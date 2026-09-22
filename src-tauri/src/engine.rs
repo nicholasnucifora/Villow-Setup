@@ -110,17 +110,16 @@ impl Engine<'_> {
             }
             Step::Google => {
                 let g = s.google.as_ref().ok_or(Error::Precondition)?;
-                if !g.api_enabled_confirmed
-                    || !g.consent_published_confirmed
-                    || !["external_production", "internal"].contains(&g.audience.as_str())
-                {
+                if !g.ready_for_setup() {
                     return Err(Error::Precondition);
                 }
+                let google_check = if g.audience == "external_testing" {
+                    "Google External Testing confirmed: test users and seven-day access limit acknowledged"
+                } else {
+                    "Google API, audience and publishing settings confirmed by you"
+                };
                 self.vault.require(&s.id, "google_secret")?;
-                s.check(
-                    "user",
-                    "Google API, audience and publishing settings confirmed by you",
-                );
+                s.check("user", google_check);
                 s.step = Step::Database;
             }
             Step::Database => {

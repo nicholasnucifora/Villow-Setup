@@ -1,4 +1,7 @@
-// Replace each null src with an imported, redacted screenshot when available.
+import googleIdentityScopes from "./assets/account-guide/google-identity-scopes.png";
+import googleYoutubeScope from "./assets/account-guide/google-youtube-scope.png";
+
+// Replace remaining null entries with reviewed, redacted screenshots.
 const images: Record<string, { src: string | null; caption: string }> = {
   "vercel-account": {
     src: null,
@@ -38,6 +41,16 @@ const images: Record<string, { src: string | null; caption: string }> = {
     src: null,
     caption:
       "Google OAuth client created dialog — highlight the Client ID and Client secret copy buttons, with both values fully hidden.",
+  },
+  "google-identity-scopes": {
+    src: googleIdentityScopes,
+    caption:
+      "Select userinfo.email and userinfo.profile. The full permission URLs above are the source of truth for your release; this example leaves openid unchecked.",
+  },
+  "google-youtube-scope": {
+    src: googleYoutubeScope,
+    caption:
+      "Select youtube.force-ssl under YouTube Data API v3. In this example it is on the last page (31–38 of 38). Use Manually add scopes below the table to avoid paging through the list, then click Update.",
   },
 };
 

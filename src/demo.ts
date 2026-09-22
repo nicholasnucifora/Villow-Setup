@@ -196,12 +196,16 @@ export class DemoBridge implements Bridge {
           s.step = "google";
         } else if (s.step === "google") {
           if (
-            !s.google?.consent_published_confirmed ||
-            !s.google.api_enabled_confirmed ||
-            s.google.audience === "external_testing"
+            !s.google?.api_enabled_confirmed ||
+            !(s.google.audience === "external_testing"
+              ? s.google.testing_access_confirmed &&
+                !s.google.consent_published_confirmed
+              : ["external_production", "internal"].includes(
+                  s.google.audience,
+                ) && s.google.consent_published_confirmed)
           )
             throw new Error(
-              "Confirm the Google settings and publish the consent audience.",
+              "Confirm Google configuration and the access requirements for its current publishing status.",
             );
           s.step = "database";
         } else {

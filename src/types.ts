@@ -40,6 +40,7 @@ export interface Google {
   api_enabled_confirmed: boolean;
   audience: string;
   consent_published_confirmed: boolean;
+  testing_access_confirmed?: boolean;
 }
 export interface Installation {
   format: number;

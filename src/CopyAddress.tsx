@@ -5,11 +5,13 @@ export function CopyAddress({
   value,
   buttonLabel,
   disabled,
+  manualCopyHint = "Couldn’t copy. Select the address and press Ctrl+C.",
 }: {
   label: string;
   value: string;
   buttonLabel: string;
   disabled: boolean;
+  manualCopyHint?: string;
 }) {
   const [status, setStatus] = useState<
     "idle" | "copying" | "copied" | "failed"
@@ -49,8 +51,7 @@ export function CopyAddress({
         </button>
         <small role="status">
           {status === "copied" && `${label} copied.`}
-          {status === "failed" &&
-            "Couldn’t copy. Select the address and press Ctrl+C."}
+          {status === "failed" && manualCopyHint}
         </small>
       </div>
     </div>

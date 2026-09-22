@@ -194,6 +194,7 @@ fn completed_migration_with_lost_response_is_reconciled_and_health_can_fail() {
         api_enabled_confirmed: true,
         audience: "external_production".into(),
         consent_published_confirmed: true,
+        testing_access_confirmed: false,
     });
     store.save(&s).unwrap();
     vault.put(&s.id, "google_secret", "synthetic").unwrap();
@@ -231,4 +232,79 @@ fn removal_retains_progress_on_vault_failure_and_forget_cannot_delete_cloud() {
     assert!(vault.values.borrow().is_empty());
     forget(&store, &vault, &s.name).unwrap();
     assert!(store.load().unwrap().is_none());
+}
+
+#[test]
+fn external_testing_requires_explicit_access_acknowledgment_and_preserves_actual_status() {
+    for (audience, acknowledged, published, api, accepted) in [
+        ("external_testing", false, false, true, false),
+        ("external_testing", true, true, true, false),
+        ("external_testing", true, false, false, false),
+        ("unknown", true, false, true, false),
+        ("external_testing", true, false, true, true),
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(d.path()).unwrap();
+        let vault = MemoryVault::default();
+        let release = verified();
+        store.save(&installation(&release)).unwrap();
+        let fake = Fake::new(d.path().join("remote.json"));
+        let engine = Engine {
+            store: &store,
+            vault: &vault,
+            providers: &fake,
+        };
+        for _ in 0..3 {
+            engine.advance(&release).unwrap();
+        }
+        let mut s = store.load().unwrap().unwrap();
+        s.google = Some(Google {
+            project_id: "synthetic-project".into(),
+            client_id: "synthetic.apps.googleusercontent.com".into(),
+            api_enabled_confirmed: api,
+            audience: audience.into(),
+            consent_published_confirmed: published,
+            testing_access_confirmed: acknowledged,
+        });
+        store.save(&s).unwrap();
+        if accepted {
+            assert!(matches!(
+                engine.advance(&release),
+                Err(Error::MissingCredential)
+            ));
+        }
+        vault.put(&s.id, "google_secret", "synthetic-only").unwrap();
+        let result = engine.advance(&release);
+        if accepted {
+            let saved = result.unwrap();
+            assert_eq!(saved.step, Step::Database);
+            assert_eq!(saved.google.as_ref().unwrap().audience, "external_testing");
+            assert!(!saved.google.as_ref().unwrap().consent_published_confirmed);
+            assert!(saved.checks.iter().any(|c| c.title.contains("seven-day")));
+            drop(store);
+            let reopened = Store::open(d.path()).unwrap().load().unwrap().unwrap();
+            assert!(reopened.google.unwrap().testing_access_confirmed);
+        } else {
+            assert!(matches!(result, Err(Error::Precondition)));
+            assert_eq!(store.load().unwrap().unwrap().step, Step::Google);
+        }
+        assert_eq!(fake.read().migrations, 0);
+        assert_eq!(fake.read().creates, 2);
+    }
+}
+
+#[test]
+fn older_google_checkpoints_do_not_imply_testing_acknowledgment() {
+    for audience in ["external_testing", "external_production", "internal"] {
+        let google: Google = serde_json::from_value(serde_json::json!({
+            "project_id": "synthetic-project",
+            "client_id": "synthetic.apps.googleusercontent.com",
+            "api_enabled_confirmed": true,
+            "audience": audience,
+            "consent_published_confirmed": true
+        }))
+        .unwrap();
+        assert!(!google.testing_access_confirmed);
+        assert_eq!(google.ready_for_setup(), audience != "external_testing");
+    }
 }

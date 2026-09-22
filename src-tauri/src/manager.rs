@@ -262,6 +262,8 @@ impl Manager {
                 Some("https://console.cloud.google.com/apis/library/youtube.googleapis.com")
             }
             "google_audience" => Some("https://console.cloud.google.com/auth/audience"),
+            "google_branding" => Some("https://console.cloud.google.com/auth/branding"),
+            "google_scopes" => Some("https://console.cloud.google.com/auth/scopes"),
             "google_client" => Some("https://console.cloud.google.com/auth/clients"),
             "google_dashboard" => Some("https://console.cloud.google.com/"),
             "vercel_dashboard" => Some("https://vercel.com/dashboard"),

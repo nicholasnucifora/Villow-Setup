@@ -16,6 +16,7 @@ import { AccountGuide, ProviderAccountGuide, providers } from "./AccountGuide";
 import { TokenGuide, TokenExpiry } from "./TokenGuide";
 import { GuideImage } from "./GuideImage";
 import { CopyAddress } from "./CopyAddress";
+import { GoogleScopes } from "./GoogleScopes";
 import { ReconciliationForm } from "./ReconciliationForm";
 import type {
   Accounts,
@@ -559,6 +560,33 @@ export function App({
                       </p>
                     </div>
                   )}
+                  {s.google?.audience === "external_testing" &&
+                    s.step !== "google" && (
+                      <aside
+                        className="guide-takeaway"
+                        aria-label="Google testing reminder"
+                      >
+                        <strong>
+                          You chose Google’s External Testing mode
+                        </strong>
+                        <p>
+                          If Google still shows Testing, only listed test users
+                          can sign in and Google access expires after seven
+                          days. Reconnect Google in Villow when needed. You can
+                          complete installation now and finish production
+                          branding later, once your website and policy pages are
+                          available.
+                        </p>
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => open("google_audience")}
+                        >
+                          Open Google Audience ↗
+                        </button>
+                      </aside>
+                    )}
                   {(s.step === "projects" || s.credentials_removed) && (
                     <AccountForm
                       bridge={bridge}
@@ -1341,19 +1369,28 @@ function GoogleForm({
   const [enabled, setEnabled] = useState(
       s.google?.api_enabled_confirmed ?? false,
     ),
-    [published, setPublished] = useState(
-      s.google?.consent_published_confirmed ?? false,
+    [configured, setConfigured] = useState(
+      s.google?.audience === "external_testing"
+        ? (s.google?.testing_access_confirmed ?? false)
+        : (s.google?.consent_published_confirmed ?? false),
     ),
     [audience, setAudience] = useState(
       s.google?.audience ?? "external_testing",
     ),
+    [testingConfirmed, setTestingConfirmed] = useState(
+      s.google?.testing_access_confirmed ?? false,
+    ),
     [secretPending, setSecretPending] = useState(false);
+  const testing = audience === "external_testing";
+  const published = !testing && configured;
+  const testingAccess = testing && configured && testingConfirmed;
   const matchesSaved =
     !!s.google &&
     project === s.google.project_id &&
     client === s.google.client_id &&
     enabled === s.google.api_enabled_confirmed &&
     published === s.google.consent_published_confirmed &&
+    testingAccess === (s.google.testing_access_confirmed ?? false) &&
     audience === s.google.audience &&
     !secretPending;
   const submit = async (e: FormEvent) => {
@@ -1364,6 +1401,7 @@ function GoogleForm({
       api_enabled_confirmed: enabled,
       audience,
       consent_published_confirmed: published,
+      testing_access_confirmed: testingAccess,
     };
     try {
       await action(
@@ -1425,96 +1463,144 @@ function GoogleForm({
           className="google-step"
           aria-labelledby="google-audience-title"
         >
-          <h2 id="google-audience-title">3. Choose who can sign in</h2>
-          <button
-            type="button"
-            className="secondary"
-            disabled={busy}
-            onClick={() => open("google_audience")}
-          >
-            Configure branding, audience and data access ↗
-          </button>
+          <h2 id="google-audience-title">
+            3. Set up External access for your prototype
+          </h2>
+          <p>
+            <b>External</b> means you can use personal Google accounts and
+            invite friends. <b>Testing</b> is its publishing status: only people
+            you add as test users can sign in. They are two settings, not
+            competing account types. You can finish this setup in Testing.
+          </p>
           <ol className="instructions">
             <li>
-              If Google asks you to get started, use <b>My Villow</b> as the app
-              name and your own email for support and contact details. Review
-              and complete the form.
+              Open <b>Branding</b>. Use <b>My Villow</b> as the app name and
+              your own email for support and developer contact. Save changes.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_branding")}
+              >
+                Open Branding ↗
+              </button>
             </li>
             <li>
-              For <b>Audience / User type</b>, choose <b>External</b> for
-              personal use and sharing with friends. Internal is only for
-              members of a Google Workspace or Cloud Identity organization; it
-              is not a “just me” option for a personal Gmail account.
+              Open <b>Audience</b>, set <b>User type</b> to <b>External</b> and
+              leave <b>Publishing status</b> as <b>Testing</b> for now. Under{" "}
+              <b>Test users → Add users</b>, add <b>{s.owner_email}</b>
+              and save. Add friends’ Google email addresses here before inviting
+              them.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_audience")}
+              >
+                Open Audience and test users ↗
+              </button>
             </li>
             <li>
-              In <b>Data Access → Add or remove scopes</b>, add the exact
-              permissions below and save.
+              Open <b>Data Access</b> in the same project and follow the scope
+              instructions below.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_scopes")}
+              >
+                Open Data Access ↗
+              </button>
             </li>
           </ol>
-          <details>
-            <summary>Show the exact Google permissions to add</summary>
-            <ul>
-              {s.google_scopes.map((scope) => (
-                <li key={scope}>
-                  <code>{scope}</code>
-                </li>
-              ))}
-            </ul>
-            <p>
-              Villow uses YouTube account access as well as Google identity.
-              Google Tasks and Todoist are optional later; Gemini is not
-              required.
-            </p>
-          </details>
-          <p>
-            Back in <b>Audience</b>, check <b>Publishing status</b>. For ongoing
-            use, select <b>Publish app</b> and confirm so it shows{" "}
-            <b>In production</b>. Google verification is separate; publishing
-            may still leave warnings and user limits.
-          </p>
-          <Field
-            label="Audience"
-            hint="Match what Google currently shows. Choosing an option here does not change Google’s settings."
-          >
-            <select
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-            >
-              <option value="external_testing">
-                External · Testing (not ready yet)
-              </option>
-              <option value="external_production">
-                External · In production (recommended)
-              </option>
-              <option value="internal">
-                Internal · my Workspace organization only
-              </option>
-            </select>
-          </Field>
-          {audience === "external_testing" && (
-            <div className="alert">
-              <strong>One more action in Google: publish your app</strong>
+          <GoogleScopes scopes={s.google_scopes} busy={busy} />
+          {testing && (
+            <div className="guide-takeaway">
+              <strong>Testing is enough to continue</strong>
               <p>
-                Testing limits access to listed test users (up to 100). With
-                Villow’s YouTube permissions, access expires after seven days,
-                including refresh access. Personal use does not remove this
-                restriction. This Setup requires In production or an eligible
-                Internal app before continuing.
+                Google allows up to 100 listed test users. With Villow’s YouTube
+                permissions, Google access expires after seven days from
+                consent, so you will need to reconnect Google in Villow. This
+                does not mean recreating cloud projects or generating a new
+                OAuth client.
               </p>
-              <p>
-                Open Audience above, select Publish app, then choose External ·
-                In production here.
-              </p>
+              <CheckBox
+                checked={testingConfirmed}
+                onChange={setTestingConfirmed}
+              >
+                I added {s.owner_email} as a Google test user and understand
+                that I may need to reconnect Google after seven days.
+              </CheckBox>
             </div>
           )}
-          {audience === "internal" && (
-            <p className="alert">
-              Only members of your project’s Google organization can sign in.
-              Friends outside it cannot use this option. Internal is not subject
-              to the External Testing seven-day rule, but access can still
-              expire or be revoked.
-            </p>
+          {audience === "internal" ? (
+            <details>
+              <summary>Existing saved organization-only configuration</summary>
+              <p>
+                This setup previously used Internal. It is preserved for
+                compatibility; friends outside that Google organization cannot
+                sign in.
+              </p>
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setAudience("external_testing");
+                  setConfigured(false);
+                  setTestingConfirmed(false);
+                }}
+              >
+                Use External instead
+              </button>
+            </details>
+          ) : (
+            <details>
+              <summary>Already switched Google to In production?</summary>
+              <p>
+                In production is a later publishing status for the same External
+                audience. It removes the Testing-only seven-day expiry and
+                test-user list requirement. Verification, warnings and user
+                limits are separate. This is not required for your first
+                prototype installation.
+              </p>
+              <CheckBox
+                checked={audience === "external_production"}
+                onChange={(value) =>
+                  setAudience(
+                    value ? "external_production" : "external_testing",
+                  )
+                }
+              >
+                Google’s Audience page already shows External and In production.
+              </CheckBox>
+            </details>
           )}
+          <details>
+            <summary>
+              Google says “complete your configuration on the Branding page”
+            </summary>
+            <p>
+              You can keep Testing for this installation. That message points to
+              incomplete production branding; it is not a notice that a review
+              is underway.
+            </p>
+            <p>
+              When your website and policy pages are available, return to
+              Branding. Check App Domain: Application home page, Application
+              privacy policy link and Application terms of service link, plus
+              Authorized domains and your support/developer emails. Google can
+              require more information for production than the initial starred
+              fields. A logo is optional.
+            </p>
+            <p>
+              Use real pages for your own instance, not invented URLs. Save,
+              return to Audience and choose Publish app when available. If Save
+              fails, follow its validation message. If publication is still
+              blocked, report the exact message; waiting alone is not a fix for
+              missing configuration.
+            </p>
+          </details>
           <details>
             <summary>Screenshot guide: audience and publishing status</summary>
             <GuideImage name="google-audience" />
@@ -1627,8 +1713,10 @@ function GoogleForm({
               Already closed the dialog, or seeing “test users”?
             </summary>
             <p>
-              A message restricting access to test users means the Google app is
-              still in Testing. Return to Audience in step 3 and publish it.
+              A message restricting access to test users is expected while your
+              External app is in Testing. Check that your email is in Audience →
+              Test users, as shown in step 3. You can continue without
+              publishing.
             </p>
             <p>
               If you lost an unsaved secret, open Google Auth Platform →
@@ -1641,10 +1729,9 @@ function GoogleForm({
             <summary>Screenshot guide: where to copy the client values</summary>
             <GuideImage name="google-client-created" />
           </details>
-          <CheckBox checked={published} onChange={setPublished}>
-            I configured the audience, required scopes and exact callback.
-            Google shows External / In production, or this is an eligible
-            Internal app.
+          <CheckBox checked={configured} onChange={setConfigured}>
+            I configured the required Google permissions and exact callback in
+            this Google project.
           </CheckBox>
           {s.google && (
             <p role="status">
@@ -1661,8 +1748,8 @@ function GoogleForm({
                 busy ||
                 matchesSaved ||
                 !enabled ||
-                !published ||
-                audience === "external_testing"
+                !configured ||
+                (testing && !testingConfirmed)
               }
             >
               Save my Google configuration

@@ -93,6 +93,12 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 
 ## Progress and coordination record
 
+### 2026-09-22 — continue prototype setup in actual Google External Testing
+
+The maintainer confirmed External Testing is their existing prototype workflow after Google blocked publication on production Branding configuration. Setup now records explicit test-user/seven-day acknowledgment and accepts actual Testing at the native Google gate without claiming publication. Older checkpoints default the new acknowledgment to false. New-user UI follows External; saved Internal configurations remain compatible. The two supplied scope screenshots and exact-scope clipboard shortcut are included. Production branding needs real instance pages and remains a later, separate action.
+
+Passed: dependency install/check/build, 29 UI tests, 38 native tests, all frontend profiles, five packaging tests and security scan. Paired qualification is being coordinated with the web-release task; record exact source pairing/results in the receipt. Real Google sign-in, refresh behavior and full provider/recovery/public qualification remain pending. No provider tokens, real database or computer-use tools were used for automated checks.
+
 ### 2026-09-22 — legacy token confirmed and Google walkthrough clarified
 
 **Owner:** Setup agent. The maintainer reported Supabase profile refusal with the scoped token, then successful account connection using a legacy replacement. Token guidance now documents that exact path and its broad account scope. Database-region meaning, five Google steps, Web application/client name, audience/status distinctions, one-time credential capture and adjacent copy feedback are implemented. Source/runtime schemas, cloud requests, trust and app contracts are unchanged; the native refusal message was updated to match the guidance.

@@ -77,6 +77,20 @@ pub struct Google {
     pub api_enabled_confirmed: bool,
     pub audience: String,
     pub consent_published_confirmed: bool,
+    #[serde(default)]
+    pub testing_access_confirmed: bool,
+}
+impl Google {
+    pub fn ready_for_setup(&self) -> bool {
+        self.api_enabled_confirmed
+            && match self.audience.as_str() {
+                "external_testing" => {
+                    self.testing_access_confirmed && !self.consent_published_confirmed
+                }
+                "external_production" | "internal" => self.consent_published_confirmed,
+                _ => false,
+            }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
