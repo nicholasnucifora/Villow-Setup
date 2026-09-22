@@ -64,6 +64,7 @@ export function InstalledRepair({
       </p>
     );
   }
+  if (s.step === "complete") return null;
   return (
     <section className="repair-panel" aria-label="Repair your installed app">
       <h2>

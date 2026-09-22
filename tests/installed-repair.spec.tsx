@@ -178,6 +178,21 @@ it("reports cleanup accurately and retains older portable backups", () => {
   expect(screen.getByText(/Keep that file and its password/)).toBeVisible();
   expect(screen.getByText("native-owned-path")).toBeVisible();
 });
+it("does not offer an unfinished-install repair after a fresh installation succeeds", () => {
+  render(
+    <InstalledRepair
+      s={{ ...state(), step: "complete" }}
+      offer={null}
+      message=""
+      busy={false}
+      action={vi.fn()}
+      open={vi.fn()}
+    />,
+  );
+  expect(
+    screen.queryByRole("button", { name: /Check for an app repair/ }),
+  ).toBeNull();
+});
 it("shows no repair availability without enabling writes", async () => {
   const action = vi.fn().mockResolvedValue(true);
   render(
