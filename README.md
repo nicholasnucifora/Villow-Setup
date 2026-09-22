@@ -13,7 +13,7 @@ npm ci
 npm run desktop:dev
 ```
 
-Normal development and installer builds exclude testing controls. After verifying the release, work through Vercel's account and token together, then Supabase's organization and token. Setup creates dedicated projects and reserves the website address before guiding Google Cloud's project and OAuth setup in one place. The current build explains its release prerequisite before asking users to create accounts or tokens. [Account and token instructions](docs/account-guide.md) include scoped Supabase permissions and how to replace expired access without stopping the hosted app.
+Normal development and installer builds exclude testing controls. After verifying the release, work through Vercel's account and token together, then Supabase's organization and token. Setup creates dedicated projects and reserves the website address before guiding Google Cloud's project and OAuth setup in one place. The current build explains its release prerequisite before asking users to create accounts or tokens. [Account and token instructions](docs/account-guide.md) explain this Alpha’s legacy Supabase token path, database regions, Google client creation and how to replace expired access without stopping the hosted app.
 
 To opt in to the isolated demo and interruption scenarios, run `npm run desktop:dev:testing` or build `npm run desktop:build:testing`. Enable **Show testing tools**, then choose **Explore demo**. The testing application has a separate name and data identifier. The demo stores only fictional state in its own browser storage, makes no provider requests and never accepts management tokens. Ordinary builds exclude its engine and controls entirely.
 

@@ -225,6 +225,10 @@ describe("owner-facing setup", () => {
     await demo.call("advance");
     render(<App initialBridge={demo} />);
     await screen.findByRole("heading", { name: "Google Cloud", level: 1 });
+    await user.selectOptions(
+      screen.getByLabelText("Audience"),
+      "external_production",
+    );
     await user.click(
       screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
     );
@@ -266,6 +270,74 @@ describe("owner-facing setup", () => {
     expect(screen.getByText(/simulated checks passed/)).toBeInTheDocument();
     expect(localStorage.getItem("villow-setup-demo-v1")).not.toContain(
       "demo-secret",
+    );
+  });
+  it("keeps Google values entered along the guide and saves once through the native boundary", async () => {
+    const user = userEvent.setup();
+    const fixture = await selectedDemo();
+    for (let i = 0; i < 3; i++) await fixture.call("advance");
+    const call = vi.fn(fixture.call.bind(fixture));
+    const bridge: Bridge = {
+      demo: false,
+      call: <T,>(command: string, args?: Record<string, unknown>) =>
+        call(command, args) as Promise<T>,
+    };
+    render(<App initialBridge={bridge} />);
+    const project = await screen.findByLabelText("Google Cloud project ID");
+    await user.type(project, "example-villow-123456");
+    expect(screen.getByLabelText("Audience")).toHaveValue("external_testing");
+    await user.click(
+      screen.getByRole("button", { name: /Configure branding/ }),
+    );
+    expect(project).toHaveValue("example-villow-123456");
+    await user.click(
+      screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
+    );
+    await user.type(
+      screen.getByLabelText("OAuth Web client ID"),
+      "example.apps.googleusercontent.com",
+    );
+    await user.type(
+      screen.getByLabelText("OAuth client secret"),
+      "synthetic-client-secret",
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: /I configured the audience/ }),
+    );
+    const save = screen.getByRole("button", {
+      name: "Save my Google configuration",
+    });
+    expect(save).toBeDisabled();
+    expect(call.mock.calls.some(([command]) => command === "set_google")).toBe(
+      false,
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Audience"),
+      "external_production",
+    );
+    await user.click(save);
+    expect(call).toHaveBeenCalledWith("set_google", {
+      google: {
+        project_id: "example-villow-123456",
+        client_id: "example.apps.googleusercontent.com",
+        api_enabled_confirmed: true,
+        audience: "external_production",
+        consent_published_confirmed: true,
+      },
+      secret: "synthetic-client-secret",
+    });
+    expect(screen.getByLabelText("OAuth client secret")).toHaveValue("");
+    expect(JSON.stringify(localStorage)).not.toContain(
+      "synthetic-client-secret",
+    );
+    expect(
+      screen.getByRole("button", { name: /Continue to my database/ }),
+    ).toBeEnabled();
+    expect(
+      screen.getByText(/You can close Google’s client dialog/),
+    ).toBeInTheDocument();
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
     );
   });
   it("restores saved Google choices and blocks continuation while edits are unsaved", async () => {

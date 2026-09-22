@@ -22,12 +22,22 @@ const images: Record<string, { src: string | null; caption: string }> = {
   "supabase-token": {
     src: null,
     caption:
-      "Supabase scoped token form — highlight Organization resource access and the six permissions listed above; hide the token.",
+      "Supabase Generate token page — highlight the small Create legacy token link directly under Resource access, then the name and expiry fields; hide the token.",
   },
   "google-oauth": {
     src: null,
     caption:
-      "Google OAuth Web application form — highlight the origin, redirect URI and client ID; hide the secret.",
+      "Google Create OAuth client form — highlight Application type: Web application, Name, Authorized JavaScript origins and Authorized redirect URIs; hide all credentials.",
+  },
+  "google-audience": {
+    src: null,
+    caption:
+      "Google Auth Platform Audience — highlight External, Publishing status and Publish app; hide account details and test-user emails.",
+  },
+  "google-client-created": {
+    src: null,
+    caption:
+      "Google OAuth client created dialog — highlight the Client ID and Client secret copy buttons, with both values fully hidden.",
   },
 };
 

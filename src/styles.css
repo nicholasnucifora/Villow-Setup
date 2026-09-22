@@ -584,6 +584,21 @@ details ul {
   padding: 9px 12px;
   font-size: 10px;
 }
+.copy-control {
+  flex: 0 0 160px;
+}
+.copy-control small {
+  margin: 6px 0 0;
+  color: #425c31;
+}
+.google-step {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.google-step .field {
+  margin: 16px 0;
+}
 .address {
   padding: 18px 21px;
   margin: 25px 0;
@@ -876,6 +891,9 @@ details ul {
   .copy-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .copy-control {
+    flex-basis: auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {

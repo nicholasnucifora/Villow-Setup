@@ -10,7 +10,7 @@ pub enum Error {
     VercelIdentityAccess,
     #[error("Vercel refused access while listing your teams (GET /v2/teams). Supabase has not been checked yet. Check that the saved Vercel token permits access to your intended hosting team. Replace only the Vercel token on its page or in Recovery & settings. This refusal does not establish that the token has expired.")]
     VercelTeamsAccess,
-    #[error("Supabase refused access while checking your account identity (GET /v1/profile). The Vercel account checks passed. An unexpired token can still be refused. Check that you copied the management token in full. If you used a scoped token with the listed permissions, report this exact check so its compatibility can be investigated; do not recreate projects or grant all permissions.")]
+    #[error("Supabase refused access while checking your account identity (GET /v1/profile). The Vercel account checks passed. An unexpired token can still be refused. Check that you copied the management token in full. This Alpha's Supabase instructions explain the Create legacy token link and its account-wide access; scoped tokens have failed this check in account testing. Replace only the Supabase token and keep your existing setup and projects. If a legacy token also fails, report this exact check.")]
     SupabaseIdentityAccess,
     #[error("Supabase refused access while listing your organizations (GET /v1/organizations). The Vercel and Supabase identity checks passed. Check Organizations: Read, the selected organization and your account's membership. An expiry date in the future does not guarantee permission. Replace only the Supabase token if its access settings need changing.")]
     SupabaseOrganizationsAccess,

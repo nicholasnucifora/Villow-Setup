@@ -15,6 +15,7 @@ import { nativeBridge } from "./bridge";
 import { AccountGuide, ProviderAccountGuide, providers } from "./AccountGuide";
 import { TokenGuide, TokenExpiry } from "./TokenGuide";
 import { GuideImage } from "./GuideImage";
+import { CopyAddress } from "./CopyAddress";
 import { ReconciliationForm } from "./ReconciliationForm";
 import type {
   Accounts,
@@ -1263,18 +1264,29 @@ function AccountForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Database region">
+              <Field
+                label="Database region"
+                hint="Where Supabase stores your Villow data. Choose the location nearest you and most of your friends; for Australia or New Zealand, choose Sydney. People elsewhere can still use your app."
+              >
                 <select
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
                 >
-                  <option value="ap-southeast-2">Sydney</option>
-                  <option value="us-east-1">US East</option>
-                  <option value="eu-west-1">Ireland</option>
-                  <option value="ap-southeast-1">Singapore</option>
+                  <option value="ap-southeast-2">Sydney · Australia</option>
+                  <option value="us-east-1">US East · Northern Virginia</option>
+                  <option value="eu-west-1">Ireland · Europe</option>
+                  <option value="ap-southeast-1">
+                    Singapore · Southeast Asia
+                  </option>
                 </select>
               </Field>
             </div>
+            <p className="quiet">
+              This Alpha supports these four database locations. Supabase has
+              other regions, but Setup does not offer them yet. This choice sets
+              the database location; it does not set the Vercel hosting region.
+              Setup cannot move the database after you confirm.
+            </p>
             <CheckBox checked={costs} onChange={setCosts}>
               These are my intended accounts. Creating projects can use my
               plan’s resources and incur charges; I have reviewed my provider
@@ -1333,10 +1345,9 @@ function GoogleForm({
       s.google?.consent_published_confirmed ?? false,
     ),
     [audience, setAudience] = useState(
-      s.google?.audience ?? "external_production",
+      s.google?.audience ?? "external_testing",
     ),
-    [secretPending, setSecretPending] = useState(false),
-    [copied, setCopied] = useState("");
+    [secretPending, setSecretPending] = useState(false);
   const matchesSaved =
     !!s.google &&
     project === s.google.project_id &&
@@ -1345,14 +1356,6 @@ function GoogleForm({
     published === s.google.consent_published_confirmed &&
     audience === s.google.audience &&
     !secretPending;
-  const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied("Copied.");
-    } catch {
-      setCopied("Select and copy the address above.");
-    }
-  };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const google: Google = {
@@ -1378,183 +1381,304 @@ function GoogleForm({
   return (
     <section>
       <p className="lead">
-        Create or select your Google Cloud project, then configure sign-in and
-        YouTube access here. Your website address is now ready.
+        Follow these steps in the same Google Cloud project. You are setting up
+        Google sign-in for your hosted Villow website.
       </p>
+      <h2>1. Choose your Google Cloud project</h2>
       <ProviderAccountGuide page={2} busy={busy} open={open} />
-      <h2>Connect this Google project</h2>
-      <ol className="instructions">
-        <li>
+      <form onSubmit={submit}>
+        <Field
+          label="Google Cloud project ID"
+          hint="In Google Cloud, open the project selector at the top, or Cloud overview → Dashboard → Project info. Copy Project ID (for example my-villow-123456). The project name and numeric project number are different."
+        >
+          <input
+            required
+            autoComplete="off"
+            spellCheck={false}
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+          />
+        </Field>
+        <p className="quiet">
+          Enter this once here. These fields stay in this open form; click Save
+          my Google configuration in step 5 to save them before closing Setup.
+        </p>
+        <section className="google-step" aria-labelledby="google-api-title">
+          <h2 id="google-api-title">2. Enable YouTube access</h2>
           <button
-            className="text-button"
+            type="button"
+            className="secondary"
             disabled={busy}
             onClick={() => open("google_api")}
           >
             Enable YouTube Data API v3 ↗
           </button>
-          <p>An API key alone cannot authorize your private subscriptions.</p>
-        </li>
-        <li>
+          <p>
+            Check the project selector still shows your Villow project, then
+            enable this API. An API key is not needed for this walkthrough.
+          </p>
+          <CheckBox checked={enabled} onChange={setEnabled}>
+            I enabled YouTube Data API v3 in this Google project.
+          </CheckBox>
+        </section>
+        <section
+          className="google-step"
+          aria-labelledby="google-audience-title"
+        >
+          <h2 id="google-audience-title">3. Choose who can sign in</h2>
           <button
-            className="text-button"
+            type="button"
+            className="secondary"
             disabled={busy}
             onClick={() => open("google_audience")}
           >
             Configure branding, audience and data access ↗
           </button>
+          <ol className="instructions">
+            <li>
+              If Google asks you to get started, use <b>My Villow</b> as the app
+              name and your own email for support and contact details. Review
+              and complete the form.
+            </li>
+            <li>
+              For <b>Audience / User type</b>, choose <b>External</b> for
+              personal use and sharing with friends. Internal is only for
+              members of a Google Workspace or Cloud Identity organization; it
+              is not a “just me” option for a personal Gmail account.
+            </li>
+            <li>
+              In <b>Data Access → Add or remove scopes</b>, add the exact
+              permissions below and save.
+            </li>
+          </ol>
+          <details>
+            <summary>Show the exact Google permissions to add</summary>
+            <ul>
+              {s.google_scopes.map((scope) => (
+                <li key={scope}>
+                  <code>{scope}</code>
+                </li>
+              ))}
+            </ul>
+            <p>
+              Villow uses YouTube account access as well as Google identity.
+              Google Tasks and Todoist are optional later; Gemini is not
+              required.
+            </p>
+          </details>
           <p>
-            Include the YouTube permission and identity scopes listed below. For
-            a personal external project, publish the audience when ready.
-            Publishing and Google verification are different processes.
+            Back in <b>Audience</b>, check <b>Publishing status</b>. For ongoing
+            use, select <b>Publish app</b> and confirm so it shows{" "}
+            <b>In production</b>. Google verification is separate; publishing
+            may still leave warnings and user limits.
           </p>
-        </li>
-        <li>
+          <Field
+            label="Audience"
+            hint="Match what Google currently shows. Choosing an option here does not change Google’s settings."
+          >
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+            >
+              <option value="external_testing">
+                External · Testing (not ready yet)
+              </option>
+              <option value="external_production">
+                External · In production (recommended)
+              </option>
+              <option value="internal">
+                Internal · my Workspace organization only
+              </option>
+            </select>
+          </Field>
+          {audience === "external_testing" && (
+            <div className="alert">
+              <strong>One more action in Google: publish your app</strong>
+              <p>
+                Testing limits access to listed test users (up to 100). With
+                Villow’s YouTube permissions, access expires after seven days,
+                including refresh access. Personal use does not remove this
+                restriction. This Setup requires In production or an eligible
+                Internal app before continuing.
+              </p>
+              <p>
+                Open Audience above, select Publish app, then choose External ·
+                In production here.
+              </p>
+            </div>
+          )}
+          {audience === "internal" && (
+            <p className="alert">
+              Only members of your project’s Google organization can sign in.
+              Friends outside it cannot use this option. Internal is not subject
+              to the External Testing seven-day rule, but access can still
+              expire or be revoked.
+            </p>
+          )}
+          <details>
+            <summary>Screenshot guide: audience and publishing status</summary>
+            <GuideImage name="google-audience" />
+          </details>
+        </section>
+        <section className="google-step" aria-labelledby="google-client-title">
+          <h2 id="google-client-title">
+            4. Create the website’s Google sign-in client
+          </h2>
           <button
-            className="text-button"
+            type="button"
+            className="secondary"
             disabled={busy}
             onClick={() => open("google_client")}
           >
             Create a Web application OAuth client ↗
           </button>
-          <p>
-            Use these exact hosted addresses, then return with the client ID and
-            secret.
-          </p>
-        </li>
-      </ol>
-      <GuideImage name="google-oauth" />
-      <div className="copy-row">
-        <div>
-          <small>Authorized JavaScript origin</small>
-          <code>{s.origin}</code>
-        </div>
-        <button className="secondary" onClick={() => copy(s.origin ?? "")}>
-          Copy origin
-        </button>
-      </div>
-      <div className="copy-row">
-        <div>
-          <small>Authorized redirect URI</small>
-          <code>{s.origin}/api/auth</code>
-        </div>
-        <button
-          className="secondary"
-          onClick={() => copy(`${s.origin}/api/auth`)}
-        >
-          Copy callback
-        </button>
-      </div>
-      {copied && <p role="status">{copied}</p>}
-      <details>
-        <summary>Required Google permissions</summary>
-        <ul>
-          {s.google_scopes.map((scope) => (
-            <li key={scope}>
-              <code>{scope}</code>
+          <ol className="instructions">
+            <li>
+              In <b>Google Auth Platform → Clients</b>, select{" "}
+              <b>Create client</b>. For <b>Application type</b>, choose{" "}
+              <b>Web application</b>. Google sign-in runs on your Villow
+              website, so Web application is the right type even though you are
+              using this Windows installer.
             </li>
-          ))}
-        </ul>
-        <p>
-          The YouTube permission includes account write access used by Villow.
-          Google Tasks and Todoist are optional later. Gemini is not required.
-        </p>
-      </details>
-      <div className="alert">
-        <strong>Testing mode expires</strong>
-        <p>
-          With Villow’s YouTube permission, an external app left in Google’s
-          Testing mode typically loses refresh access after seven days.
-          Personal-use exceptions may apply to verification, but warning-free
-          access is not guaranteed.
-        </p>
-      </div>
-      <form onSubmit={submit}>
-        <div className="form-grid">
-          <Field
-            label="Google Cloud project ID"
-            hint="Copy Project ID from Project info in your Google Cloud dashboard. Use the ID, not the project name or number."
-          >
-            <input
-              required
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-            />
-          </Field>
-          <Field label="OAuth Web client ID">
-            <input
-              required
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-            />
-          </Field>
-          {!demo && (
-            <Field label="OAuth client secret">
+            <li>
+              For <b>Name</b>, enter <b>Villow Web</b>. This is a label to help
+              you find the client later.
+            </li>
+            <li>
+              Under <b>Authorized JavaScript origins</b>, choose <b>Add URI</b>.
+              Copy and paste this exact address:
+              <CopyAddress
+                label="Authorized JavaScript origin"
+                value={s.origin ?? ""}
+                buttonLabel="Copy origin"
+                disabled={busy}
+              />
+            </li>
+            <li>
+              Under <b>Authorized redirect URIs</b>, choose <b>Add URI</b>.
+              Paste this complete address, including <b>/api/auth</b>:
+              <CopyAddress
+                label="Authorized redirect URI"
+                value={s.origin ? s.origin + "/api/auth" : ""}
+                buttonLabel="Copy callback"
+                disabled={busy}
+              />
+            </li>
+            <li>
+              Select <b>Create</b>. Keep the “OAuth client created” dialog open
+              while you complete step 5 below.
+            </li>
+          </ol>
+          <details>
+            <summary>
+              Screenshot guide: create the Web application client
+            </summary>
+            <GuideImage name="google-oauth" />
+          </details>
+        </section>
+        <section className="google-step" aria-labelledby="google-save-title">
+          <h2 id="google-save-title">5. Copy the two client values and save</h2>
+          <p>
+            In Google’s “OAuth client created” dialog, copy <b>Client ID</b> and
+            <b> Client secret</b> into their matching fields below. The client
+            ID ends in <b>.apps.googleusercontent.com</b>.
+          </p>
+          <div className="form-grid">
+            <Field
+              label="OAuth Web client ID"
+              hint="Copy Client ID from the dialog. Later you can find it under Google Auth Platform → Clients → Villow Web."
+            >
               <input
                 required
-                type="password"
                 autoComplete="off"
-                value={secret}
-                onChange={(e) => {
-                  setSecret(e.target.value);
-                  setSecretPending(true);
-                }}
+                spellCheck={false}
+                value={client}
+                onChange={(e) => setClient(e.target.value)}
               />
             </Field>
-          )}
-          <Field label="Audience">
-            <select
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-            >
-              <option value="external_production">
-                External · In production
-              </option>
-              <option value="internal">
-                Internal · my Workspace organization only
-              </option>
-              <option value="external_testing">External · still Testing</option>
-            </select>
-          </Field>
-        </div>
-        <CheckBox checked={enabled} onChange={setEnabled}>
-          I enabled YouTube Data API v3 in this Google project.
-        </CheckBox>
-        <CheckBox checked={published} onChange={setPublished}>
-          I configured the audience, required scopes and exact callback. My
-          external app is published, or this is an eligible internal Workspace
-          app.
-        </CheckBox>
-        {s.google && (
-          <p role="status">
-            {matchesSaved
-              ? "Google configuration saved."
-              : "Save your Google changes before continuing."}
+            {!demo && (
+              <Field
+                label="OAuth client secret"
+                hint="Copy Client secret before closing Google’s dialog. Keep it private: paste it here, never into a chat or screenshot."
+              >
+                <input
+                  required
+                  type="password"
+                  autoComplete="off"
+                  value={secret}
+                  onChange={(e) => {
+                    setSecret(e.target.value);
+                    setSecretPending(true);
+                  }}
+                />
+              </Field>
+            )}
+          </div>
+          <p>
+            Wait for Setup to confirm the save before closing Google’s dialog.
+            Setup stores the secret in Windows Credential Manager and supplies
+            it to your hosted app during configuration. You do not need to
+            memorize it or download Google’s JSON file for this setup. Keep a
+            private backup in your password manager if you want your own copy.
+            Creation date and Enabled status do not need to be copied.
           </p>
-        )}
-        <div className="action-row">
-          <button
-            className={s.google ? "secondary" : "primary"}
-            disabled={
-              busy ||
-              matchesSaved ||
-              !enabled ||
-              !published ||
-              audience === "external_testing"
-            }
-          >
-            Save my Google configuration
-          </button>
-          {s.google && !s.credentials_removed && (
-            <button
-              type="button"
-              className="primary"
-              disabled={busy || !matchesSaved}
-              onClick={() => action("advance")}
-            >
-              Continue to my database →
-            </button>
+          <details>
+            <summary>
+              Already closed the dialog, or seeing “test users”?
+            </summary>
+            <p>
+              A message restricting access to test users means the Google app is
+              still in Testing. Return to Audience in step 3 and publish it.
+            </p>
+            <p>
+              If you lost an unsaved secret, open Google Auth Platform →
+              Clients, select your client and choose Add Secret. Paste that new
+              value here; Google no longer shows the old secret in full. A
+              failed save clears this input, so copy it again before retrying.
+            </p>
+          </details>
+          <details>
+            <summary>Screenshot guide: where to copy the client values</summary>
+            <GuideImage name="google-client-created" />
+          </details>
+          <CheckBox checked={published} onChange={setPublished}>
+            I configured the audience, required scopes and exact callback.
+            Google shows External / In production, or this is an eligible
+            Internal app.
+          </CheckBox>
+          {s.google && (
+            <p role="status">
+              {matchesSaved
+                ? "Google configuration saved. You can close Google’s client dialog."
+                : "Save your Google changes before continuing."}
+            </p>
           )}
-        </div>
+          <div className="action-row">
+            <button
+              type="submit"
+              className={s.google ? "secondary" : "primary"}
+              disabled={
+                busy ||
+                matchesSaved ||
+                !enabled ||
+                !published ||
+                audience === "external_testing"
+              }
+            >
+              Save my Google configuration
+            </button>
+            {s.google && !s.credentials_removed && (
+              <button
+                type="button"
+                className="primary"
+                disabled={busy || !matchesSaved}
+                onClick={() => action("advance")}
+              >
+                Continue to my database →
+              </button>
+            )}
+          </div>
+        </section>
       </form>
     </section>
   );

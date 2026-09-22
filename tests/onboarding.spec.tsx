@@ -161,10 +161,10 @@ it("groups account and token steps by provider, saves each secret separately and
   expect(
     screen.getByText(/Stop before creating a database project/),
   ).toBeInTheDocument();
-  const table = screen.getByRole("table", { name: /Supabase permissions/ });
-  expect(within(table).getByText("Organization Projects")).toBeInTheDocument();
-  expect(within(table).getByText("API Key Secrets")).toBeInTheDocument();
-  expect(within(table).getAllByRole("row")).toHaveLength(7);
+  expect(screen.getByText("Create legacy token")).toBeInTheDocument();
+  expect(
+    screen.getByText(/On the Generate token page, look directly under/),
+  ).toHaveTextContent("Resource access");
   const supabase = screen.getByLabelText("Supabase management token");
   await user.type(supabase, "synthetic-supabase");
   await user.click(screen.getByRole("button", { name: /Save Supabase token/ }));
@@ -178,6 +178,9 @@ it("groups account and token steps by provider, saves each secret separately and
   expect(
     screen.getByRole("button", { name: "Confirm these accounts" }),
   ).toBeDisabled();
+  expect(screen.getByLabelText("Database region")).toHaveAccessibleDescription(
+    /Where Supabase stores your Villow data/,
+  );
   expect(
     screen.queryByRole("button", { name: /Create Vercel project/ }),
   ).not.toBeInTheDocument();

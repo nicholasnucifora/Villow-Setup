@@ -93,6 +93,12 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 
 ## Progress and coordination record
 
+### 2026-09-22 — legacy token confirmed and Google walkthrough clarified
+
+**Owner:** Setup agent. The maintainer reported Supabase profile refusal with the scoped token, then successful account connection using a legacy replacement. Token guidance now documents that exact path and its broad account scope. Database-region meaning, five Google steps, Web application/client name, audience/status distinctions, one-time credential capture and adjacent copy feedback are implemented. Source/runtime schemas, cloud requests, trust and app contracts are unchanged; the native refusal message was updated to match the guidance.
+
+**Passed:** dependency install/check/build, 26 UI tests, 36 ordinary native tests with normal Windows vault access, three frontend profiles, five packaging tests and security scan. **Pending:** manual review of the rebuilt Alpha and the remaining real installation/Google sign-in/recovery checks. No computer use was performed. This UI revision does not inherit full paired qualification from the original candidate; public flags stay unchanged. The returned receipt identifies the new source and unsigned installer.
+
 ### 2026-09-22 — diagnose account refusal without guessing token scope
 
 **Owner:** Setup agent. The maintainer encountered the generic authentication error while entering the Supabase token. The actual rejected provider/check remains unknown. Account discovery now reports one of four fixed Vercel/Supabase identity/list checks, preserving rejection and omitting raw provider bodies. No permission was broadened and no identity check was bypassed. The pre-creation error footer now describes the read-only account connection stage. See [security evidence](security-evidence.md#account-access-refusal-diagnostics--2026-09-22).
