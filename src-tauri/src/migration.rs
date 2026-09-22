@@ -1,5 +1,5 @@
 use crate::{
-    error::{Error, Result},
+    error::{Error, MigrationStage, Result},
     model::{DbConnection, Installation},
     release::VerifiedRelease,
     vault::Vault,
@@ -93,6 +93,20 @@ mod connection_tests {
         net::TcpListener,
         thread,
     };
+
+    #[test]
+    fn diagnostic_sqlstate_is_bounded_and_never_accepts_error_text() {
+        assert_eq!(safe_sqlstate(Some("42501")), "42501");
+        for code in [
+            None,
+            Some("SENTINEL-private-details"),
+            Some("42\n01"),
+            Some("é425"),
+            Some("abcde"),
+        ] {
+            assert_eq!(safe_sqlstate(code), "unavailable");
+        }
+    }
 
     #[test]
     fn tls_required_rejects_a_server_that_only_offers_plaintext() {
@@ -208,9 +222,14 @@ fn apply_locked(client: &mut Client, s: &Installation, release: &VerifiedRelease
         .map_err(|_| Error::Database)?
         .get(0);
     if ledger.is_none() {
-        let objects: i64 = client.query_one("SELECT (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')) + (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e'))",&[]).map_err(|_| Error::Database)?.get(0);
-        if objects != 0 {
-            return Err(Error::SchemaDrift);
+        let objects = client.query_one("SELECT (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')), (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e'))",&[]).map_err(|_| Error::Database)?;
+        let relations: i64 = objects.get(0);
+        let routines: i64 = objects.get(1);
+        if relations != 0 || routines != 0 {
+            return Err(Error::DatabaseNotEmpty {
+                relations,
+                routines,
+            });
         }
         let existing_schema: bool = client
             .query_one(
@@ -220,7 +239,7 @@ fn apply_locked(client: &mut Client, s: &Installation, release: &VerifiedRelease
             .map_err(|_| Error::Database)?
             .get(0);
         if existing_schema {
-            return Err(Error::SchemaDrift);
+            return Err(Error::DatabaseHistoryIncomplete);
         }
         let mut tx = client.transaction().map_err(|_| Error::Database)?;
         tx.batch_execute("CREATE SCHEMA villow_setup; REVOKE ALL ON SCHEMA villow_setup FROM PUBLIC;
@@ -231,11 +250,11 @@ fn apply_locked(client: &mut Client, s: &Installation, release: &VerifiedRelease
         tx.execute("INSERT INTO villow_setup.instance(singleton,installation_id,release_digest) VALUES(TRUE,$1,$2)",&[&s.id,&release.digest]).map_err(|_| Error::Database)?;
         tx.commit().map_err(|_| Error::Uncertain)?;
     }
-    let owner = client.query_one("SELECT installation_id, release_digest FROM villow_setup.instance WHERE singleton=TRUE",&[]).map_err(|_| Error::SchemaDrift)?;
+    let owner = client.query_one("SELECT installation_id, release_digest FROM villow_setup.instance WHERE singleton=TRUE",&[]).map_err(|_| Error::DatabaseHistoryIncomplete)?;
     if owner.get::<_, String>(0) != s.id || owner.get::<_, String>(1) != release.digest {
         return Err(Error::WrongTarget);
     }
-    let rows = client.query("SELECT id,checksum,postcondition_checksum FROM villow_setup.migrations ORDER BY applied_at,id",&[]).map_err(|_| Error::SchemaDrift)?;
+    let rows = client.query("SELECT id,checksum,postcondition_checksum FROM villow_setup.migrations ORDER BY applied_at,id",&[]).map_err(|_| Error::DatabaseHistoryIncomplete)?;
     let plan = &release.manifest.schema.migrations;
     if rows.len() > plan.len() {
         return Err(Error::SchemaDrift);
@@ -250,25 +269,45 @@ fn apply_locked(client: &mut Client, s: &Installation, release: &VerifiedRelease
         }
         check_postcondition(client, text(release, &expected.postcondition)?)?;
     }
-    for migration in plan.iter().skip(rows.len()) {
+    for (index, migration) in plan.iter().enumerate().skip(rows.len()) {
+        let unit = index + 1;
         if !migration.transactional {
             return Err(Error::Unsupported);
         }
         let mut tx = client.transaction().map_err(|_| Error::Database)?;
         tx.batch_execute(text(release, &migration.file)?)
-            .map_err(|_| Error::SchemaDrift)?;
+            .map_err(|e| migration_error(unit, MigrationStage::Sql, &e))?;
         let r = tx
             .query(text(release, &migration.postcondition)?, &[])
-            .map_err(|_| Error::SchemaDrift)?;
+            .map_err(|e| migration_error(unit, MigrationStage::Verification, &e))?;
         if r.len() != 1 || r[0].len() != 1 || r[0].try_get::<_, bool>(0).ok() != Some(true) {
-            return Err(Error::SchemaDrift);
+            return Err(Error::DatabasePostcondition { unit });
         }
         tx.execute("INSERT INTO villow_setup.migrations(id,checksum,postcondition_checksum) VALUES($1,$2,$3)",
             &[&migration.id,&release.manifest.files[&migration.file].sha256,&release.manifest.files[&migration.postcondition].sha256])
-            .map_err(|_| Error::SchemaDrift)?;
+            .map_err(|e| migration_error(unit, MigrationStage::History, &e))?;
         tx.commit().map_err(|_| Error::Uncertain)?;
     }
     Ok(())
+}
+fn migration_error(unit: usize, stage: MigrationStage, error: &postgres::Error) -> Error {
+    // A bounded SQLSTATE and local plan ordinal identify the failure without
+    // exposing server messages, SQL, object names, credentials or release text.
+    Error::DatabaseMigration {
+        unit,
+        stage,
+        code: safe_sqlstate(error.code().map(|code| code.code())),
+    }
+}
+fn safe_sqlstate(code: Option<&str>) -> String {
+    code.filter(|code| {
+        code.len() == 5
+            && code
+                .bytes()
+                .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
+    })
+    .unwrap_or("unavailable")
+    .to_owned()
 }
 fn text<'a>(release: &'a VerifiedRelease, path: &str) -> Result<&'a str> {
     std::str::from_utf8(release.files.get(path).ok_or(Error::Release)?).map_err(|_| Error::Release)

@@ -1,5 +1,16 @@
 use serde::Serialize;
 
+#[derive(Debug, Clone, Copy, Serialize, thiserror::Error, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MigrationStage {
+    #[error("running the release SQL")]
+    Sql,
+    #[error("checking the result")]
+    Verification,
+    #[error("recording completion")]
+    History,
+}
+
 // Never surface raw provider bodies, URLs, SQL or third-party error strings.
 #[derive(Debug, Clone, Serialize, thiserror::Error, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -48,6 +59,18 @@ pub enum Error {
     Precondition,
     #[error("Database history, schema or ownership differs from the verified plan. Manual review is required; nothing will be reset.")]
     SchemaDrift,
+    #[error("The database connection worked, but the fresh-database check found {relations} existing tables/views/sequences and {routines} non-extension functions in the public schema before Villow's installation history exists. This does not establish who created them. Setup stopped before installing; nothing will be reset. Keep this project and report this message for review. Changing the password will not fix this check.")]
+    DatabaseNotEmpty { relations: i64, routines: i64 },
+    #[error("The database connection worked, but Villow's installation history is incomplete or unreadable. Setup cannot safely continue. Keep the project and report this message; do not delete tables, reset the database or change its password.")]
+    DatabaseHistoryIncomplete,
+    #[error("The database connection worked, but database preparation stopped at release unit {unit} while {stage} (PostgreSQL code: {code}). This is not a password failure and does not by itself mean existing data was found. The unfinished unit was not committed. Keep this project and report this entire message so the release can be checked; do not reset the database.")]
+    DatabaseMigration {
+        unit: usize,
+        stage: MigrationStage,
+        code: String,
+    },
+    #[error("The database connection worked, but the result check for release unit {unit} did not pass. The unfinished unit was not committed. Keep this project and report this message for review; do not reset the database or change its password.")]
+    DatabasePostcondition { unit: usize },
     #[error("A database operation failed after connecting. Progress is saved. Retry Prepare my database; if it persists, report this message. Do not recreate the project or reset its tables.")]
     Database,
     #[error("Setup could not reach the database host on port 5432. In the connection settings below, use the Session pooler host and user from Supabase → your project → Connect. Direct connections usually need IPv6. Check your network, firewall and Supabase network restrictions; keep the saved password unless you changed it.")]

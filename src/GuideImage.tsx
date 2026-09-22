@@ -3,6 +3,7 @@ import googleYoutubeScope from "./assets/account-guide/google-youtube-scope.png"
 import googleTestUsers from "./assets/account-guide/google-test-users.png";
 import googleClientCreated from "./assets/account-guide/google-client-created.png";
 import supabaseConnect from "./assets/account-guide/supabase-connect.png";
+import supabaseSessionPooler from "./assets/account-guide/supabase-session-pooler.png";
 
 // Replace remaining null entries with reviewed, redacted screenshots.
 const images: Record<string, { src: string | null; caption: string }> = {
@@ -19,6 +20,11 @@ const images: Record<string, { src: string | null; caption: string }> = {
     src: supabaseConnect,
     caption:
       "Open your own Supabase project, then click the green Connect button in the top bar, highlighted in red. The project name and address in this example will differ from yours.",
+  },
+  "supabase-session-pooler": {
+    src: supabaseSessionPooler,
+    caption:
+      "Choose Direct, then Session pooler. Under Connection parameters, copy your own host and user and check port 5432. The underlined host and user in this picture are placeholders. You do not need Reset database password or Install Agent Skills.",
   },
   "google-project": {
     src: null,

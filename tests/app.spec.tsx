@@ -500,7 +500,7 @@ describe("owner-facing setup", () => {
     await user.type(host, "aws-1-ap-southeast-2.pooler.supabase.com");
     expect(prepare).toBeDisabled();
     const password = screen.getByLabelText(
-      "Database password, only if changed",
+      "Replacement database password (usually leave blank)",
     );
     expect(password).not.toBeRequired();
     expect(password).toHaveValue("");

@@ -2,7 +2,11 @@
 mod common;
 use common::*;
 use postgres::{Client, NoTls};
-use villow_setup::{error::Error, migration, release::hash};
+use villow_setup::{
+    error::{Error, MigrationStage},
+    migration,
+    release::hash,
+};
 
 struct Database {
     admin: Client,
@@ -104,24 +108,22 @@ fn real_postgres_transactions_drift_and_locks() {
 #[test]
 #[ignore = "requires explicitly authorized local disposable Postgres"]
 fn failed_sql_or_postcondition_rolls_back_entire_unit() {
-    for failing_sql in [true, false] {
+    for (path, sql, expected) in [
+        ("migrations/baseline.sql", "CREATE TABLE public.partial_effect (id int); SELECT 1/0;", Error::DatabaseMigration { unit: 1, stage: MigrationStage::Sql, code: "22012".into() }),
+        ("migrations/verify.sql", "SELECT false;", Error::DatabasePostcondition { unit: 1 }),
+        ("migrations/verify.sql", "SELECT 1/0;", Error::DatabaseMigration { unit: 1, stage: MigrationStage::Verification, code: "22012".into() }),
+        ("migrations/baseline.sql", "CREATE TABLE public.partial_effect (id int); DO $$ BEGIN RAISE EXCEPTION 'SENTINEL-private-database-details' USING ERRCODE='42501'; END $$;", Error::DatabaseMigration { unit: 1, stage: MigrationStage::Sql, code: "42501".into() }),
+    ] {
         let db = Database::new();
         let mut c = db.client();
         let mut r = verified();
         let s = installation(&r);
-        let path = if failing_sql {
-            "migrations/baseline.sql"
-        } else {
-            "migrations/verify.sql"
-        };
-        let sql = if failing_sql {
-            "CREATE TABLE public.partial_effect (id int); SELECT 1/0;"
-        } else {
-            "SELECT false;"
-        };
         r.files.insert(path.into(), sql.as_bytes().to_vec());
         r.manifest.files.get_mut(path).unwrap().sha256 = hash(sql.as_bytes());
-        assert_eq!(migration::apply(&mut c, &s, &r), Err(Error::SchemaDrift));
+        let error = migration::apply(&mut c, &s, &r).unwrap_err();
+        assert_eq!(error, expected);
+        assert!(!error.to_string().contains("SENTINEL"));
+        assert!(!serde_json::to_string(&error).unwrap().contains("SENTINEL"));
         let count: i64 = c
             .query_one(
                 "SELECT count(*) FROM pg_tables WHERE schemaname='public'",
@@ -149,7 +151,10 @@ fn nonempty_legacy_database_is_never_adopted_or_reset() {
     let r = verified();
     assert_eq!(
         migration::apply(&mut c, &installation(&r), &r),
-        Err(Error::SchemaDrift)
+        Err(Error::DatabaseNotEmpty {
+            relations: 1,
+            routines: 0
+        })
     );
     assert_eq!(
         c.query_one("SELECT value FROM public.existing", &[])
@@ -157,6 +162,24 @@ fn nonempty_legacy_database_is_never_adopted_or_reset() {
             .get::<_, String>(0),
         "retain"
     );
+}
+
+#[test]
+#[ignore = "requires explicitly authorized local disposable Postgres"]
+fn incomplete_history_stops_without_adoption() {
+    let db = Database::new();
+    let mut c = db.client();
+    c.batch_execute("CREATE SCHEMA villow_setup;").unwrap();
+    let r = verified();
+    assert_eq!(
+        migration::apply(&mut c, &installation(&r), &r),
+        Err(Error::DatabaseHistoryIncomplete)
+    );
+    let ledger: Option<String> = c
+        .query_one("SELECT to_regclass('villow_setup.migrations')::text", &[])
+        .unwrap()
+        .get(0);
+    assert!(ledger.is_none());
 }
 
 #[test]

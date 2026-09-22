@@ -1770,10 +1770,12 @@ function DatabaseStep({
         rules.
       </p>
       <p>
-        Setup already saved the generated database password; you do not need to
-        enter it again. Setup checks for existing app data, applies the signed
-        migration plan under a database lock, and verifies its postconditions.
-        If the schema differs, it stops for review.
+        Setup created a strong database password automatically when it created
+        your Supabase project, and saved it in Windows Credential Manager on
+        this PC. You did not need to choose, copy or remember it. Setup checks
+        for existing app data, applies the signed migration plan under a
+        database lock, and verifies its postconditions. If the schema differs,
+        it stops for review.
       </p>
       {demo ? (
         <p className="quiet">
@@ -1817,6 +1819,7 @@ function DatabaseStep({
               Below the connection string, find the individual connection
               parameters. Click <b>View parameters</b> if they are hidden.
               Confirm the port is <b>5432</b> before copying the values.
+              <GuideImage name="supabase-session-pooler" />
             </li>
             <li>
               Copy <b>Host</b> and <b>User</b> into the fields below. The host
@@ -1825,9 +1828,11 @@ function DatabaseStep({
               shows.
             </li>
             <li>
-              Leave the password field blank unless you changed the database
-              password in Supabase. Click <b>Save connection settings</b>, then{" "}
-              <b>Prepare my database</b>.
+              Leave <b>Replacement database password</b> blank. Setup uses the
+              password it already saved. Only fill this in if you personally
+              used <b>Reset database password</b> in Supabase and chose a new
+              password. You do not need to reset it for these steps. Click{" "}
+              <b>Save connection settings</b>, then <b>Prepare my database</b>.
             </li>
           </ol>
           <p>
@@ -1870,7 +1875,10 @@ function DatabaseStep({
                 }}
               />
             </Field>
-            <Field label="Database password, only if changed">
+            <Field
+              label="Replacement database password (usually leave blank)"
+              hint="Setup generated and saved your database password for you. Leave this empty to keep using it. Only enter a new password if you reset it yourself in Supabase; this is not your Supabase login password or access token."
+            >
               <input
                 type="password"
                 autoComplete="off"

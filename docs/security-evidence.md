@@ -1,5 +1,13 @@
 # Security evidence and release qualification
 
+## Database preparation diagnostics and password guidance — 2026-09-22
+
+The maintainer reached a certificate-verified database session but then received `SchemaDrift`. Source review found that this error also covered failed execution of signed SQL and new-unit result checks; the old message does not identify the cause or establish that the project contains pre-existing app data. The current candidate distinguishes pre-installation public object counts, incomplete installation history, migration SQL/verification/history statement errors and a false new-unit postcondition. Statement diagnostics include only a one-based local plan ordinal, a fixed stage and a bounded five-character SQLSTATE, never SQL, server messages or database object names. No baseline, trust, freshness predicate, ownership requirement, transaction boundary or resume authorization was changed. True saved-history/schema drift retains its refusal.
+
+The database guide now includes the supplied highlighted Session pooler/parameters screenshot unmodified. The replacement-password field and preceding instructions explain that Setup generated the project's password and stored it in Windows Credential Manager, and that leaving the field blank retains it. No credential-read IPC or plaintext storage was added.
+
+Passed: npm ci, TypeScript check, 30 UI tests, frontend build, security scan, 43 ordinary native tests, and five opt-in disposable local PostgreSQL tests. The latter cover SQL and postcondition failure classification with transaction rollback, omission of sentinel server text from displayed/serialized errors, incomplete-history refusal, existing-data preservation, ledger drift, locks and permissions. The sandbox could not exercise Credential Manager or start PostgreSQL; the normal-account reruns passed and the disposable loopback server was stopped. No user database connection, reset, migration or computer-use was performed. The real failure remains undiagnosed until the maintainer retries the more specific build; paired app qualification remains pending and public qualification flags are unchanged.
+
 ## Inline Testing guide and database connectivity — 2026-09-22
 
 The maintainer reported the generic database error at Prepare my database. That old message covered both connection failures and some SQL failures, so it does not establish the cause on their machine. The direct IPv6 default and missing Supabase root certificate were implementation gaps identified in source review.
