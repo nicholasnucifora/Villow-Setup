@@ -11,6 +11,7 @@ use crate::{
 pub fn validate(s: &Installation, old: &VerifiedRelease, new: &VerifiedRelease) -> Result<()> {
     s.assert_writable()?;
     if s.step != Step::Database
+        || s.installed_repair.is_some()
         || s.deployment_id.is_some()
         || s.effects.keys().any(|key| {
             ![

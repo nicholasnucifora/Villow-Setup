@@ -75,6 +75,14 @@ pub enum Error {
     FreshRetryRefused,
     #[error("Finish switching to the saved corrected release before preparing the database. Use Resume release change below; your accounts and credentials are retained.")]
     FreshRetryPending,
+    #[error("This repair cannot be applied to the saved installation. It requires the original unfinished Alpha setup, matching installed release, unchanged database history and the same signed-in owner. Keep your resources and report this message; nothing will be reset.")]
+    RepairRefused,
+    #[error("Finish the saved app repair using Resume repair. Normal setup actions are paused so the installed database and release stay consistent.")]
+    RepairPending,
+    #[error("Confirm that you have saved a database backup and the original encryption key before applying this repair. Setup has not independently verified your backup.")]
+    RepairBackupRequired,
+    #[error("The repair's database check failed. The schema, installation history or owner differs from the authenticated repair plan. Keep this database and report this message; do not reset it or repeat fresh preparation.")]
+    RepairDatabase,
     #[error("A database operation failed after connecting. Progress is saved. Retry Prepare my database; if it persists, report this message. Do not recreate the project or reset its tables.")]
     Database,
     #[error("Setup could not reach the database host on port 5432. In the connection settings below, use the Session pooler host and user from Supabase → your project → Connect. Direct connections usually need IPv6. Check your network, firewall and Supabase network restrictions; keep the saved password unless you changed it.")]

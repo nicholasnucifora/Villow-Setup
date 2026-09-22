@@ -19,6 +19,7 @@ import { CopyAddress } from "./CopyAddress";
 import { GoogleScopes } from "./GoogleScopes";
 import { ReconciliationForm } from "./ReconciliationForm";
 import { DeploymentStep, LaunchProgress } from "./LaunchProgress";
+import { InstalledRepair } from "./InstalledRepair";
 import type {
   Accounts,
   Bridge,
@@ -671,7 +672,8 @@ export function App({
                     "deployment",
                     "health",
                     "complete",
-                  ].includes(s.step) && <LaunchProgress s={s} />}
+                  ].includes(s.step) &&
+                    !s.installed_repair && <LaunchProgress s={s} />}
                   {s.step === "configuration" && (
                     <>
                       <p className="lead">Connect the services securely.</p>
@@ -700,30 +702,43 @@ export function App({
                       open={open}
                     />
                   )}
-                  {s.step === "health" && (
-                    <>
-                      <p className="lead">
-                        Sign in as {s.owner_email} to make this instance yours.
-                      </p>
-                      <p>
-                        Open your app in the system browser, complete Google
-                        sign-in, then return here. Setup checks the actual
-                        owner, schema, configuration and a bounded authenticated
-                        app operation.
-                      </p>
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => open("app")}
-                      >
-                        Open my app to sign in ↗
-                      </button>
-                      <p className="quiet">
-                        Your build and website address are ready. Use the Google
-                        account you added as a test user, then return here to
-                        finish.
-                      </p>
-                    </>
+                  {s.step === "health" &&
+                    !s.installed_repair &&
+                    !data?.installed_repair && (
+                      <>
+                        <p className="lead">
+                          Sign in as {s.owner_email} to make this instance
+                          yours.
+                        </p>
+                        <p>
+                          Open your app in the system browser, complete Google
+                          sign-in, then return here. Setup checks the actual
+                          owner, schema, configuration and a bounded
+                          authenticated app operation.
+                        </p>
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => open("app")}
+                        >
+                          Open my app to sign in ↗
+                        </button>
+                        <p className="quiet">
+                          Your build and website address are ready. Use the
+                          Google account you added as a test user, then return
+                          here to finish.
+                        </p>
+                      </>
+                    )}
+                  {__UNSIGNED_ALPHA__ && s.step === "health" && (
+                    <InstalledRepair
+                      s={s}
+                      offer={data?.installed_repair}
+                      message={data?.message ?? ""}
+                      busy={busy}
+                      action={action}
+                      open={open}
+                    />
                   )}
                   {s.step === "complete" && (
                     <>
@@ -741,6 +756,9 @@ export function App({
                     </>
                   )}
                   {s.step !== "google" &&
+                    (!s.installed_repair ||
+                      s.installed_repair.phase === "complete") &&
+                    !data?.installed_repair &&
                     s.step !== "database" &&
                     !(s.step === "deployment" && !!s.deployment_id) &&
                     (s.step !== "projects" || !!s.selection) &&
@@ -942,6 +960,12 @@ type Action = (
   onSuccess?: () => void,
 ) => Promise<boolean>;
 function operationTitle(command: string, s?: Installation | null): string {
+  if (command === "check_installed_repair")
+    return "Checking the signed repair against your installed database";
+  if (command === "apply_installed_repair")
+    return s?.installed_repair?.phase === "verify"
+      ? "Checking the repaired website"
+      : "Repairing your installed app";
   if (command === "check_deployment") return "Checking your Vercel build";
   if (command === "check_fresh_retry")
     return "Looking for a verified database fix";

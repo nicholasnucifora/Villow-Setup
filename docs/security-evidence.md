@@ -1,5 +1,16 @@
 # Security evidence and release qualification
 
+## Installed Alpha repair — 2026-09-22
+
+The maintainer's Vercel logs and exact published 0.1.1 archive exposed an app-owned JSON module-loading error and missing watch-time schema fields. Manager 0.1.3 implements the agreed, separate installed-repair contract for an original unfinished Health-stage Alpha with a signed-in intended owner. No source SQL is copied into the manager runtime. See [the contract](villow-integration-contract.md) for exact manifest fields, owner/ledger/schema checks, atomic patch/receipt/digest compare-and-swap, preserved data/vault/resources, and uncertain-deployment reconciliation.
+
+Only the Alpha desktop identifier accepts the two new typed commands; the UI is excluded from ordinary/testing profiles. Applying requires an explicit backup/encryption-key acknowledgment, which is not represented as an independently verified backup. Normal advance and local credential removal/forgetting are blocked while repair is pending. Recovery exports strip repair authority. The original deployment and effects remain recorded, and completion requires the destination's existing authenticated health contract.
+
+Local evidence: 38 UI tests and 52 ordinary native tests pass, including saved intent before effects, lost SQL/deployment responses, single deployment submission, failed health and credential/resource preservation. Nine disposable PostgreSQL tests pass, including populated repair, ledger/owner/schema drift, SQL/check failure rollback, advisory lock and committed-receipt resume. The app-owned early fixture passed native authentication of the actual old release, real old baseline and owner bootstrap, rollback forced at native CAS, exact existing owner/settings/token-row and old-ledger preservation, reconnect/resume, final corrected probe and receipt tamper refusal. Early fixture identity is synthetic and is not a published release.
+
+Type checking/build, native desktop capability compilation, three frontend build profiles, five packaging tests and security scan pass. PostgreSQL startup required normal Windows-account execution after a sandbox restricted-token failure; disposable servers were stopped. No computer-use, user-vault retrieval, live database/provider operation, real backup verification, signing or publication occurred. Final frozen-pair qualification and installer identity belong in the build receipt. All public qualification flags remain false.
+
+
 ## Deployment readiness and guided progress — 2026-09-22
 
 The maintainer reports the authenticated 0.1.1 correction passed database preparation on their fresh Supabase project. They then reached an unavailable Vercel address before sign-in. Source review confirmed Setup treated deployment acceptance as build completion. The actual provider build status/error is still needed to distinguish a pending build, failed build or missing address; the generic old health message does not identify it.

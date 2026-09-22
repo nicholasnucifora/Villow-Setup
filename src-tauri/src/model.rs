@@ -122,6 +122,29 @@ pub struct FreshRetryIntent {
     pub from: String,
     pub to: String,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairPhase {
+    Database,
+    Upload,
+    Deploy,
+    Verify,
+    Complete,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RepairIntent {
+    pub from: String,
+    pub to: String,
+    pub repair_id: String,
+    pub operation_id: String,
+    pub backup_confirmed_at: String,
+    pub previous_operation_id: String,
+    pub previous_deployment_id: String,
+    pub phase: RepairPhase,
+    pub deployment_id: Option<String>,
+    pub deployment_status: Option<DeploymentStatus>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Installation {
@@ -154,6 +177,8 @@ pub struct Installation {
     pub credentials_removed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fresh_retry: Option<FreshRetryIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub installed_repair: Option<RepairIntent>,
 }
 impl Installation {
     pub fn new(
@@ -200,6 +225,7 @@ impl Installation {
             read_only: false,
             credentials_removed: false,
             fresh_retry: None,
+            installed_repair: None,
         })
     }
     pub fn selection(&self) -> Result<&Selection> {
@@ -230,6 +256,11 @@ impl Installation {
             return Err(Error::MissingCredential);
         }
         Ok(())
+    }
+    pub fn repair_pending(&self) -> bool {
+        self.installed_repair
+            .as_ref()
+            .is_some_and(|r| r.phase != RepairPhase::Complete)
     }
 }
 pub fn valid_email(s: &str) -> bool {

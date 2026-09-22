@@ -114,6 +114,8 @@ pub struct Manifest {
     pub upgrade_from: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fresh_retry_from: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub installed_repairs: Vec<InstalledRepair>,
     pub archive_url: String,
     pub archive_sha256: String,
     pub archive_size: u64,
@@ -153,6 +155,17 @@ pub struct Migration {
     pub postcondition: String,
     pub prerequisite: Option<String>,
     pub transactional: bool,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InstalledRepair {
+    pub id: String,
+    pub from_manifest_sha256: String,
+    pub from_schema_revision: String,
+    pub file: String,
+    pub postcondition: String,
+    pub transactional: bool,
+    pub backup_required: bool,
 }
 // Only release authentication constructs this capability in production code.
 #[derive(Clone)]
@@ -236,6 +249,10 @@ pub fn verify_bundle(
     validate_manifest(&manifest, trust)?;
     if manifest.app_version != pointer.version
         || manifest.fresh_retry_from.contains(&digest)
+        || manifest
+            .installed_repairs
+            .iter()
+            .any(|r| r.from_manifest_sha256 == digest)
         || manifest.channel != channel.channel
         || archive.len() as u64 != manifest.archive_size
         || hash(archive) != manifest.archive_sha256
@@ -249,6 +266,12 @@ pub fn verify_bundle(
                 .map_err(|_| Error::Release)?,
         )?;
     }
+    for repair in &manifest.installed_repairs {
+        crate::sql_guard::validate_transactional(
+            std::str::from_utf8(files.get(&repair.file).ok_or(Error::Release)?)
+                .map_err(|_| Error::Release)?,
+        )?;
+    }
     Ok(VerifiedRelease {
         manifest,
         digest,
@@ -256,6 +279,34 @@ pub fn verify_bundle(
     })
 }
 pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
+    if m.installed_repairs.len() > 1 {
+        return Err(Error::Release);
+    }
+    for repair in &m.installed_repairs {
+        if repair.id != "villow-installed-159"
+            || !is_hash(&repair.from_manifest_sha256)
+            || repair.from_schema_revision != "villow-fresh-158"
+            || m.schema.revision != "villow-fresh-159"
+            || repair.file != "migrations/repair-159.sql"
+            || repair.postcondition != "migrations/postcondition.sql"
+            || !repair.transactional
+            || !repair.backup_required
+            || !m.fresh_retry_from.is_empty()
+            || !m.upgrade_from.is_empty()
+            || semver::Version::parse(&m.minimum_manager).map_err(|_| Error::Release)?
+                < semver::Version::new(0, 1, 3)
+            || m.files.get(&repair.file).is_none_or(|f| f.role != "repair")
+            || m.files
+                .get(&repair.postcondition)
+                .is_none_or(|f| f.role != "postcondition")
+            || m.schema
+                .migrations
+                .last()
+                .is_none_or(|unit| unit.postcondition != repair.postcondition)
+        {
+            return Err(Error::Release);
+        }
+    }
     let retry_sources: BTreeSet<_> = m.fresh_retry_from.iter().collect();
     if retry_sources.len() != m.fresh_retry_from.len()
         || retry_sources.len() > 8
@@ -352,7 +403,8 @@ pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
         validate_path(path)?;
         if f.size > MAX_FILE
             || !is_hash(&f.sha256)
-            || !["deploy", "migration", "postcondition"].contains(&f.role.as_str())
+            || !["deploy", "migration", "postcondition", "repair"].contains(&f.role.as_str())
+            || (f.role == "repair" && !m.installed_repairs.iter().any(|r| &r.file == path))
         {
             return Err(Error::Release);
         }

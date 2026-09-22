@@ -21,9 +21,11 @@ To opt in to the isolated demo and interruption scenarios, run `npm run desktop:
 npm run desktop:build
 ```
 
-The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.2_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.3_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
 For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
+
+Manager 0.1.3 adds a bounded repair for the known already-installed Alpha that cannot finish hosted setup. It requires a signed matching repair release, the original checkpoint/owner/credentials and owner-confirmed backup; it preserves data and replaces the deployment with interruption recovery. The corrected web release is still awaiting final paired qualification, signing and publication. See [the installed repair contract](docs/villow-integration-contract.md). General upgrades and adoption remain deferred.
 
 ## Implemented
 
@@ -38,7 +40,7 @@ For the maintainer's real-account prototype, `npm run desktop:build:alpha` selec
 
 Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed. Setup develops independently from this repository root. The web maintainer reports the frozen app/Setup pair passed its full qualification; exact commits and the separately verified genuine published artifacts are recorded in [the Alpha release record](docs/alpha-0.1.0.md).
 
-Automated upgrades, writable adoption after loss of local state, repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
+General automated upgrades, writable adoption after loss of local state, general repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
 
 ## Evidence and handoff
 

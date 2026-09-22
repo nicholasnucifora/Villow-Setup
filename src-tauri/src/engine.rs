@@ -30,6 +30,9 @@ impl Engine<'_> {
         let _lock = self.store.lock()?;
         let mut s = self.store.load()?.ok_or(Error::Precondition)?;
         s.assert_writable()?;
+        if s.repair_pending() {
+            return Err(Error::RepairPending);
+        }
         if s.fresh_retry.is_some() {
             return Err(Error::FreshRetryPending);
         }
@@ -206,6 +209,7 @@ impl Engine<'_> {
         if ![Step::Deployment, Step::Health].contains(&s.step)
             || s.deployment_id.is_none()
             || s.fresh_retry.is_some()
+            || s.repair_pending()
             || s.release_digest != release.digest
             || s.commit != release.manifest.commit
             || s.app_version != release.manifest.app_version
@@ -269,6 +273,9 @@ impl Engine<'_> {
 pub fn remove_credentials(store: &Store, vault: &dyn Vault) -> Result<()> {
     let _lock = store.lock()?;
     let mut s = store.load()?.ok_or(Error::Precondition)?;
+    if s.repair_pending() {
+        return Err(Error::RepairPending);
+    }
     vault.remove_all(&s.id)?;
     s.credentials_removed = true;
     store.save(&s)
@@ -276,6 +283,9 @@ pub fn remove_credentials(store: &Store, vault: &dyn Vault) -> Result<()> {
 pub fn forget(store: &Store, vault: &dyn Vault, confirmation: &str) -> Result<()> {
     let _lock = store.lock()?;
     let s = store.load()?.ok_or(Error::Precondition)?;
+    if s.repair_pending() {
+        return Err(Error::RepairPending);
+    }
     if confirmation != s.name {
         return Err(Error::Invalid);
     }

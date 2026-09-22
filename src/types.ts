@@ -81,6 +81,19 @@ export interface Installation {
   read_only: boolean;
   credentials_removed: boolean;
   fresh_retry?: { from: string; to: string } | null;
+  installed_repair?: RepairIntent | null;
+}
+export interface RepairIntent {
+  from: string;
+  to: string;
+  repair_id: string;
+  operation_id: string;
+  previous_operation_id: string;
+  previous_deployment_id: string;
+  backup_confirmed_at: string;
+  phase: "database" | "upload" | "deploy" | "verify" | "complete";
+  deployment_id: string | null;
+  deployment_status: Installation["deployment_status"];
 }
 export interface Release {
   app_version: string;
@@ -99,6 +112,7 @@ export interface Snapshot {
   release_checked_at: string | null;
   message: string;
   fresh_retry?: { digest: string; app_version: string } | null;
+  installed_repair?: { digest: string; app_version: string } | null;
 }
 export interface Bridge {
   call<T>(command: string, args?: Record<string, unknown>): Promise<T>;

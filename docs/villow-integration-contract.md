@@ -1,5 +1,75 @@
 # Villow integration contract
 
+## Installed Alpha correction — manager 0.1.3
+
+An optional format-1 `installed_repairs` array (maximum one) describes a separate
+correction for an already-installed, unfinished Alpha. This is implemented in
+source; publication and live qualification remain separate. Its single entry is:
+
+```json
+{
+  "id": "villow-installed-159",
+  "from_manifest_sha256": "37072f3ef4efc387b57f6edcccdfd0e71b09fc61abcaee4649f9aba76fa332ac",
+  "from_schema_revision": "villow-fresh-158",
+  "file": "migrations/repair-159.sql",
+  "postcondition": "migrations/postcondition.sql",
+  "transactional": true,
+  "backup_required": true
+}
+```
+
+The source digest must be the exact authenticated source manifest; the corrected
+0.1.1 source digest is recorded in [the investigation](hosted-setup-failure-handoff.md).
+The destination is `villow-fresh-159`, requires manager >=0.1.3 and keeps both
+`upgrade_from` and `fresh_retry_from` empty. The SQL file uses role `repair`, is
+hash-authenticated in the archive and passes the transactional guard. Its final
+check uses role `postcondition` and must also be the destination fresh baseline's
+final postcondition. Unknown fields, extra entries, missing backup/transactional
+requirements, unsupported revisions/IDs/paths, orphan repair files and self-source
+digests are rejected. Fresh installations still apply only `schema.migrations`.
+
+Only the Alpha desktop identifier exposes `check_installed_repair` and
+`apply_installed_repair`. Initial eligibility requires the original writable
+Health checkpoint, all original effects verified, ready original deployment,
+full credentials and unchanged configuration/scopes/contracts. Provider account,
+project, original deployment metadata, complete SQL ledger, old schema and the
+already-signed-in intended owner are rechecked. Imported recovery, completed
+installs, missing secrets, another operation and drift are refused.
+
+Before SQL, apply requires a truthful owner backup/encryption-key confirmation
+and durably saves the source/destination/repair ID, backup acknowledgment time,
+new operation UUID and old deployment. The acknowledgment is not independent
+verification of a backup or restore. SQL uses native and owner advisory locks
+plus instance/history/owner/settings table locks. App-owned additive SQL, final
+schema check, a native `villow_setup.repairs` receipt and the old-to-new native
+instance digest compare-and-swap commit together. The original migration rows
+and checksums are retained. Resume accepts only a pristine old state without a
+receipt or the corrected state with an exact matching receipt and final schema.
+
+While repair is pending, normal advance and local credential removal/forgetting
+are blocked. Existing credentials may be reconnected to the same accounts.
+The top-level source pin remains old while the repair intent separately tracks
+the destination. Uploads and replacement deployment use a projected destination
+state and separate saved operation ID. An uncertain POST is reconciled by its
+operation/release metadata, never blindly repeated. Only after new deployment
+readiness, exact alias and authenticated owner/app/schema/Google/cron health pass
+does Setup promote the local destination pin and Complete state. The original
+deployment/effects remain recorded. No account, project or secret is recreated.
+
+Both releases must remain unrevoked in a fresh authenticated channel throughout
+resume. Recovery exports strip repair authority; importing remains read-only.
+Manager 0.1.3 reads older checkpoints, but older managers do not understand a
+checkpoint after this repair begins; continue with 0.1.3 or newer.
+
+The opt-in `app_installed_repair` test takes `VILLOW_INSTALLED_REPAIR_TEST_DIR`
+with `source/` and `target/` manifest/archive pairs, a channel listing both, and
+`test-public-key.txt`. Its test-only key uses the actual repository URL solely
+to authenticate unchanged source artifact URLs. It requires the existing
+disposable-loopback environment and `manager_repair_check` database. Production
+trust is never changed. The test verifies actual old baseline/owner bootstrap,
+rollback at native CAS, populated-data/history preservation, committed-result
+resume, destination probe and forged-receipt refusal.
+
 ## Authenticated retry before installation — manager 0.1.1
 
 The optional format-1 manifest field `fresh_retry_from` is an array of at most eight distinct lowercase SHA-256 manifest digests. It defaults to empty and is omitted when empty. Nonempty values require `minimum_manager >= 0.1.1`, `fresh_baseline` and empty `upgrade_from`; a manifest cannot name its own digest. This authorizes replacement of a specific release before any app unit commits, not upgrades or adoption. The app-owned ACL correction is tracked in [the database investigation](database-release-investigation.md).

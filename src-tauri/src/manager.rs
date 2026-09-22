@@ -25,6 +25,12 @@ pub struct Snapshot {
     pub message: String,
     pub release_digest: Option<String>,
     pub fresh_retry: Option<FreshRetryOffer>,
+    pub installed_repair: Option<InstalledRepairOffer>,
+}
+#[derive(Serialize)]
+pub struct InstalledRepairOffer {
+    pub digest: String,
+    pub app_version: String,
 }
 #[derive(Serialize)]
 pub struct FreshRetryOffer {
@@ -40,7 +46,7 @@ impl Manager {
     }
     pub fn snapshot(&self) -> Result<Snapshot> {
         Ok(Snapshot { manager_version: env!("CARGO_PKG_VERSION").into(), trust_configured: self.trust.configured(),
-            installation: self.store.load()?, release: None, release_checked_at: None, release_digest: None, fresh_retry: None,
+            installation: self.store.load()?, release: None, release_checked_at: None, release_digest: None, fresh_retry: None, installed_repair: None,
             message: if self.trust.configured() { "Release status has not been checked this session." } else {
                 "The official signed Villow release and publisher are not configured. Cloud setup is unavailable; you can read the account guide without creating accounts or tokens."
             }.into() })
@@ -185,6 +191,80 @@ impl Manager {
         let release = self.release(Some(&digest))?;
         let state = Installation::new(name, email, &release)?;
         self.store.save(&state)?;
+        self.snapshot()
+    }
+    pub fn check_installed_repair(&self) -> Result<Snapshot> {
+        let _lock = self.store.lock()?;
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        s.assert_writable()?;
+        if s.step != Step::Health || s.installed_repair.is_some() {
+            return Err(Error::RepairRefused);
+        }
+        let channel = self.channel()?;
+        let old = self.release_in_channel(&channel, Some(&s.release_digest))?;
+        let new = self.release_in_channel(&channel, None)?;
+        if !new
+            .manifest
+            .installed_repairs
+            .iter()
+            .any(|r| r.from_manifest_sha256 == old.digest)
+        {
+            let mut snapshot = self.snapshot()?;
+            snapshot.message = "No signed repair is available for this installed Alpha yet. Keep your saved setup and existing database.".into();
+            return Ok(snapshot);
+        }
+        crate::installed_repair::validate(&s, &old, &new)?;
+        crate::installed_repair::require_credentials(&s, &OsVault)?;
+        let http = Http::new()?;
+        let providers = LiveProviders {
+            http: &http,
+            vault: &OsVault,
+        };
+        providers.verify_targets(&s)?;
+        if providers.deployment_status(&s, &old)? != DeploymentStatus::Ready {
+            return Err(Error::DeploymentNotReady);
+        }
+        let connection = providers.database_connection(&s)?;
+        let mut client = crate::migration::connect(&s, &OsVault, &connection)?;
+        crate::repair_database::check_or_apply(&mut client, &s, &old, &new, false)?;
+        let mut snapshot = self.snapshot()?;
+        snapshot.installed_repair = Some(InstalledRepairOffer {
+            digest: new.digest,
+            app_version: new.manifest.app_version,
+        });
+        snapshot.message = "Signed repair verified against your installed database and owner. Review the backup requirement before applying it.".into();
+        Ok(snapshot)
+    }
+    pub fn apply_installed_repair(
+        &self,
+        digest: String,
+        backup_confirmed: bool,
+    ) -> Result<Snapshot> {
+        let _lock = self.store.lock()?;
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        let channel = self.channel()?;
+        let old = self.release_in_channel(&channel, Some(&s.release_digest))?;
+        // Never follow a new recommended release when resuming saved intent.
+        let new = self.release_in_channel(&channel, Some(&digest))?;
+        let http = Http::new()?;
+        let providers = LiveProviders {
+            http: &http,
+            vault: &OsVault,
+        };
+        crate::installed_repair::advance(
+            &self.store,
+            &OsVault,
+            &providers,
+            s,
+            &old,
+            &new,
+            backup_confirmed,
+            |state, apply| {
+                let connection = providers.database_connection(state)?;
+                let mut client = crate::migration::connect(state, &OsVault, &connection)?;
+                crate::repair_database::check_or_apply(&mut client, state, &old, &new, apply)
+            },
+        )?;
         self.snapshot()
     }
     pub fn credentials(&self, vercel: String, supabase: String) -> Result<Snapshot> {
@@ -360,6 +440,17 @@ impl Manager {
         }
         if step == "app" {
             let s = self.store.load()?.ok_or(Error::Precondition)?;
+            if s.repair_pending() {
+                let p = s.installed_repair.as_ref().ok_or(Error::RepairRefused)?;
+                if s.read_only
+                    || p.phase != RepairPhase::Verify
+                    || p.deployment_status != Some(DeploymentStatus::Ready)
+                {
+                    return Err(Error::DeploymentNotReady);
+                }
+                crate::http::validate_origin(s.origin()?)?;
+                return Ok(s.origin()?.into());
+            }
             if s.read_only
                 || !(s.step == Step::Complete
                     || (s.step == Step::Health

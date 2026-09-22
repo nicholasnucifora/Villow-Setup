@@ -18,6 +18,7 @@ pub fn export(s: &Installation) -> Result<String> {
     // Never carry credentials or inferred write authorization in an export.
     installation.effects.clear();
     installation.fresh_retry = None;
+    installation.installed_repair = None;
     installation.deployment_status = None;
     installation.credentials_removed = true;
     for r in [&mut installation.vercel, &mut installation.database]
@@ -62,6 +63,7 @@ pub fn import(text: &str) -> Result<Installation> {
     r.installation.credentials_removed = true;
     r.installation.effects.clear();
     r.installation.fresh_retry = None;
+    r.installation.installed_repair = None;
     r.installation.deployment_status = None;
     r.installation.checks.clear(); // Imported assertions never render as verified checks.
     if r.installation.step == Step::Complete {

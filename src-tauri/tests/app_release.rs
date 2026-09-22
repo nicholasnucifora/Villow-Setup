@@ -115,7 +115,10 @@ fn authenticates_the_app_release_and_transactional_baseline() {
             Err(Error::SchemaDrift)
         );
     }
-    assert_eq!(release.manifest.schema.revision, "villow-fresh-158");
+    assert!(matches!(
+        release.manifest.schema.revision.as_str(),
+        "villow-fresh-158" | "villow-fresh-159"
+    ));
     assert!(release.manifest.configuration.contains_key("CRON_SECRET"));
     assert!(release.files.contains_key("lib/api/setup.ts"));
     assert!(release

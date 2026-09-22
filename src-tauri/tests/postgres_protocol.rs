@@ -28,6 +28,7 @@ impl Database {
         let password =
             std::env::var("VILLOW_LOCAL_DB_PASSWORD").expect("Set synthetic test-cluster password");
         let mut admin = connect(port, &password);
+        admin.batch_execute("DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF; END $$;").unwrap();
         admin.batch_execute("DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF; IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF; END $$;").expect("Test roles");
         let name = format!("villow_test_{}", uuid::Uuid::new_v4().simple());
         admin
@@ -60,6 +61,177 @@ fn connect(port: u16, password: &str) -> Client {
         .dbname("postgres")
         .connect(NoTls)
         .expect("Local test server; no remote URLs accepted")
+}
+
+fn seed_repair_owner(c: &mut Client, s: &villow_setup::model::Installation) {
+    c.execute("INSERT INTO users(id,email,google_id,is_system_owner,encrypted_token) VALUES('00000000-0000-4000-8000-000000000001',$1,'synthetic-google-id',TRUE,'SENTINEL-encrypted-preserve')", &[&s.owner_email]).unwrap();
+    c.batch_execute(
+        "INSERT INTO user_settings(user_id) VALUES('00000000-0000-4000-8000-000000000001')",
+    )
+    .unwrap();
+    c.execute("INSERT INTO villow_installation VALUES(TRUE,$1::text::uuid,$2,'00000000-0000-4000-8000-000000000001',$2,'synthetic-google-id',now(),now())", &[&s.id,&s.owner_email]).unwrap();
+}
+
+#[test]
+#[ignore = "requires explicitly authorized local disposable Postgres"]
+fn installed_repair_keeps_populated_data_and_reconciles_a_committed_receipt() {
+    use villow_setup::{model::RepairPhase, repair_database};
+    let db = Database::new();
+    let mut c = db.client();
+    let (old, new, mut s) = repair_fixture();
+    migration::apply(&mut c, &s, &old).unwrap();
+    assert_eq!(
+        repair_database::check_or_apply(&mut c, &s, &old, &new, false),
+        Err(Error::RepairDatabase)
+    );
+    seed_repair_owner(&mut c, &s);
+    c.execute("INSERT INTO synthetic VALUES(1,'keep-existing-data')", &[])
+        .unwrap();
+    let ledger = c
+        .query_one(
+            "SELECT row_to_json(m)::text FROM villow_setup.migrations m",
+            &[],
+        )
+        .unwrap()
+        .get::<_, String>(0);
+    repair_database::check_or_apply(&mut c, &s, &old, &new, false).unwrap();
+    let mut second = db.client();
+    c.query_one("SELECT pg_advisory_lock($1)", &[&0x56494c4c4f57i64])
+        .unwrap();
+    assert_eq!(
+        repair_database::check_or_apply(&mut second, &s, &old, &new, false),
+        Err(Error::Busy)
+    );
+    c.query_one("SELECT pg_advisory_unlock($1)", &[&0x56494c4c4f57i64])
+        .unwrap();
+    pending_repair(&mut s, &new);
+    repair_database::check_or_apply(&mut c, &s, &old, &new, true).unwrap();
+    drop(c);
+    let mut c = db.client();
+    // The local checkpoint still says Database, modelling a lost COMMIT reply.
+    repair_database::check_or_apply(&mut c, &s, &old, &new, true).unwrap();
+    s.installed_repair.as_mut().unwrap().phase = RepairPhase::Upload;
+    repair_database::check_or_apply(&mut c, &s, &old, &new, false).unwrap();
+    assert_eq!(
+        c.query_one("SELECT count(*) FROM villow_setup.repairs", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        1
+    );
+    assert_eq!(
+        c.query_one(
+            "SELECT row_to_json(m)::text FROM villow_setup.migrations m",
+            &[]
+        )
+        .unwrap()
+        .get::<_, String>(0),
+        ledger
+    );
+    assert_eq!(
+        c.query_one("SELECT encrypted_token FROM users", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        "SENTINEL-encrypted-preserve"
+    );
+    assert_eq!(
+        c.query_one("SELECT value FROM synthetic WHERE id=1", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        "keep-existing-data"
+    );
+    assert_eq!(
+        c.query_one("SELECT daily_watch_time_seconds FROM user_settings", &[])
+            .unwrap()
+            .get::<_, i32>(0),
+        0
+    );
+    assert_eq!(
+        c.query_one("SELECT release_digest FROM villow_setup.instance", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        new.digest
+    );
+    c.batch_execute("UPDATE villow_setup.repairs SET sql_checksum='tampered'")
+        .unwrap();
+    assert_eq!(
+        repair_database::check_or_apply(&mut c, &s, &old, &new, false),
+        Err(Error::RepairDatabase)
+    );
+}
+
+#[test]
+#[ignore = "requires explicitly authorized local disposable Postgres"]
+fn installed_repair_refuses_drift_or_wrong_owner_and_rolls_back_every_write() {
+    use villow_setup::repair_database;
+    for kind in 0..7 {
+        let db = Database::new();
+        let mut c = db.client();
+        let (old, mut new, mut s) = repair_fixture();
+        migration::apply(&mut c, &s, &old).unwrap();
+        seed_repair_owner(&mut c, &s);
+        match kind {
+            0 => {
+                c.batch_execute("UPDATE villow_setup.instance SET installation_id='someone-else'")
+                    .unwrap();
+            }
+            1 => {
+                c.batch_execute("UPDATE villow_setup.migrations SET checksum='tampered'")
+                    .unwrap();
+            }
+            2 => {
+                c.batch_execute("UPDATE villow_installation SET owner_email='other@example.test'")
+                    .unwrap();
+            }
+            3 => {
+                c.batch_execute(
+                    "ALTER TABLE user_settings ADD COLUMN daily_watch_time_seconds text",
+                )
+                .unwrap();
+            }
+            4 => {
+                new.files
+                    .get_mut("migrations/repair-159.sql")
+                    .unwrap()
+                    .extend_from_slice(b"SELECT 1/0;");
+                new = reseal(new);
+            }
+            5 => {
+                new.files.insert(
+                    "migrations/postcondition.sql".into(),
+                    b"SELECT false".to_vec(),
+                );
+                new = reseal(new);
+            }
+            _ => {
+                c.batch_execute("ALTER TABLE villow_setup.instance ALTER COLUMN installation_id TYPE bytea USING convert_to(installation_id,'UTF8')").unwrap();
+            }
+        }
+        pending_repair(&mut s, &new);
+        assert_eq!(
+            repair_database::check_or_apply(&mut c, &s, &old, &new, true),
+            Err(Error::RepairDatabase)
+        );
+        assert_eq!(
+            c.query_one("SELECT release_digest FROM villow_setup.instance", &[])
+                .unwrap()
+                .get::<_, String>(0),
+            old.digest
+        );
+        assert!(c
+            .query_one("SELECT to_regclass('villow_setup.repairs')::text", &[])
+            .unwrap()
+            .get::<_, Option<String>>(0)
+            .is_none());
+        if kind != 3 {
+            assert!(!c.query_one("SELECT EXISTS(SELECT FROM information_schema.columns WHERE table_name='user_settings' AND column_name='daily_watch_time_seconds')",&[]).unwrap().get::<_,bool>(0));
+        }
+        assert_eq!(
+            c.query_one("SELECT encrypted_token FROM users", &[])
+                .unwrap()
+                .get::<_, String>(0),
+            "SENTINEL-encrypted-preserve"
+        );
+    }
 }
 impl Drop for Database {
     fn drop(&mut self) {

@@ -65,6 +65,31 @@ async fn start_installation(
     work(app, &gate, move |m| m.start(name, email, digest)).await
 }
 #[tauri::command]
+async fn check_installed_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, |m| m.check_installed_repair()).await
+}
+#[tauri::command]
+async fn apply_installed_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+    backup_confirmed: bool,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, move |m| {
+        m.apply_installed_repair(digest, backup_confirmed)
+    })
+    .await
+}
+#[tauri::command]
 async fn save_credentials(
     app: AppHandle,
     gate: State<'_, Gate>,
@@ -224,6 +249,8 @@ pub fn run() {
             check_release,
             check_fresh_retry,
             use_fresh_retry,
+            check_installed_repair,
+            apply_installed_repair,
             start_installation,
             save_credentials,
             discover_accounts,

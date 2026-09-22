@@ -4,6 +4,12 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 
 **2026-09-21:** Genuine public trust has been supplied and the published channel/manifest/archive verified anonymously. See [the 0.1.0 Alpha record](alpha-0.1.0.md) for the exact release and instructions. The field requirements below remain the maintainer contract for subsequent releases.
 
+## Installed Alpha repair candidate
+
+Version 0.1.3 keeps the same Alpha application identifier and existing vault namespace. Its repair page is available at the unfinished final sign-in/check step when a matching signed correction exists. Check first; the read-only preflight verifies your old installed schema and owner. Applying then requires a database backup and preservation of the original encryption key, followed by explicit confirmation. Setup cannot independently verify that backup. A nonsecret recovery export is not a database backup.
+
+The repair keeps existing resources and applies only authenticated additive app SQL, then rebuilds the same Vercel project. It records progress and waits for the replacement deployment and authenticated health. After closing, use Resume repair; never rerun the fresh baseline. Keep using 0.1.3 or newer after repair starts because older managers do not understand its new checkpoint. The corrected app release must still be signed and published after final qualification; a new EXE alone does not make a repair available. Windows signing remains deferred.
+
 ## What the build does
 
 - Uses `Villow Setup Alpha`, identifier `app.villow.setup.alpha`, a window titled “Villow Setup — unsigned alpha”, and a persistent unsigned-alpha notice. Its local checkpoint directory is separate from development, testing and eventual production. Credentials remain in Windows Credential Manager under each installation's UUID; this does not change existing vault entries.
@@ -14,7 +20,7 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 The expected installer after a successful configured build is:
 
 ```text
-src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.2_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.3_x64-setup.exe
 ```
 
 That path is an expected output, not evidence an alpha has been built. The ordinary `Villow Setup_0.1.0_x64-setup.exe` and optional `Villow Setup Testing_0.1.0_x64-setup.exe` are different files. Rebuilding source does not change an already installed EXE. Do not use the shared build-directory `villow-setup.exe` to distinguish profiles; install the exact recorded installer and verify its hash. Keep alpha as a separate test installation; recovery import cannot migrate it into production or adopt its database.

@@ -6,6 +6,8 @@ fn main() {
             "check_release",
             "check_fresh_retry",
             "use_fresh_retry",
+            "check_installed_repair",
+            "apply_installed_repair",
             "start_installation",
             "save_credentials",
             "discover_accounts",
