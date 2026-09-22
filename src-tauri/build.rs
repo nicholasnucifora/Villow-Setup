@@ -13,6 +13,7 @@ fn main() {
             "set_google",
             "set_database_connection",
             "advance",
+            "check_deployment",
             "open_step",
             "export_recovery",
             "import_recovery",

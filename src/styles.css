@@ -906,3 +906,109 @@ details ul {
     animation: none;
   }
 }
+.operation-panel {
+  position: fixed;
+  z-index: 20;
+  bottom: 24px;
+  right: 24px;
+  width: min(470px, calc(100vw - 225px));
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  color: #f8faf9;
+  background: #203d35;
+  border: 2px solid #8cc3ad;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px #0004;
+  pointer-events: none;
+}
+.operation-panel strong {
+  font-size: 17px;
+}
+.operation-panel p {
+  margin: 7px 0 0;
+  color: #e1eee7;
+  font-size: 13px;
+}
+.operation-panel .spinner {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-color: #ffffff55;
+  border-top-color: white;
+}
+.launch-progress,
+.deployment-status,
+.database-fix {
+  padding: 22px;
+  margin: 20px 0 28px;
+  border: 1px solid #c3d2c8;
+  border-radius: 12px;
+  background: #f4f8f5;
+}
+.launch-progress h2,
+.deployment-status h2,
+.database-fix h2 {
+  margin-top: 0;
+}
+.launch-progress ol {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.launch-progress li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: #656f68;
+}
+.launch-progress li > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 27px;
+  height: 27px;
+  border: 1px solid #bbc9c0;
+  border-radius: 50%;
+}
+.launch-progress li small {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.launch-progress li.active {
+  color: #193d2a;
+  font-weight: 700;
+}
+.launch-progress li.active > span {
+  color: white;
+  background: #286544;
+  border-color: #286544;
+}
+.launch-progress li.done {
+  color: #286544;
+}
+.deployment-status h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.deployment-status .spinner {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.deployment-status.needs-attention {
+  background: #fff6ed;
+  border-color: #c7915e;
+}
+.deployment-status button,
+.database-fix button {
+  margin: 12px 12px 0 0;
+}
+.database-fix .primary {
+  display: block;
+}

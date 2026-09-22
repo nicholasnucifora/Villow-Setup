@@ -91,6 +91,8 @@ pub enum Error {
     DatabasePooler,
     #[error("The deployed app has not passed its required authenticated checks.")]
     Health,
+    #[error("Your Vercel build or website address is not ready yet. Return to the build step to check its status before signing in.")]
+    DeploymentNotReady,
     #[error("This recovery file provides read-only information. Resource ownership must be re-established before a future repair feature can write.")]
     RecoveryReadOnly,
     #[error("This operation is outside version one's scope.")]

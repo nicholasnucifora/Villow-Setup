@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-check-deployment"
+description = "Enables the check_deployment command without any pre-configured scope."
+commands.allow = ["check_deployment"]
+
+[[permission]]
+identifier = "deny-check-deployment"
+description = "Denies the check_deployment command without any pre-configured scope."
+commands.deny = ["check_deployment"]

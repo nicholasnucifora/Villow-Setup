@@ -19,6 +19,17 @@ pub enum Step {
     Health,
     Complete,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentStatus {
+    Queued,
+    Building,
+    AssigningAddress,
+    Ready,
+    Failed,
+    Canceled,
+    AddressFailed,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum EffectStatus {
@@ -135,6 +146,8 @@ pub struct Installation {
     pub google: Option<Google>,
     pub db_connection: Option<DbConnection>,
     pub deployment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_status: Option<DeploymentStatus>,
     pub effects: BTreeMap<String, Effect>,
     pub checks: Vec<Check>,
     pub read_only: bool,
@@ -181,6 +194,7 @@ impl Installation {
             google: None,
             db_connection: None,
             deployment_id: None,
+            deployment_status: None,
             effects: BTreeMap::new(),
             checks: vec![],
             read_only: false,

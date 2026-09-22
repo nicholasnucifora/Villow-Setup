@@ -577,21 +577,180 @@ describe("owner-facing setup", () => {
     expect(
       call.mock.calls.some(([command]) => command === "use_fresh_retry"),
     ).toBe(false);
+    expect(
+      screen.queryByRole("button", { name: /Prepare my database/ }),
+    ).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Use corrected release" }),
+      screen.getByRole("button", { name: "Apply fix and prepare database" }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "A remote effect may have completed.",
     );
     expect(
-      screen.getByRole("button", { name: /Prepare my database/ }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: /Prepare my database/ }),
+    ).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Resume release change" }),
+      screen.getByRole("button", { name: "Resume fix and prepare database" }),
     );
     expect(
       call.mock.calls.filter(([command]) => command === "use_fresh_retry"),
     ).toHaveLength(2);
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
+    );
+  });
+  it("applies a verified fix and prepares the database with one explicit action", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.effects.migrate = {
+      status: "needs_review",
+      started_at: "today",
+      verified_at: null,
+    };
+    snapshot.fresh_retry = { digest: "a".repeat(64), app_version: "0.1.1" };
+    const call = vi.fn(async (command: string) => {
+      if (command === "use_fresh_retry")
+        snapshot = {
+          ...snapshot,
+          fresh_retry: null,
+          installation: {
+            ...snapshot.installation!,
+            release_digest: "a".repeat(64),
+            fresh_retry: null,
+          },
+        };
+      if (command === "advance")
+        snapshot = {
+          ...snapshot,
+          installation: { ...snapshot.installation!, step: "configuration" },
+        };
+      return snapshot;
+    });
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Apply fix and prepare database",
+      }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Configure your app" }),
+    ).toBeInTheDocument();
+    expect(
+      call.mock.calls
+        .map(([command]) => command)
+        .filter((command) => command !== "snapshot"),
+    ).toEqual(["use_fresh_retry", "advance"]);
+  });
+  it("shows a prominent working panel and the remaining steps during configuration", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    let finish!: (value: Snapshot) => void;
+    const pending = new Promise<Snapshot>((resolve) => {
+      finish = resolve;
+    });
+    const call = vi.fn((command: string) =>
+      command === "advance" ? pending : Promise.resolve(snapshot),
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Connect my services/ }),
+    );
+    expect(screen.getByText("Connecting your services securely")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Remaining setup steps" }),
+    ).toHaveTextContent("Wait for Vercel to finish building");
+    expect(
+      screen.getByRole("button", { name: /Connect my services/ }),
+    ).toBeDisabled();
+    snapshot = {
+      ...snapshot,
+      installation: { ...snapshot.installation!, step: "deployment" },
+    };
+    finish(snapshot);
+    expect(
+      await screen.findByRole("button", { name: /Build my app on Vercel/ }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByText("Connecting your services securely"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Your services are connected",
+    );
+  });
+  it("rechecks an older accepted deployment and withholds sign-in for a failed build", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    for (let i = 0; i < 4; i++) await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.step = "health";
+    snapshot.installation!.deployment_status = undefined;
+    let failed = true;
+    const call = vi.fn(async (command: string) => {
+      if (command === "check_deployment")
+        snapshot = {
+          ...snapshot,
+          installation: {
+            ...snapshot.installation!,
+            step: failed ? "deployment" : "health",
+            deployment_status: failed ? "failed" : "ready",
+          },
+        };
+      return snapshot;
+    });
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await screen.findByRole("heading", {
+      name: "Checking your existing Vercel build",
+    });
+    expect(
+      screen.queryByRole("button", { name: /Open my app to sign in/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Vercel could not build your app" },
+        { timeout: 2500 },
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Open my app to sign in/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Vercel build status" }),
+    ).toHaveTextContent("Build Logs");
+    expect(
+      screen.getByRole("region", { name: "Vercel build status" }),
+    ).toHaveFocus();
+    failed = false;
+    await user.click(screen.getByRole("button", { name: "Check build again" }));
+    expect(
+      await screen.findByRole("button", { name: /Open my app to sign in/ }),
+    ).toBeEnabled();
     expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
       false,
     );

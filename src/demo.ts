@@ -216,7 +216,10 @@ export class DemoBridge implements Bridge {
             health: "complete",
           };
           s.step = next[s.step] ?? s.step;
-          if (s.step === "health") s.deployment_id = "demo-deployment";
+          if (s.step === "health") {
+            s.deployment_id = "demo-deployment";
+            s.deployment_status = "ready";
+          }
         }
         s.checks.push({
           kind: "demo",

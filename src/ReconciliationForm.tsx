@@ -8,7 +8,7 @@ export function ReconciliationForm({
 }: {
   s: Installation;
   busy: boolean;
-  action: (c: string, a?: Record<string, unknown>) => Promise<void>;
+  action: (c: string, a?: Record<string, unknown>) => Promise<boolean>;
   open: (s: string) => Promise<void>;
 }) {
   const [id, setId] = useState(""),

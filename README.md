@@ -2,7 +2,7 @@
 
 A local Windows application for creating an owner-operated Villow instance in Vercel, Supabase and Google Cloud. The manager is separate from the hosted video app: closing or uninstalling it does not stop that app or cancel cloud billing.
 
-**Status: unsigned Alpha for fresh-account testing, not a qualified public installer.** Genuine app-release public trust is configured for Villow 0.1.0. The Alpha can authenticate that release and proceed to the real-account workflow. Real provider installation, owner sign-in and recovery still need qualification; Windows Authenticode signing remains deferred. No existing cloud resources were used as tests.
+**Status: unsigned Alpha for fresh-account testing, not a qualified public installer.** Genuine app-release public trust is configured for Villow 0.1.1, with 0.1.0 retained for authenticated unfinished-installation correction. The maintainer reports the corrected database preparation passed on their fresh Supabase project. Full provider installation, owner sign-in and recovery still need qualification; Windows Authenticode signing remains deferred.
 
 ## Try the development application
 
@@ -21,7 +21,7 @@ To opt in to the isolated demo and interruption scenarios, run `npm run desktop:
 npm run desktop:build
 ```
 
-The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.1_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.2_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
 For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
 

@@ -81,6 +81,109 @@ fn credentials(s: &Installation) -> MemoryVault {
 }
 
 #[test]
+fn deployment_status_requires_owned_ready_build_and_exact_saved_address() {
+    let r = verified();
+    let mut s = installation(&r);
+    s.vercel = Some(Resource {
+        id: "prj_1".into(),
+        account_id: "team_1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "created".into(),
+    });
+    s.deployment_id = Some("dpl_1".into());
+    s.origin = Some(format!("https://{}.vercel.app", s.name));
+    let vault = credentials(&s);
+    let response = json!({"id":"dpl_1", "projectId":"prj_1", "target":"production",
+        "meta":{"villowOperation":s.operation_id,"villowRelease":r.digest},
+        "readyState":"READY", "aliasError":null,
+        "errorMessage":"SENTINEL-PRIVATE-PROVIDER-TEXT"});
+    for (remote, expected) in [
+        ("QUEUED", DeploymentStatus::Queued),
+        ("INITIALIZING", DeploymentStatus::Queued),
+        ("NOT_BUILT", DeploymentStatus::Queued),
+        ("BUILDING", DeploymentStatus::Building),
+        ("ERROR", DeploymentStatus::Failed),
+        ("CANCELED", DeploymentStatus::Canceled),
+    ] {
+        let mut value = response.clone();
+        value["readyState"] = remote.into();
+        let api = Recorder::new(vec![value]);
+        let p = LiveProviders {
+            http: &api,
+            vault: &vault,
+        };
+        let result = p.deployment_status(&s, &r).unwrap();
+        assert_eq!(result, expected);
+        assert!(!serde_json::to_string(&result).unwrap().contains("SENTINEL"));
+        assert_eq!(api.calls.borrow().len(), 1);
+    }
+    for (aliases, expected) in [
+        (json!({"aliases":[]}), DeploymentStatus::AssigningAddress),
+        (
+            json!({"aliases":[{"alias":"other.vercel.app"}]}),
+            DeploymentStatus::AssigningAddress,
+        ),
+        (
+            json!({"aliases":[{"alias":format!("{}.vercel.app",s.name)}]}),
+            DeploymentStatus::Ready,
+        ),
+    ] {
+        let api = Recorder::new(vec![response.clone(), aliases]);
+        let p = LiveProviders {
+            http: &api,
+            vault: &vault,
+        };
+        assert_eq!(p.deployment_status(&s, &r).unwrap(), expected);
+        assert!(api
+            .calls
+            .borrow()
+            .iter()
+            .all(|call| call.1 == Method::GET
+                && call.3.contains(&("teamId".into(), "team_1".into()))));
+        assert_eq!(api.calls.borrow()[1].2, "/v2/deployments/dpl_1/aliases");
+    }
+    for field in ["id", "projectId", "target"] {
+        let mut wrong = response.clone();
+        wrong[field] = "wrong".into();
+        let api = Recorder::new(vec![wrong]);
+        assert_eq!(
+            LiveProviders {
+                http: &api,
+                vault: &vault
+            }
+            .deployment_status(&s, &r),
+            Err(Error::WrongTarget)
+        );
+    }
+    for field in ["villowOperation", "villowRelease"] {
+        let mut wrong = response.clone();
+        wrong["meta"][field] = "wrong".into();
+        let api = Recorder::new(vec![wrong]);
+        assert_eq!(
+            LiveProviders {
+                http: &api,
+                vault: &vault
+            }
+            .deployment_status(&s, &r),
+            Err(Error::WrongTarget)
+        );
+    }
+    let mut failed = response;
+    failed["aliasError"] = json!({"message":"SENTINEL"});
+    let api = Recorder::new(vec![failed]);
+    assert_eq!(
+        LiveProviders {
+            http: &api,
+            vault: &vault
+        }
+        .deployment_status(&s, &r)
+        .unwrap(),
+        DeploymentStatus::AddressFailed
+    );
+}
+
+#[test]
 fn session_pooler_is_discovered_from_the_selected_project_without_exposing_connection_strings() {
     let mut s = installation(&verified());
     s.database = Some(Resource {

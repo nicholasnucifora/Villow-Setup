@@ -17,6 +17,7 @@ pub trait Providers {
     fn configure(&self, s: &Installation, r: &VerifiedRelease) -> Result<()>;
     fn upload(&self, s: &Installation, r: &VerifiedRelease) -> Result<()>;
     fn deploy(&self, s: &Installation, r: &VerifiedRelease, reconcile: bool) -> Result<String>;
+    fn deployment_status(&self, s: &Installation, r: &VerifiedRelease) -> Result<DeploymentStatus>;
     fn health(&self, s: &Installation, r: &VerifiedRelease) -> Result<()>;
 }
 pub struct Engine<'a> {
@@ -150,6 +151,11 @@ impl Engine<'_> {
                 s.step = Step::Deployment;
             }
             Step::Deployment => {
+                // A saved deployment is polled, never recreated by clicking Continue.
+                if s.deployment_id.is_some() {
+                    self.refresh_deployment(&mut s, release)?;
+                    return Ok(s);
+                }
                 // Content-addressed uploads can be repeated. Keep their
                 // boundary separate from an uncertain deployment POST.
                 if !s
@@ -169,9 +175,14 @@ impl Engine<'_> {
                     Err(e) => return self.failed(&mut s, "deploy", e),
                 }
                 self.finish(&mut s, "deploy")?;
-                s.step = Step::Health;
+                s.deployment_status = Some(DeploymentStatus::Queued);
+                // Acceptance is not build completion or address assignment.
             }
             Step::Health => {
+                self.refresh_deployment(&mut s, release)?;
+                if s.step != Step::Health {
+                    return Ok(s);
+                }
                 if let Err(e) = self.providers.health(&s, release) {
                     return Err(e);
                 }
@@ -187,6 +198,38 @@ impl Engine<'_> {
         s.updated_at = now();
         self.store.save(&s)?;
         Ok(s)
+    }
+    pub fn check_deployment(&self, release: &VerifiedRelease) -> Result<Installation> {
+        let _lock = self.store.lock()?;
+        let mut s = self.store.load()?.ok_or(Error::Precondition)?;
+        s.assert_writable()?;
+        if ![Step::Deployment, Step::Health].contains(&s.step)
+            || s.deployment_id.is_none()
+            || s.fresh_retry.is_some()
+            || s.release_digest != release.digest
+            || s.commit != release.manifest.commit
+            || s.app_version != release.manifest.app_version
+        {
+            return Err(Error::Precondition);
+        }
+        self.providers.verify_targets(&s)?;
+        self.refresh_deployment(&mut s, release)?;
+        Ok(s)
+    }
+    fn refresh_deployment(&self, s: &mut Installation, release: &VerifiedRelease) -> Result<()> {
+        let status = self.providers.deployment_status(s, release)?;
+        s.deployment_status = Some(status);
+        s.step = if status == DeploymentStatus::Ready {
+            s.check(
+                "provider",
+                "Vercel build finished and the saved address points to this deployment",
+            );
+            Step::Health
+        } else {
+            Step::Deployment
+        };
+        s.updated_at = now();
+        self.store.save(s)
     }
     fn begin(&self, s: &mut Installation, name: &str) -> Result<bool> {
         let uncertain = s

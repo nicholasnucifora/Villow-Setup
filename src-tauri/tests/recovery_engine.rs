@@ -207,6 +207,7 @@ fn completed_migration_with_lost_response_is_reconciled_and_health_can_fail() {
     e.advance(&r).unwrap();
     e.advance(&r).unwrap();
     fake.health_ok.set(false);
+    e.check_deployment(&r).unwrap();
     assert!(matches!(e.advance(&r), Err(Error::Health)));
     assert_eq!(store.load().unwrap().unwrap().step, Step::Health);
     fake.health_ok.set(true);

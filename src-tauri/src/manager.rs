@@ -321,6 +321,21 @@ impl Manager {
         .advance(&r)?;
         self.snapshot()
     }
+    pub fn check_deployment(&self) -> Result<Snapshot> {
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        s.assert_writable()?;
+        let release = self.release(Some(&s.release_digest))?;
+        Engine {
+            store: &self.store,
+            vault: &OsVault,
+            providers: &LiveProviders {
+                http: &Http::new()?,
+                vault: &OsVault,
+            },
+        }
+        .check_deployment(&release)?;
+        self.snapshot()
+    }
     pub fn browser_url(&self, step: &str) -> Result<String> {
         let fixed = match step {
             "vercel_signup" => Some("https://vercel.com/signup"),
@@ -345,7 +360,11 @@ impl Manager {
         }
         if step == "app" {
             let s = self.store.load()?.ok_or(Error::Precondition)?;
-            if s.read_only || ![Step::Health, Step::Complete].contains(&s.step) {
+            if s.read_only
+                || !(s.step == Step::Complete
+                    || (s.step == Step::Health
+                        && s.deployment_status == Some(DeploymentStatus::Ready)))
+            {
                 return Err(Error::Precondition);
             }
             crate::http::validate_origin(s.origin()?)?;

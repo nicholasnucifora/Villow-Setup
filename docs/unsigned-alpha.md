@@ -14,7 +14,7 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 The expected installer after a successful configured build is:
 
 ```text
-src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.1_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.2_x64-setup.exe
 ```
 
 That path is an expected output, not evidence an alpha has been built. The ordinary `Villow Setup_0.1.0_x64-setup.exe` and optional `Villow Setup Testing_0.1.0_x64-setup.exe` are different files. Rebuilding source does not change an already installed EXE. Do not use the shared build-directory `villow-setup.exe` to distinguish profiles; install the exact recorded installer and verify its hash. Keep alpha as a separate test installation; recovery import cannot migrate it into production or adopt its database.

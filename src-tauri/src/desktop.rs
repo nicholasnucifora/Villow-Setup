@@ -110,6 +110,13 @@ async fn set_database_connection(
     .await
 }
 #[tauri::command]
+async fn check_deployment(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, |m| m.check_deployment()).await
+}
+#[tauri::command]
 async fn advance(app: AppHandle, gate: State<'_, Gate>) -> std::result::Result<Snapshot, String> {
     work(app, &gate, |m| m.advance()).await
 }
@@ -224,6 +231,7 @@ pub fn run() {
             set_google,
             set_database_connection,
             advance,
+            check_deployment,
             reconcile_created,
             open_step,
             export_recovery,

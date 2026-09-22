@@ -18,6 +18,7 @@ import { GuideImage } from "./GuideImage";
 import { CopyAddress } from "./CopyAddress";
 import { GoogleScopes } from "./GoogleScopes";
 import { ReconciliationForm } from "./ReconciliationForm";
+import { DeploymentStep, LaunchProgress } from "./LaunchProgress";
 import type {
   Accounts,
   Bridge,
@@ -124,6 +125,8 @@ export function App({
   const [bridge, setBridge] = useState<Bridge>(initialBridge);
   const [data, setData] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [activity, setActivity] = useState("Working on your setup");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [accounts, setAccounts] = useState<Accounts | null>(null);
@@ -136,7 +139,13 @@ export function App({
   const errorRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const recoveryRef = useRef<HTMLElement>(null);
-  const s = data?.installation;
+  const savedInstallation = data?.installation;
+  // Older Alphas reached Health when a build was merely accepted. Recheck it.
+  const s =
+    savedInstallation?.step === "health" &&
+    savedInstallation.deployment_status !== "ready"
+      ? { ...savedInstallation, step: "deployment" as const }
+      : savedInstallation;
   const screen = data
     ? `${s?.id ?? "welcome"}:${s?.read_only ? "recovered" : (s?.step ?? `guide-${guidePage}`)}`
     : null;
@@ -180,12 +189,15 @@ export function App({
     };
   }, [bridge]);
   const run = async (fn: () => Promise<void>) => {
-    if (busy) return;
+    if (busyRef.current) return false;
+    busyRef.current = true;
+    setActivity("Working on your setup");
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await fn();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       try {
@@ -193,23 +205,44 @@ export function App({
       } catch {
         /* Keep the last visible checkpoint. */
       }
+      return false;
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
   const action: Action = (command, args, onSuccess) =>
     run(async () => {
-      setData(await bridge.call<Snapshot>(command, args));
+      setActivity(operationTitle(command, s));
+      const next = await bridge.call<Snapshot>(command, args);
+      setData(next);
+      if (
+        command === "advance" &&
+        s?.step === "configuration" &&
+        next.installation?.step === "deployment"
+      )
+        setNotice(
+          "Your services are connected. Next, build your app on Vercel below.",
+        );
       onSuccess?.();
     });
-  const open = (step: string) =>
+  const correctAndPrepare = (digest: string) =>
     run(async () => {
+      setActivity("Applying the verified database fix");
+      setData(await bridge.call<Snapshot>("use_fresh_retry", { digest }));
+      setActivity("Preparing and checking your database");
+      setData(await bridge.call<Snapshot>("advance"));
+    });
+  const open = async (step: string) => {
+    await run(async () => {
+      setActivity("Opening your browser");
       await bridge.call("open_step", { step });
       if (__TESTING_TOOLS__ && bridge.demo)
         setNotice(
           "Demo: this button opens the official service in your system browser in the desktop app.",
         );
     });
+  };
   const advance = () => action("advance");
   const stage =
     s?.step === "complete"
@@ -336,10 +369,15 @@ export function App({
             </div>
           )}
           {busy && (
-            <div role="status" className="working">
-              <span className="spinner" />
-              Working on this step. Please leave the window open until it
-              returns.
+            <div role="status" className="operation-panel">
+              <span className="spinner" aria-hidden="true" />
+              <div>
+                <strong>{activity}</strong>
+                <p>
+                  Please keep Setup open. This panel disappears when the
+                  operation finishes.
+                </p>
+              </div>
             </div>
           )}
           {!data && !error && <p role="status">Opening your saved setup…</p>}
@@ -618,8 +656,9 @@ export function App({
                   )}
                   {s.step === "database" && (
                     <DatabaseStep
-                      offer={data.fresh_retry}
-                      releaseMessage={data.message}
+                      offer={data?.fresh_retry}
+                      correctAndPrepare={correctAndPrepare}
+                      releaseMessage={data?.message ?? ""}
                       s={s}
                       busy={busy}
                       demo={__TESTING_TOOLS__ && bridge.demo}
@@ -627,6 +666,12 @@ export function App({
                       open={open}
                     />
                   )}
+                  {[
+                    "configuration",
+                    "deployment",
+                    "health",
+                    "complete",
+                  ].includes(s.step) && <LaunchProgress s={s} />}
                   {s.step === "configuration" && (
                     <>
                       <p className="lead">Connect the services securely.</p>
@@ -648,16 +693,12 @@ export function App({
                     </>
                   )}
                   {s.step === "deployment" && (
-                    <>
-                      <p className="lead">
-                        Vercel will build the verified release in your account.
-                      </p>
-                      <p>
-                        This uses the pinned source archive, without linking a
-                        GitHub account. The app opens in a protected bootstrap
-                        state until the intended owner signs in.
-                      </p>
-                    </>
+                    <DeploymentStep
+                      s={s}
+                      busy={busy}
+                      action={action}
+                      open={open}
+                    />
                   )}
                   {s.step === "health" && (
                     <>
@@ -678,9 +719,9 @@ export function App({
                         Open my app to sign in ↗
                       </button>
                       <p className="quiet">
-                        A successful build alone does not complete setup. Google
-                        publishing is your confirmation; provider and app checks
-                        are recorded separately.
+                        Your build and website address are ready. Use the Google
+                        account you added as a test user, then return here to
+                        finish.
                       </p>
                     </>
                   )}
@@ -701,6 +742,7 @@ export function App({
                   )}
                   {s.step !== "google" &&
                     s.step !== "database" &&
+                    !(s.step === "deployment" && !!s.deployment_id) &&
                     (s.step !== "projects" || !!s.selection) &&
                     (!s.credentials_removed || s.step === "complete") && (
                       <div className="action-row">
@@ -898,7 +940,25 @@ type Action = (
   command: string,
   args?: Record<string, unknown>,
   onSuccess?: () => void,
-) => Promise<void>;
+) => Promise<boolean>;
+function operationTitle(command: string, s?: Installation | null): string {
+  if (command === "check_deployment") return "Checking your Vercel build";
+  if (command === "check_fresh_retry")
+    return "Looking for a verified database fix";
+  if (command !== "advance") return "Saving and checking this step";
+  switch (s?.step) {
+    case "database":
+      return "Preparing and checking your database";
+    case "configuration":
+      return "Connecting your services securely";
+    case "deployment":
+      return "Uploading your app and requesting its Vercel build";
+    case "health":
+      return "Checking your sign-in and installation";
+    default:
+      return "Setting up your cloud project";
+  }
+}
 function ReleaseForm({
   bridge,
   data,
@@ -1011,7 +1071,7 @@ function AccountForm({
   setAccounts: (v: Accounts) => void;
   refresh: (v: Snapshot) => void;
   action: Action;
-  run: (fn: () => Promise<void>) => Promise<void>;
+  run: (fn: () => Promise<void>) => Promise<boolean>;
   open: (s: string) => Promise<void>;
   reconnect?: boolean;
 }) {
@@ -1742,6 +1802,7 @@ function GoogleForm({
   );
 }
 function DatabaseStep({
+  correctAndPrepare,
   offer,
   releaseMessage,
   s,
@@ -1750,6 +1811,7 @@ function DatabaseStep({
   action,
   open,
 }: {
+  correctAndPrepare: (digest: string) => Promise<boolean>;
   offer?: Snapshot["fresh_retry"];
   releaseMessage: string;
   s: Installation;
@@ -1765,6 +1827,12 @@ function DatabaseStep({
     [password, setPassword] = useState(""),
     [saved, setSaved] = useState(false);
   const [retryChecked, setRetryChecked] = useState(false);
+  useEffect(() => setRetryChecked(false), [s.release_digest]);
+  useEffect(() => {
+    if (offer) setRetryChecked(false);
+  }, [offer?.digest]);
+  const needsCorrectionCheck =
+    !demo && s.effects.migrate?.status === "needs_review" && !retryChecked;
   const connectionMatches = s.db_connection
     ? host.trim() === s.db_connection.host &&
       user.trim() === s.db_connection.user
@@ -1927,68 +1995,82 @@ function DatabaseStep({
           )}
         </section>
       )}
-      {!demo && !s.credentials_removed && s.effects.migrate && (
-        <section aria-label="Corrected app release">
-          <h2>If database preparation still fails</h2>
-          <p>
-            A corrected app release may be needed. Setup can keep your accounts,
-            credentials and projects, but first checks that no app installation
-            has completed in this database.
-          </p>
-          {s.fresh_retry ? (
-            <button
-              disabled={busy || unsaved}
-              onClick={() =>
-                action("use_fresh_retry", { digest: s.fresh_retry!.to })
-              }
-            >
-              Resume release change
-            </button>
-          ) : (
-            <>
+      {!demo &&
+        !s.credentials_removed &&
+        (needsCorrectionCheck || s.fresh_retry || offer || retryChecked) && (
+          <section className="database-fix" aria-label="Corrected app release">
+            <h2>
+              {offer
+                ? "A verified database fix is ready"
+                : s.fresh_retry
+                  ? "Finish applying your database fix"
+                  : "Database preparation needs attention"}
+            </h2>
+            <p>
+              Your accounts, credentials and projects stay in place. Setup
+              checks that this database is still unfinished before applying a
+              fix.
+            </p>
+            {s.fresh_retry ? (
               <button
-                className="secondary"
+                className="primary"
                 disabled={busy || unsaved}
-                onClick={() => {
-                  setRetryChecked(false);
-                  return action("check_fresh_retry", undefined, () =>
-                    setRetryChecked(true),
-                  );
-                }}
+                onClick={() => correctAndPrepare(s.fresh_retry!.to)}
               >
-                Check for a corrected release
+                Resume fix and prepare database
               </button>
-              {offer && (
-                <p>
-                  Authenticated Villow {offer.app_version} is available for this
-                  unfinished setup.{" "}
+            ) : (
+              <>
+                {!offer && (
                   <button
+                    className={needsCorrectionCheck ? "primary" : "secondary"}
                     disabled={busy || unsaved}
-                    onClick={() =>
-                      action("use_fresh_retry", { digest: offer.digest })
-                    }
+                    onClick={() => {
+                      setRetryChecked(false);
+                      return action("check_fresh_retry", undefined, () =>
+                        setRetryChecked(true),
+                      );
+                    }}
                   >
-                    Use corrected release
+                    Check for a corrected release
                   </button>
-                </p>
-              )}
-              {retryChecked && !offer && <p role="status">{releaseMessage}</p>}
-            </>
-          )}
-        </section>
-      )}
-      {!s.credentials_removed && (
-        <div className="action-row">
-          <button
-            className="primary"
-            disabled={busy || !s.selection || unsaved || !!s.fresh_retry}
-            onClick={() => action("advance")}
-          >
-            Prepare my database →
-          </button>
-          <span className="quiet">Progress saves after every operation.</span>
-        </div>
-      )}
+                )}
+                {offer && (
+                  <p>
+                    Villow {offer.app_version} contains a fix for this
+                    unfinished setup. The button below applies it and then
+                    prepares your database.
+                    <button
+                      className="primary"
+                      disabled={busy || unsaved}
+                      onClick={() => correctAndPrepare(offer.digest)}
+                    >
+                      Apply fix and prepare database
+                    </button>
+                  </p>
+                )}
+                {retryChecked && !offer && (
+                  <p role="status">{releaseMessage}</p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+      {!s.credentials_removed &&
+        !needsCorrectionCheck &&
+        !s.fresh_retry &&
+        !offer && (
+          <div className="action-row">
+            <button
+              className="primary"
+              disabled={busy || !s.selection || unsaved || !!s.fresh_retry}
+              onClick={() => action("advance")}
+            >
+              Prepare my database →
+            </button>
+            <span className="quiet">Progress saves after every operation.</span>
+          </div>
+        )}
     </section>
   );
 }

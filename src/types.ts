@@ -64,6 +64,15 @@ export interface Installation {
   google: Google | null;
   db_connection: { host: string; user: string } | null;
   deployment_id: string | null;
+  deployment_status?:
+    | "queued"
+    | "building"
+    | "assigning_address"
+    | "ready"
+    | "failed"
+    | "canceled"
+    | "address_failed"
+    | null;
   effects: Record<
     string,
     { status: string; started_at: string; verified_at: string | null }

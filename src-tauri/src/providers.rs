@@ -467,7 +467,7 @@ impl Providers for LiveProviders<'_> {
         identifier(&id)?;
         Ok(id)
     }
-    fn health(&self, s: &Installation, r: &VerifiedRelease) -> Result<()> {
+    fn deployment_status(&self, s: &Installation, r: &VerifiedRelease) -> Result<DeploymentStatus> {
         let deployment = s.deployment_id.as_ref().ok_or(Error::Precondition)?;
         let v = self.vercel(
             s,
@@ -475,13 +475,45 @@ impl Providers for LiveProviders<'_> {
             &format!("/v13/deployments/{}", identifier(deployment)?),
             None,
         )?;
-        if v["projectId"] != s.project()?.id
+        if v["id"] != *deployment
+            || v["projectId"] != s.project()?.id
             || v["meta"]["villowOperation"] != s.operation_id
             || v["meta"]["villowRelease"] != r.digest
-            || v["readyState"] != "READY"
             || v["target"] != "production"
         {
-            return Err(Error::Health);
+            return Err(Error::WrongTarget);
+        }
+        match v["readyState"].as_str() {
+            Some("QUEUED" | "INITIALIZING" | "NOT_BUILT") => return Ok(DeploymentStatus::Queued),
+            Some("BUILDING") => return Ok(DeploymentStatus::Building),
+            Some("ERROR") => return Ok(DeploymentStatus::Failed),
+            Some("CANCELED") => return Ok(DeploymentStatus::Canceled),
+            Some("READY") => {}
+            _ => return Err(Error::Provider),
+        }
+        if v.get("aliasError").is_some_and(|error| !error.is_null()) {
+            return Ok(DeploymentStatus::AddressFailed);
+        }
+        let aliases = self.vercel(
+            s,
+            Method::GET,
+            &format!("/v2/deployments/{}/aliases", identifier(deployment)?),
+            None,
+        )?;
+        let origin = crate::http::validate_origin(s.origin()?)?;
+        let expected = origin.host_str().ok_or(Error::Invalid)?;
+        let rows = aliases["aliases"].as_array().ok_or(Error::Provider)?;
+        if !rows
+            .iter()
+            .any(|alias| alias["alias"].as_str() == Some(expected))
+        {
+            return Ok(DeploymentStatus::AssigningAddress);
+        }
+        Ok(DeploymentStatus::Ready)
+    }
+    fn health(&self, s: &Installation, r: &VerifiedRelease) -> Result<()> {
+        if self.deployment_status(s, r)? != DeploymentStatus::Ready {
+            return Err(Error::DeploymentNotReady);
         }
         let nonce = uuid::Uuid::new_v4().to_string();
         let token = self.vault.require(&s.id, "bootstrap_token")?;

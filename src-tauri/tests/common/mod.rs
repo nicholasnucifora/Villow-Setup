@@ -265,6 +265,8 @@ pub struct Cloud {
     pub creates: u32,
     pub migrations: u32,
     pub deployment: Option<String>,
+    #[serde(default)]
+    pub deploys: u32,
 }
 pub struct Fake {
     pub path: PathBuf,
@@ -272,6 +274,7 @@ pub struct Fake {
     pub crash: Cell<bool>,
     pub before: Cell<bool>,
     pub health_ok: Cell<bool>,
+    pub deployment_status: Cell<DeploymentStatus>,
 }
 impl Fake {
     pub fn new(path: PathBuf) -> Self {
@@ -281,6 +284,7 @@ impl Fake {
             crash: Cell::new(false),
             before: Cell::new(false),
             health_ok: Cell::new(true),
+            deployment_status: Cell::new(DeploymentStatus::Ready),
         }
     }
     pub fn read(&self) -> Cloud {
@@ -382,6 +386,7 @@ impl Providers for Fake {
             return c.deployment.ok_or(Error::Uncertain);
         }
         c.deployment = Some("dpl_1".into());
+        c.deploys += 1;
         self.save(&c);
         Ok("dpl_1".into())
     }
@@ -391,5 +396,12 @@ impl Providers for Fake {
         } else {
             Err(Error::Health)
         }
+    }
+    fn deployment_status(
+        &self,
+        _s: &Installation,
+        _r: &VerifiedRelease,
+    ) -> Result<DeploymentStatus> {
+        Ok(self.deployment_status.get())
     }
 }

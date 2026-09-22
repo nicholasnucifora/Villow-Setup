@@ -7,7 +7,7 @@ export const nativeBridge: Bridge = {
     if (!isTauri()) {
       if (command === "snapshot")
         return {
-          manager_version: "0.1.1",
+          manager_version: "0.1.2",
           trust_configured: false,
           installation: null,
           release: null,
