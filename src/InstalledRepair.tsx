@@ -20,7 +20,8 @@ export function InstalledRepair({
   action: Action;
   open: (step: string) => Promise<void>;
 }) {
-  const [backup, setBackup] = useState(false);
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
   const [checked, setChecked] = useState(false);
   const [running, setRunning] = useState(false);
   const until = useRef(0);
@@ -31,7 +32,8 @@ export function InstalledRepair({
     pending?.deployment_status ?? "",
   );
   useEffect(() => {
-    setBackup(false);
+    setPassword("");
+    setRepeat("");
   }, [offer?.digest]);
   useEffect(() => {
     if (!running || !pending || pending.phase === "complete" || busy) return;
@@ -43,7 +45,6 @@ export function InstalledRepair({
       async () => {
         const ok = await actionRef.current("apply_installed_repair", {
           digest: pending.to,
-          backupConfirmed: false,
         });
         if (!ok) setRunning(false);
       },
@@ -51,12 +52,11 @@ export function InstalledRepair({
     );
     return () => clearTimeout(timer);
   }, [running, pending, busy, terminalBuild]);
-  const resume = async (digest: string, confirmed: boolean) => {
+  const resume = async (digest: string) => {
     if (busy) return;
     until.current = Date.now() + 10 * 60_000;
     const ok = await action("apply_installed_repair", {
       digest,
-      backupConfirmed: confirmed,
     });
     setRunning(ok);
   };
@@ -98,49 +98,101 @@ export function InstalledRepair({
             existing Vercel project, then check the website.
           </p>
           <div className="alert">
-            <strong>Save a backup before applying the repair</strong>
+            <h3>First, save a copy of your Villow data</h3>
             <p>
-              Save a database backup using Supabase’s backup or export tools and
-              keep your existing Vercel ENCRYPTION_KEY in your password manager.
-              Check how you would restore both. Setup’s recovery file does not
-              include your database or encryption key.
+              Setup will back up your settings, watch history, saved items and
+              account connections before changing the database. It includes the
+              existing app encryption key and saved setup credentials
+              automatically. You do not need to find a key in Vercel or use
+              Supabase backup tools.
             </p>
             <p>
-              Setup relies on your confirmation below; it cannot independently
-              check your backup. If you cannot make a backup, pause here and ask
-              for help.
+              Choose where to save the encrypted backup file, such as a folder
+              you already back up or a removable drive. Keep it until you have
+              checked the repaired app. It contains your data at the time of the
+              backup; later activity is not included.
             </p>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => open("supabase_dashboard")}
-            >
-              Open Supabase for backup ↗
-            </button>
+            <h3>Create a password for this backup file</h3>
+            <p>
+              Save this password in your password manager under “Villow data
+              backup”. You would need it to recover the file on another
+              computer. This is separate from Google, your database password and
+              the developer’s release-signing passphrase.
+            </p>
+            <label>
+              Backup password (at least 12 characters)
+              <input
+                type="password"
+                autoComplete="new-password"
+                maxLength={1024}
+                value={password}
+                disabled={busy}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <label>
+              Repeat backup password
+              <input
+                type="password"
+                autoComplete="new-password"
+                maxLength={1024}
+                value={repeat}
+                disabled={busy}
+                onChange={(e) => setRepeat(e.target.value)}
+              />
+            </label>
+            {repeat && repeat !== password && (
+              <p role="status">The passwords do not match yet.</p>
+            )}
+            <p>
+              Setup saves, reopens and checks the complete file before the
+              repair begins. Canceling the save dialog leaves the repair
+              unstarted. This Alpha creates the backup for you; restoring it
+              still requires guided recovery into an empty database. It cannot
+              overwrite your current app or undo changes made on Google or
+              YouTube.
+            </p>
           </div>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={backup}
-              disabled={busy}
-              onChange={(e) => setBackup(e.target.checked)}
-            />
-            <span>
-              I have saved a database backup and the original encryption key,
-              and know how to restore them.
-            </span>
-          </label>
           <button
             className="primary"
-            disabled={busy || !backup}
-            onClick={() => resume(offer.digest, backup)}
+            disabled={
+              busy || [...password.trim()].length < 12 || password !== repeat
+            }
+            onClick={async () => {
+              const unlock = password;
+              setPassword("");
+              setRepeat("");
+              until.current = Date.now() + 10 * 60_000;
+              const ok = await action("backup_and_repair", {
+                digest: offer.digest,
+                password: unlock,
+              });
+              setRunning(ok);
+            }}
           >
-            Apply repair and rebuild my app →
+            Back up and repair my app →
           </button>
         </>
       )}
       {pending && (
         <>
+          {pending.backup ? (
+            <div className="success" role="status">
+              <strong>
+                Your encrypted data backup was saved and verified.
+              </strong>
+              <p>{pending.backup.path}</p>
+              <p>
+                Captured {new Date(pending.backup.captured_at).toLocaleString()}
+                . Keep this file and its password.
+              </p>
+            </div>
+          ) : (
+            <p>
+              This repair was started in an earlier Alpha with your manual
+              backup confirmation. Setup has not verified that backup.
+            </p>
+          )}
           <ol className="repair-progress" aria-label="App repair progress">
             <li
               aria-current={pending.phase === "database" ? "step" : undefined}
@@ -181,7 +233,7 @@ export function InstalledRepair({
               <button
                 className="primary"
                 disabled={busy}
-                onClick={() => resume(pending.to, false)}
+                onClick={() => resume(pending.to)}
               >
                 Resume repair
               </button>
@@ -207,9 +259,9 @@ export function InstalledRepair({
               </button>
             )}
           <p className="quiet">
-            Your backup confirmation is saved with this repair. Reopening Setup
-            resumes the same signed correction. Keep your existing database and
-            credentials.
+            Your saved repair keeps its original release and backup record.
+            Reopening Setup resumes the same signed correction. Keep your
+            existing database and credentials.
           </p>
         </>
       )}

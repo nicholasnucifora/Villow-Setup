@@ -51,7 +51,7 @@ fn repair_requires_backup_original_checkpoint_and_credentials_before_mutation() 
             s.clone(),
             &old,
             &new,
-            false,
+            None,
             |_, _| panic!("no SQL before backup confirmation")
         )
         .err(),
@@ -65,7 +65,7 @@ fn repair_requires_backup_original_checkpoint_and_credentials_before_mutation() 
             s.clone(),
             &old,
             &new,
-            true,
+            Some(backup_fixture(dir.path(), &s, &old, &new)),
             |_, _| panic!("no SQL without vault")
         )
         .err(),
@@ -120,7 +120,7 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
             s.clone(),
             &old,
             &new,
-            true,
+            Some(backup_fixture(dir.path(), &s, &old, &new)),
             |state, apply| {
                 if apply {
                     assert_eq!(
@@ -167,7 +167,7 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
         .unwrap()
         .operation_id
         .clone();
-    let mut state = repair::advance(&store, &vault, &fake, pending, &old, &new, false, |_, _| {
+    let mut state = repair::advance(&store, &vault, &fake, pending, &old, &new, None, |_, _| {
         assert!(committed.get());
         Ok(())
     })
@@ -185,7 +185,7 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
             state.clone(),
             &old,
             &new,
-            false,
+            None,
             |_, _| Ok(())
         )
         .err(),
@@ -194,9 +194,16 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
     assert_eq!(fake.read().deploys, 0);
     fake.deployment_lost_response.set(true);
     assert_eq!(
-        repair::advance(&store, &vault, &fake, state, &old, &new, false, |_, _| Ok(
-            ()
-        ))
+        repair::advance(
+            &store,
+            &vault,
+            &fake,
+            state,
+            &old,
+            &new,
+            None,
+            |_, _| Ok(())
+        )
         .err(),
         Some(Error::Uncertain)
     );
@@ -206,25 +213,46 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
         state.installed_repair.as_ref().unwrap().phase,
         RepairPhase::Deploy
     );
-    state = repair::advance(&store, &vault, &fake, state, &old, &new, false, |_, _| {
-        Ok(())
-    })
+    state = repair::advance(
+        &store,
+        &vault,
+        &fake,
+        state,
+        &old,
+        &new,
+        None,
+        |_, _| Ok(()),
+    )
     .unwrap();
     assert_eq!(
         state.installed_repair.as_ref().unwrap().phase,
         RepairPhase::Verify
     );
     fake.deployment_status.set(DeploymentStatus::Building);
-    state = repair::advance(&store, &vault, &fake, state, &old, &new, false, |_, _| {
-        Ok(())
-    })
+    state = repair::advance(
+        &store,
+        &vault,
+        &fake,
+        state,
+        &old,
+        &new,
+        None,
+        |_, _| Ok(()),
+    )
     .unwrap();
     fake.deployment_status.set(DeploymentStatus::Ready);
     fake.health_ok.set(false);
     assert_eq!(
-        repair::advance(&store, &vault, &fake, state, &old, &new, false, |_, _| Ok(
-            ()
-        ))
+        repair::advance(
+            &store,
+            &vault,
+            &fake,
+            state,
+            &old,
+            &new,
+            None,
+            |_, _| Ok(())
+        )
         .err(),
         Some(Error::Health)
     );
@@ -234,9 +262,16 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
         Some(DeploymentStatus::Ready)
     );
     fake.health_ok.set(true);
-    state = repair::advance(&store, &vault, &fake, state, &old, &new, false, |_, _| {
-        Ok(())
-    })
+    state = repair::advance(
+        &store,
+        &vault,
+        &fake,
+        state,
+        &old,
+        &new,
+        None,
+        |_, _| Ok(()),
+    )
     .unwrap();
     assert_eq!(state.step, Step::Complete);
     assert_eq!(state.release_digest, new.digest);
@@ -256,4 +291,65 @@ fn lost_database_commit_and_deployment_response_resume_once_with_original_data()
     assert_eq!(writes.get(), 1);
     assert_eq!(fake.read().deploys, 1);
     assert_eq!(fake.read().creates, 0);
+}
+
+#[test]
+fn missing_changed_or_other_installation_backup_stops_before_database_writes() {
+    let (old, new, s) = repair_fixture();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    store.save(&s).unwrap();
+    let fake = Fake::new(dir.path().join("cloud.json"));
+    let vault = repair_vault(&s);
+    for kind in 0..4 {
+        let mut backup = backup_fixture(dir.path(), &s, &old, &new);
+        match kind {
+            0 => std::fs::remove_file(&backup.path).unwrap(),
+            1 => std::fs::write(&backup.path, b"changed").unwrap(),
+            2 => backup.installation_id = uuid::Uuid::new_v4().to_string(),
+            _ => backup.to = "f".repeat(64),
+        }
+        assert!(repair::advance(
+            &store,
+            &vault,
+            &fake,
+            s.clone(),
+            &old,
+            &new,
+            Some(backup),
+            |_, _| panic!("No SQL with an invalid backup")
+        )
+        .is_err());
+        assert!(store.load().unwrap().unwrap().installed_repair.is_none());
+    }
+    let backup = backup_fixture(dir.path(), &s, &old, &new);
+    let path = backup.path.clone();
+    assert_eq!(
+        repair::advance(
+            &store,
+            &vault,
+            &fake,
+            s.clone(),
+            &old,
+            &new,
+            Some(backup),
+            |_, apply| if apply { Err(Error::Uncertain) } else { Ok(()) }
+        )
+        .err(),
+        Some(Error::Uncertain)
+    );
+    let saved = store.load().unwrap().unwrap();
+    std::fs::write(path, b"changed after interrupted operation").unwrap();
+    assert!(repair::advance(
+        &store,
+        &vault,
+        &fake,
+        saved,
+        &old,
+        &new,
+        None,
+        |_, _| panic!("No resume SQL with changed file")
+    )
+    .is_err());
+    assert_eq!(fake.read().deploys, 0);
 }

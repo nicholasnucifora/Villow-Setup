@@ -1,5 +1,22 @@
 # Villow integration contract
 
+## Verified backup before repair — manager 0.1.4
+
+The published app manifests and SQL contracts remain unchanged. New installed
+repairs use `backup_and_repair {digest,password}` with a native save dialog;
+`apply_installed_repair {digest}` only resumes saved intent. The renderer can no
+longer start a repair by asserting a backup boolean. The native checkpoint adds
+an optional `RepairIntent.backup` receipt binding an encrypted, read-back-verified
+file to installation, repair operation, source and destination. Receipt/file
+integrity is rechecked before resumed work. No existing app key is regenerated.
+
+The [backup contract](backup-contract.md) pins the exact 0.1.1→0.1.2 release pair,
+data scope, file format, native-only secret export and empty-target restore
+qualification. There is no restore/adoption IPC. Existing 0.1.3 manual-confirmation
+intent remains resumable and is labelled unverified; new work requires the native
+file receipt. Nonsecret recovery still strips all repair/backup authority.
+Use 0.1.4 or newer once its new checkpoint has been written.
+
 ## Installed Alpha correction — manager 0.1.3
 
 An optional format-1 `installed_repairs` array (maximum one) describes a separate
@@ -98,19 +115,19 @@ The app-side integration was implemented on 2026-09-11 with explicit user author
 
 ## Configuration classification
 
-| Name                          | Classification                        | Destination                                                          |
-| ----------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
-| `VITE_YOUTUBE_CLIENT_ID`      | Public OAuth identifier               | Browser build and app server                                         |
-| `YOUTUBE_CLIENT_SECRET`       | Secret                                | App server only                                                      |
-| `VITE_SUPABASE_URL`           | Public project URL                    | Browser/server; server also supports `SUPABASE_URL` fallback         |
-| `VITE_SUPABASE_ANON_KEY`      | Public app API key                    | Browser/server; security depends on reviewed database grants and RLS |
-| `SUPABASE_SERVICE_KEY`        | Privileged API secret                 | App server only; not a database password                             |
-| `VITE_APP_URL`                | Public canonical origin               | Browser/server, exact callback construction                          |
-| `ENCRYPTION_KEY`              | Secret, stable per instance           | App server and local OS vault; never regenerated on resume           |
-| `CRON_SECRET` | Secret, distinct from bootstrap/encryption credentials | App server; deterministically derived from the stable instance key by Setup |
-| `VILLOW_EXPECTED_OWNER_EMAIL` | Server-only owner identifier          | Implemented app contract; not secret, but personal information          |
-| `VILLOW_BOOTSTRAP_TOKEN_HASH` | Server-only verifier                  | Implemented app contract; raw token stays in OS vault                   |
-| `VILLOW_INSTALLATION_ID`      | Server-only nonsecret installation ID | Implemented app contract                                                |
+| Name                          | Classification                                         | Destination                                                                 |
+| ----------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `VITE_YOUTUBE_CLIENT_ID`      | Public OAuth identifier                                | Browser build and app server                                                |
+| `YOUTUBE_CLIENT_SECRET`       | Secret                                                 | App server only                                                             |
+| `VITE_SUPABASE_URL`           | Public project URL                                     | Browser/server; server also supports `SUPABASE_URL` fallback                |
+| `VITE_SUPABASE_ANON_KEY`      | Public app API key                                     | Browser/server; security depends on reviewed database grants and RLS        |
+| `SUPABASE_SERVICE_KEY`        | Privileged API secret                                  | App server only; not a database password                                    |
+| `VITE_APP_URL`                | Public canonical origin                                | Browser/server, exact callback construction                                 |
+| `ENCRYPTION_KEY`              | Secret, stable per instance                            | App server and local OS vault; never regenerated on resume                  |
+| `CRON_SECRET`                 | Secret, distinct from bootstrap/encryption credentials | App server; deterministically derived from the stable instance key by Setup |
+| `VILLOW_EXPECTED_OWNER_EMAIL` | Server-only owner identifier                           | Implemented app contract; not secret, but personal information              |
+| `VILLOW_BOOTSTRAP_TOKEN_HASH` | Server-only verifier                                   | Implemented app contract; raw token stays in OS vault                       |
+| `VILLOW_INSTALLATION_ID`      | Server-only nonsecret installation ID                  | Implemented app contract                                                    |
 
 Optional quota, telemetry and integration variables are not required by this fresh-install adapter. New required variables, changed classifications or widened Google scopes require a compatible manager release; ordinary app features should not.
 

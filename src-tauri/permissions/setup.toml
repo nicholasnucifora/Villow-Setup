@@ -1,4 +1,4 @@
 [[permission]]
 identifier = "allow-setup-commands"
 description = "Bounded installer operations; no arbitrary requests, paths, SQL or shell."
-commands.allow = ["snapshot", "start_installation", "save_credentials", "discover_accounts", "select_accounts", "advance", "check_deployment", "set_google", "set_database_connection", "open_step", "export_recovery", "import_recovery", "remove_credentials", "forget_instance", "check_release", "reconcile_created", "check_fresh_retry", "use_fresh_retry", "check_installed_repair", "apply_installed_repair"]
+commands.allow = ["snapshot", "start_installation", "save_credentials", "discover_accounts", "select_accounts", "advance", "check_deployment", "set_google", "set_database_connection", "open_step", "export_recovery", "import_recovery", "remove_credentials", "forget_instance", "check_release", "reconcile_created", "check_fresh_retry", "use_fresh_retry", "check_installed_repair", "apply_installed_repair", "backup_and_repair"]

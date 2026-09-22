@@ -8,6 +8,32 @@ use crate::{
 use postgres::{Client, Transaction};
 const LOCK: i64 = 0x56494c4c4f57;
 
+/// Read-only validation inside the backup's repeatable-read snapshot.
+pub(crate) fn validate_backup_source(
+    tx: &mut Transaction<'_>,
+    s: &Installation,
+    old: &VerifiedRelease,
+) -> Result<()> {
+    let rows = tx
+        .query(
+            "SELECT installation_id,release_digest FROM villow_setup.instance",
+            &[],
+        )
+        .map_err(|_| Error::RepairDatabase)?;
+    if rows.len() != 1
+        || rows[0].get::<_, String>(0) != s.id
+        || rows[0].get::<_, String>(1) != old.digest
+    {
+        return Err(Error::RepairDatabase);
+    }
+    ledger(tx, old)?;
+    owner(tx, s)?;
+    for unit in &old.manifest.schema.migrations {
+        check(tx, text(old, &unit.postcondition)?)?;
+    }
+    Ok(())
+}
+
 pub fn check_or_apply(
     client: &mut Client,
     s: &Installation,

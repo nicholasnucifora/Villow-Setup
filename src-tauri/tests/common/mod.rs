@@ -533,10 +533,32 @@ pub fn pending_repair(s: &mut Installation, new: &VerifiedRelease) {
         repair_id: "villow-installed-159".into(),
         operation_id: uuid::Uuid::new_v4().to_string(),
         backup_confirmed_at: now(),
+        backup: None,
         previous_operation_id: s.operation_id.clone(),
         previous_deployment_id: s.deployment_id.clone().unwrap(),
         phase: RepairPhase::Database,
         deployment_id: None,
         deployment_status: None,
     });
+}
+
+pub fn backup_fixture(
+    dir: &std::path::Path,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+) -> BackupReceipt {
+    let path = dir.join(format!("synthetic-{}.villowbackup", uuid::Uuid::new_v4()));
+    let bytes = b"synthetic file receipt test only; crypto is tested separately";
+    std::fs::write(&path, bytes).unwrap();
+    BackupReceipt {
+        path: path.to_str().unwrap().into(),
+        sha256: hash(bytes),
+        bytes: bytes.len() as u64,
+        captured_at: now(),
+        installation_id: s.id.clone(),
+        operation_id: uuid::Uuid::new_v4().to_string(),
+        from: old.digest.clone(),
+        to: new.digest.clone(),
+    }
 }

@@ -1,0 +1,4698 @@
+[
+  {
+    "rls": true,
+    "name": "api_request_logs",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "route",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "method",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_ms",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "response_bytes",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "rows_read_estimate",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "rows_written_estimate",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "error_code",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "google_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "api_usage_daily",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "provider",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "quota_group",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "activity",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "endpoint",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "quota_units",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "request_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "app_open_events",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "occurred_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "local_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "local_hour",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hidden_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "attention_action_dismissals",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "entity_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action_label",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action_reason",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "dismissed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "attention_duration_profiles",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watched_bucket_counts",
+        "type": "bigint[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "skipped_bucket_counts",
+        "type": "bigint[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "attention_outcomes",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "client_action_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "local_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "outcome",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "progress_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reaction",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "from_extension",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "viewing_session_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reaction_editable",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "resolution",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_title_fetched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "attention_profile_event_keys",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "profile_kind",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "profile_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "attention_profiles",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "profile_kind",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "profile_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "display_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "tracking_started_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reset_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "bigint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watched_video_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "skipped_video_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "liked_video_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "disliked_video_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completion_total",
+        "type": "numeric",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completion_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_duration_seconds_total",
+        "type": "bigint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "upload_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "first_upload_published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_upload_published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "longest_watch_session_seconds",
+        "type": "bigint",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "batch_sync_jobs",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "force_sync",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "window_start",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "window_end",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_ids",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "current_index",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "total_channels",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "total_videos",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "errors",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "lease_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "lease_expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "heartbeat_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_results",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "current_channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "current_page_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "current_channel_video_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "browse_usage_hourly",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hour",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "surface",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "calendar_date_bans",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "ban_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "channels",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "filter_mode",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "filter_terms",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "min_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "override_global_filters",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sync_mode",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "playback_speed",
+        "type": "numeric(3,2)",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_watch_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "continue_watching_used_on",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "comments_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "comments_max_per_video",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_watch_limit_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "longest_watch_session_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "active_watch_session_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_watch_session_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "filters_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "handle",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "handle_checked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "country_recommendation_history",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "age_group",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommended_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_day",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "timezone",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendations_seen",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "active_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "external_saves",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "config",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_device_setups",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "platform",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "browser",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_installations",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "token_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "platform",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "browser",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_seen_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_queue_state",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_saved_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "first_played_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_copied_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_settings_choice",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "chosen_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "config",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_tokens",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "token_hash",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "label",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_used_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "revoked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_recommendation_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_save_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_time_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_definition_version",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_config_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "extension_version",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_youtube_blocked",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "extension_usage_daily",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "token_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "active_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendations_seen",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "net_saves",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "save_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendation_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "save_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "time_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "limits_hit",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "definition_version",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "is_final",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reported_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_blocked",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_ban_daily_limits",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "day_of_week",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_ban_days",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "day_of_week",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_ban_members",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "joined_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_ban_time_windows",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "start_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "end_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_bans",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "creator_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "start_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "end_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "default_daily_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_playlist_inbox_receipts",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_playlist_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "inbox_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_item_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "imported_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_playlist_members",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_playlist_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "joined_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_playlist_youtube_inboxes",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "group_playlist_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_playlists",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "owner_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "group_streak_events",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "occurred_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "actor_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "context_label",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "affected_user_ids",
+        "type": "uuid[]",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "managed_playlist_items",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "playlist_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_item_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "made_for_kids",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "position",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_refreshed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "managed_playlists",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "owner_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sync_title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "privacy_status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "item_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "is_watch_later",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "items_initialized_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_refreshed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_refreshed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "is_villow_group",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "playlist_video_progress",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "progress_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "schedule_day_assignments",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "schedule_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "day_of_week",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "schedule_time_windows",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "schedule_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "start_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "end_time",
+        "type": "time without time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "access_mode",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "social_usage_fortnight_snapshots",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "period_start",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "period_end",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "total_watch_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hourly_average_seconds",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "weekday_average_seconds",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "tracked_day_count",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "generated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "sync_job_runs",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "run_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "google_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_ms",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "users_processed",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "successful_syncs",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "failed_syncs",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channels_synced",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "videos_synced",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendations_generated",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendations_failed",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "errors_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "error_code",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "error_message",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "sync_work_jobs",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "job_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "google_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "window_start",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "window_end",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_ids",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "current_index",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "subscription_page_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "subscriptions_complete",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "total_channels",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "total_videos",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "errors",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "lease_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "lease_expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "heartbeat_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "task_integrations",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "provider",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sync_mode",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "access_token_ciphertext",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "refresh_token_ciphertext",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "access_token_expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "granted_scopes",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "selected_external_list_ids",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sync_cursor",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_synced_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_error",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "selected_external_lists",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "things_to_do",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "integration_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_provider",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "details",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "position",
+        "type": "bigint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "external_task_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "external_list_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "external_parent_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "external_updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "due_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "show_on_break",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "show_at_bedtime",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "provider_metadata",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "usage_limit_streak_events",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "event_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "occurred_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "actor_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "group_ban_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "context_label",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "user_settings",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "theme",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_filter_mode",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_filter_terms",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_min_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hide_shorts",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "shorts_max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "batch_frequency_months",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_batch_sync",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "continue_watching_used",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "timezone",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_max_videos",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_expiry_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_expiry_days",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_max_pinned",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommendations_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "age_group",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_recommendations_sync",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_idle_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_open_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_open_count",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "limit_extension_streak_anchor_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_recommendations_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "batch_frequency_days",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_watch_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_use_global_filters",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_min_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_recommendations_use_global_filters",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_recommendations_min_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_recommendations_max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_break_warning_interval_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_break_reset_after_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_per_day",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_category_ids",
+        "type": "integer[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_custom_prompt",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_recommendations_per_day",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "no_thumbnail_mode",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "no_thumbnail_side_panel_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "no_thumbnail_split_left_percent",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "pinned_playlist_ids",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "grayscale_mode",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "comments_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "comments_max_per_video",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_category_prompts",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "activity_suggestions",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_time_minutes",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_last_window_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_window_action",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_activity_suggestions",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_snoozed_until",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sleep_reminder_snooze_dim_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_use_global_filters",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_min_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_max_duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_per_day",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_topic_ids",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_country",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_language",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "global_recommendations_interested_tags",
+        "type": "text[]",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "light_appearance_colors",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "dark_appearance_colors",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "app_logo_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_visual_preferences",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_break_timeout_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "default_channel_daily_watch_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_display_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_online_status",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_fortnight_usage",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_lifetime_average",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_streak",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_last_seen_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "onboarding_completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_watch_patterns",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hide_ai_features",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "country_recommendations_setup_completed",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "mobile_swipe_static_feedback",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "mobile_full_width_thumbnails",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_subscriptions",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "social_share_settings",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "filters_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "subscription_feed_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "subscription_feed_max_videos",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "autoplay_enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feed_layout",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "info_onboarding_completed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_participant_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_completed_at",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "things_to_do_initialized",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_external_watch_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "playlist_catalog_initialized_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "user_video_interactions",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "action",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "user_video_recommendation_deliveries",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommender_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recipient_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "sent_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "revoked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_progress_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_outcome",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_reaction",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_action_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "feedback_updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "user_video_recommendations",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recommender_user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "recipient_user_ids",
+        "type": "uuid[]",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "users",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "google_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "access_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "refresh_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_sync",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "session_token",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "profile_picture_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_user_sync",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "is_system_owner",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "access_revoked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "video_comment_cache",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "cache_key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "payload",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "fetched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "video_embed_status",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "embed_error_code",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "marked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "video_metadata_cache",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "payload",
+        "type": "jsonb",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "fetched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "video_viewing_sessions",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "session_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "local_date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "from_extension",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_watched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "progress_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "videos",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "video_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "thumbnail_url",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "duration",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "from_youtube_playlist",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_playlist_item_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_progress_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "last_watched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_pinned",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_added_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_later_pinned_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "origin_source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "origin_category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "embed_error_code",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "embed_error_marked_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "made_for_kids",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "is_live",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "view_count_text",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "published_text",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_text",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_enriched_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "queued_by_token_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "metadata_refreshed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "extension_source",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "extension_client",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "villow_installation",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "singleton",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "installation_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expected_owner_email",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "owner_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "owner_google_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "owner_email",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "youtube_verified_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "bootstrap_closed_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "villow_login_exchanges",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "exchange_hash",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "payload_ciphertext",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "villow_oauth_attempts",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "state_hash",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "browser_hash",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "verifier_ciphertext",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "villow_setup_rate_limits",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "key",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "window_start",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "attempts",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "watch_schedules",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_allowance_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "all_day",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "enabled",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "watch_time_channel_daily",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "channel_name",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "watch_time_history",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_limit_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "idle_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "times_opened",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "daily_open_limit",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "watch_time_hourly",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "hour",
+        "type": "smallint",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "idle_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "times_opened",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": true,
+    "name": "watch_time_source_daily",
+    "schema": "public",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "date",
+        "type": "date",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "source_type",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "category_id",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "watch_time_seconds",
+        "type": "integer",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": false,
+    "name": "instance",
+    "schema": "villow_setup",
+    "columns": [
+      {
+        "name": "singleton",
+        "type": "boolean",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "installation_id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "release_digest",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  },
+  {
+    "rls": false,
+    "name": "migrations",
+    "schema": "villow_setup",
+    "columns": [
+      {
+        "name": "id",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "checksum",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "postcondition_checksum",
+        "type": "text",
+        "identity": "",
+        "generated": ""
+      },
+      {
+        "name": "applied_at",
+        "type": "timestamp with time zone",
+        "identity": "",
+        "generated": ""
+      }
+    ],
+    "force_rls": false
+  }
+]

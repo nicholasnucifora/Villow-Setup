@@ -79,8 +79,18 @@ pub enum Error {
     RepairRefused,
     #[error("Finish the saved app repair using Resume repair. Normal setup actions are paused so the installed database and release stay consistent.")]
     RepairPending,
-    #[error("Confirm that you have saved a database backup and the original encryption key before applying this repair. Setup has not independently verified your backup.")]
+    #[error("Save and verify your Villow backup using Back up and repair before continuing. Setup needs its own backup receipt for this exact repair; a checkbox or recovery-information file cannot replace it.")]
     RepairBackupRequired,
+    #[error("Choose a backup password of at least 12 characters and save it in your password manager. This protects your Villow data backup; it is separate from the developer's signing passphrase.")]
+    BackupPassword,
+    #[error("The backup file could not be read, saved or verified. Check its location and free space. Keep the original backup and saved repair progress; no further repair work was performed.")]
+    BackupStorage,
+    #[error("The backup could not be unlocked or verified. Check its password and keep the original file. Setup stopped this operation; saved repair progress is retained.")]
+    BackupInvalid,
+    #[error("This backup exceeds this Alpha's limit of 128 MiB of app database data or 256 MiB for the recovery package. Keep your database and ask for help with a larger backup; this operation stopped.")]
+    BackupTooLarge,
+    #[error("Setup could not make a complete, restorable copy of this database. The database layout, access or dependencies need review. No repair has started; keep the existing database.")]
+    BackupDatabase,
     #[error("The repair's database check failed. The schema, installation history or owner differs from the authenticated repair plan. Keep this database and report this message; do not reset it or repeat fresh preparation.")]
     RepairDatabase,
     #[error("A database operation failed after connecting. Progress is saved. Retry Prepare my database; if it persists, report this message. Do not recreate the project or reset its tables.")]

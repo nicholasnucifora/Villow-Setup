@@ -8,6 +8,7 @@ fn main() {
             "use_fresh_retry",
             "check_installed_repair",
             "apply_installed_repair",
+            "backup_and_repair",
             "start_installation",
             "save_credentials",
             "discover_accounts",

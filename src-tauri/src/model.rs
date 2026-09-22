@@ -139,11 +139,25 @@ pub struct RepairIntent {
     pub repair_id: String,
     pub operation_id: String,
     pub backup_confirmed_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backup: Option<BackupReceipt>,
     pub previous_operation_id: String,
     pub previous_deployment_id: String,
     pub phase: RepairPhase,
     pub deployment_id: Option<String>,
     pub deployment_status: Option<DeploymentStatus>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BackupReceipt {
+    pub path: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub captured_at: String,
+    pub installation_id: String,
+    pub operation_id: String,
+    pub from: String,
+    pub to: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

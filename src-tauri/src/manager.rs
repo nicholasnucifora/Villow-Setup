@@ -56,6 +56,9 @@ impl Manager {
         self.release_in_channel(&channel, pinned)
     }
     fn channel(&self) -> Result<release::Channel> {
+        self.channel_document().map(|(channel, _)| channel)
+    }
+    fn channel_document(&self) -> Result<(release::Channel, Vec<u8>)> {
         if !self.trust.configured() {
             return Err(Error::Unconfigured);
         }
@@ -72,7 +75,7 @@ impl Manager {
             release::verify_channel(&channel_bytes, &self.trust, chrono::Utc::now())?;
         self.store
             .accept_release(channel.sequence, &channel_digest)?;
-        Ok(channel)
+        Ok((channel, channel_bytes))
     }
     fn release_in_channel(
         &self,
@@ -232,14 +235,10 @@ impl Manager {
             digest: new.digest,
             app_version: new.manifest.app_version,
         });
-        snapshot.message = "Signed repair verified against your installed database and owner. Review the backup requirement before applying it.".into();
+        snapshot.message = "Signed repair verified against your installed database and owner. Setup will save and check a backup before applying it.".into();
         Ok(snapshot)
     }
-    pub fn apply_installed_repair(
-        &self,
-        digest: String,
-        backup_confirmed: bool,
-    ) -> Result<Snapshot> {
+    pub fn apply_installed_repair(&self, digest: String) -> Result<Snapshot> {
         let _lock = self.store.lock()?;
         let s = self.store.load()?.ok_or(Error::Precondition)?;
         let channel = self.channel()?;
@@ -258,7 +257,69 @@ impl Manager {
             s,
             &old,
             &new,
-            backup_confirmed,
+            None,
+            |state, apply| {
+                let connection = providers.database_connection(state)?;
+                let mut client = crate::migration::connect(state, &OsVault, &connection)?;
+                crate::repair_database::check_or_apply(&mut client, state, &old, &new, apply)
+            },
+        )?;
+        self.snapshot()
+    }
+    pub fn backup_and_repair(
+        &self,
+        digest: String,
+        password: &str,
+        path: &Path,
+    ) -> Result<Snapshot> {
+        let _lock = self.store.lock()?;
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        let (channel, channel_bytes) = self.channel_document()?;
+        let old = self.release_in_channel(&channel, Some(&s.release_digest))?;
+        let new = self.release_in_channel(&channel, Some(&digest))?;
+        crate::installed_repair::validate(&s, &old, &new)?;
+        if s.installed_repair.is_some() {
+            return Err(Error::RepairPending);
+        }
+        let http = Http::new()?;
+        let providers = LiveProviders {
+            http: &http,
+            vault: &OsVault,
+        };
+        providers.verify_targets(&s)?;
+        if providers.deployment_status(&s, &old)? != DeploymentStatus::Ready {
+            return Err(Error::DeploymentNotReady);
+        }
+        let cache = self.store.root().join("release-cache");
+        let manifest = std::fs::read(cache.join(format!("{}.json", old.digest)))
+            .map_err(|_| Error::Storage)?;
+        let archive =
+            std::fs::read(cache.join(format!("{}.zip", old.digest))).map_err(|_| Error::Storage)?;
+        let backup = crate::repair_backup::save(
+            path,
+            password,
+            &s,
+            &old,
+            &new,
+            &self.trust,
+            &channel_bytes,
+            &manifest,
+            &archive,
+            &OsVault,
+            || {
+                let connection = providers.database_connection(&s)?;
+                let mut client = crate::migration::connect(&s, &OsVault, &connection)?;
+                crate::backup_database::capture(&mut client, &s, &old)
+            },
+        )?;
+        crate::installed_repair::advance(
+            &self.store,
+            &OsVault,
+            &providers,
+            s,
+            &old,
+            &new,
+            Some(backup),
             |state, apply| {
                 let connection = providers.database_connection(state)?;
                 let mut client = crate::migration::connect(state, &OsVault, &connection)?;

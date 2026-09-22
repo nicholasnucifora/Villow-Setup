@@ -1,3 +1,5 @@
+pub mod backup_database;
+pub mod backup_file;
 #[cfg(feature = "desktop")]
 mod desktop;
 pub mod engine;
@@ -12,6 +14,7 @@ pub mod providers;
 pub mod reconcile;
 pub mod recovery;
 pub mod release;
+pub mod repair_backup;
 pub mod repair_database;
 pub mod sql_guard;
 pub mod store;

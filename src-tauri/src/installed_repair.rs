@@ -126,16 +126,15 @@ pub fn advance(
     mut s: Installation,
     old: &VerifiedRelease,
     new: &VerifiedRelease,
-    backup_confirmed: bool,
+    backup: Option<BackupReceipt>,
     mut database: impl FnMut(&Installation, bool) -> Result<()>,
 ) -> Result<Installation> {
     let repair = validate(&s, old, new)?;
     require_credentials(&s, vault)?;
     providers.verify_targets(&s)?;
     if s.installed_repair.is_none() {
-        if !backup_confirmed {
-            return Err(Error::RepairBackupRequired);
-        }
+        let backup = backup.ok_or(Error::RepairBackupRequired)?;
+        crate::repair_backup::check_receipt(&backup, &s, old, new)?;
         if providers.deployment_status(&s, old)? != DeploymentStatus::Ready {
             return Err(Error::DeploymentNotReady);
         }
@@ -144,8 +143,9 @@ pub fn advance(
             from: old.digest.clone(),
             to: new.digest.clone(),
             repair_id: repair.id.clone(),
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            backup_confirmed_at: now(),
+            operation_id: backup.operation_id.clone(),
+            backup_confirmed_at: backup.captured_at.clone(),
+            backup: Some(backup),
             previous_operation_id: s.operation_id.clone(),
             previous_deployment_id: s.deployment_id.clone().unwrap(),
             phase: RepairPhase::Database,
@@ -154,6 +154,14 @@ pub fn advance(
         });
         save(store, &mut s)?; // Before SQL or any replacement deployment.
     }
+    if let Some(receipt) = &s.installed_repair.as_ref().unwrap().backup {
+        if receipt.operation_id != s.installed_repair.as_ref().unwrap().operation_id {
+            return Err(Error::RepairBackupRequired);
+        }
+        crate::repair_backup::check_receipt(receipt, &s, old, new)?;
+    }
+    // Existing 0.1.3 intent may have an explicitly owner-confirmed manual backup.
+    // Resume that recorded operation; never label its backup as native-verified.
     match s.installed_repair.as_ref().unwrap().phase {
         RepairPhase::Database => {
             database(&s, true)?;

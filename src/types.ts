@@ -91,6 +91,16 @@ export interface RepairIntent {
   previous_operation_id: string;
   previous_deployment_id: string;
   backup_confirmed_at: string;
+  backup?: {
+    path: string;
+    sha256: string;
+    bytes: number;
+    captured_at: string;
+    installation_id: string;
+    operation_id: string;
+    from: string;
+    to: string;
+  } | null;
   phase: "database" | "upload" | "deploy" | "verify" | "complete";
   deployment_id: string | null;
   deployment_status: Installation["deployment_status"];

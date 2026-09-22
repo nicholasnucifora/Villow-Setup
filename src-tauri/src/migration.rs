@@ -1,3 +1,7 @@
+pub(crate) const NATIVE_DDL: &str = "CREATE SCHEMA villow_setup; REVOKE ALL ON SCHEMA villow_setup FROM PUBLIC;
+            CREATE TABLE villow_setup.instance (singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK(singleton), installation_id TEXT NOT NULL, release_digest TEXT NOT NULL);
+            CREATE TABLE villow_setup.migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, postcondition_checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now());
+            REVOKE ALL ON ALL TABLES IN SCHEMA villow_setup FROM PUBLIC, anon, authenticated;";
 use crate::{
     error::{Error, MigrationStage, Result},
     model::{DbConnection, Installation},
@@ -242,11 +246,7 @@ fn apply_locked(client: &mut Client, s: &Installation, release: &VerifiedRelease
             return Err(Error::DatabaseHistoryIncomplete);
         }
         let mut tx = client.transaction().map_err(|_| Error::Database)?;
-        tx.batch_execute("CREATE SCHEMA villow_setup; REVOKE ALL ON SCHEMA villow_setup FROM PUBLIC;
-            CREATE TABLE villow_setup.instance (singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK(singleton), installation_id TEXT NOT NULL, release_digest TEXT NOT NULL);
-            CREATE TABLE villow_setup.migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, postcondition_checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now());
-            REVOKE ALL ON ALL TABLES IN SCHEMA villow_setup FROM PUBLIC, anon, authenticated;")
-            .map_err(|_| Error::Database)?;
+        tx.batch_execute(NATIVE_DDL).map_err(|_| Error::Database)?;
         tx.execute("INSERT INTO villow_setup.instance(singleton,installation_id,release_digest) VALUES(TRUE,$1,$2)",&[&s.id,&release.digest]).map_err(|_| Error::Database)?;
         tx.commit().map_err(|_| Error::Uncertain)?;
     }

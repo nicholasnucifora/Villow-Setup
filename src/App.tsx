@@ -216,7 +216,16 @@ export function App({
     run(async () => {
       setActivity(operationTitle(command, s));
       const next = await bridge.call<Snapshot>(command, args);
-      setData(next);
+      if (
+        command === "backup_and_repair" &&
+        !next.installation?.installed_repair
+      ) {
+        setData((previous) => ({
+          ...next,
+          installed_repair: previous?.installed_repair,
+        }));
+        setNotice(next.message);
+      } else setData(next);
       if (
         command === "advance" &&
         s?.step === "configuration" &&
@@ -960,6 +969,8 @@ type Action = (
   onSuccess?: () => void,
 ) => Promise<boolean>;
 function operationTitle(command: string, s?: Installation | null): string {
+  if (command === "backup_and_repair")
+    return "Saving and verifying your Villow data backup, then starting the repair";
   if (command === "check_installed_repair")
     return "Checking the signed repair against your installed database";
   if (command === "apply_installed_repair")

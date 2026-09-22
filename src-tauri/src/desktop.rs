@@ -79,15 +79,33 @@ async fn apply_installed_repair(
     app: AppHandle,
     gate: State<'_, Gate>,
     digest: String,
-    backup_confirmed: bool,
 ) -> std::result::Result<Snapshot, String> {
     if app.config().identifier != "app.villow.setup.alpha" {
         return Err(Error::Unsupported.to_string());
     }
-    work(app, &gate, move |m| {
-        m.apply_installed_repair(digest, backup_confirmed)
-    })
-    .await
+    work(app, &gate, move |m| m.apply_installed_repair(digest)).await
+}
+#[tauri::command]
+async fn backup_and_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+    password: String,
+) -> std::result::Result<Snapshot, String> {
+    let password = zeroize::Zeroizing::new(password);
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app,&gate,move |m|{
+        crate::backup_file::validate_password(&password)?;
+        let path=rfd::FileDialog::new().set_title("Save encrypted Villow data backup before repair")
+            .set_file_name(format!("villow-before-repair-{}.villowbackup",chrono::Utc::now().format("%Y%m%d-%H%M%S")))
+            .add_filter("Encrypted Villow backup",&["villowbackup"]).save_file();
+        match path {
+            Some(path)=>m.backup_and_repair(digest,&password,&path),
+            None=>{ let mut snapshot=m.snapshot()?; snapshot.message="Backup canceled. No repair was started. Choose a file location when you are ready.".into(); Ok(snapshot) }
+        }
+    }).await
 }
 #[tauri::command]
 async fn save_credentials(
@@ -251,6 +269,7 @@ pub fn run() {
             use_fresh_retry,
             check_installed_repair,
             apply_installed_repair,
+            backup_and_repair,
             start_installation,
             save_credentials,
             discover_accounts,
