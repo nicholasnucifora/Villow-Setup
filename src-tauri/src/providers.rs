@@ -21,6 +21,16 @@ fn string(v: &Value, key: &str) -> Result<String> {
     }
     Ok(s.to_string())
 }
+// Authentication responses deliberately omit provider bodies. Add only fixed
+// context at these read-only checks; never turn a failed identity check into
+// a successful account discovery or change write/reconciliation error handling.
+fn account_access(error: Error, context: Error) -> Error {
+    if error == Error::Authentication {
+        context
+    } else {
+        error
+    }
+}
 impl LiveProviders<'_> {
     fn vercel(
         &self,
@@ -53,42 +63,54 @@ impl LiveProviders<'_> {
     pub fn accounts(&self, s: &Installation) -> Result<Accounts> {
         let vtoken = self.vault.require(&s.id, "vercel_token")?;
         let stoken = self.vault.require(&s.id, "supabase_token")?;
-        let user = self.http.provider(
-            Provider::Vercel,
-            Method::GET,
-            "/v2/user",
-            &[],
-            &vtoken,
-            None,
-        )?;
-        let teams = self.http.provider(
-            Provider::Vercel,
-            Method::GET,
-            "/v2/teams",
-            &[("limit", "100")],
-            &vtoken,
-            None,
-        )?;
+        let user = self
+            .http
+            .provider(
+                Provider::Vercel,
+                Method::GET,
+                "/v2/user",
+                &[],
+                &vtoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::VercelIdentityAccess))?;
+        let teams = self
+            .http
+            .provider(
+                Provider::Vercel,
+                Method::GET,
+                "/v2/teams",
+                &[("limit", "100")],
+                &vtoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::VercelTeamsAccess))?;
         // Do not silently present an incomplete account list as complete.
         if !teams["pagination"]["next"].is_null() {
             return Err(Error::Unsupported);
         }
-        let profile = self.http.provider(
-            Provider::Supabase,
-            Method::GET,
-            "/v1/profile",
-            &[],
-            &stoken,
-            None,
-        )?;
-        let organizations = self.http.provider(
-            Provider::Supabase,
-            Method::GET,
-            "/v1/organizations",
-            &[],
-            &stoken,
-            None,
-        )?;
+        let profile = self
+            .http
+            .provider(
+                Provider::Supabase,
+                Method::GET,
+                "/v1/profile",
+                &[],
+                &stoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::SupabaseIdentityAccess))?;
+        let organizations = self
+            .http
+            .provider(
+                Provider::Supabase,
+                Method::GET,
+                "/v1/organizations",
+                &[],
+                &stoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::SupabaseOrganizationsAccess))?;
         let map = |v: &Value| -> Result<Account> {
             Ok(Account {
                 id: string(v, "id")?,

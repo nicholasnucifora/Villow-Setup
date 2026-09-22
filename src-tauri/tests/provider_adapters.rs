@@ -13,7 +13,7 @@ use villow_setup::{
 };
 
 struct Recorder {
-    responses: RefCell<VecDeque<Value>>,
+    responses: RefCell<VecDeque<Result<Value>>>,
     calls: RefCell<
         Vec<(
             Provider,
@@ -27,7 +27,7 @@ struct Recorder {
 impl Recorder {
     fn new(responses: Vec<Value>) -> Self {
         Self {
-            responses: RefCell::new(responses.into()),
+            responses: RefCell::new(responses.into_iter().map(Ok).collect()),
             calls: RefCell::new(vec![]),
         }
     }
@@ -55,7 +55,7 @@ impl Api for Recorder {
         self.responses
             .borrow_mut()
             .pop_front()
-            .ok_or(Error::Provider)
+            .ok_or(Error::Provider)?
     }
     fn upload(&self, _t: &str, _a: &str, _b: &[u8]) -> Result<String> {
         Ok("a".repeat(40))
@@ -78,6 +78,70 @@ fn credentials(s: &Installation) -> MemoryVault {
     v.put(&s.id, "supabase_token", "SENTINEL-SUPABASE").unwrap();
     v.put(&s.id, "db_password", "SENTINEL-DATABASE").unwrap();
     v
+}
+
+#[test]
+fn account_access_refusals_identify_the_exact_check_without_exposing_secrets() {
+    let s = installation(&verified());
+    let v = credentials(&s);
+    for (index, expected, provider, path) in [
+        (0, Error::VercelIdentityAccess, "Vercel", "/v2/user"),
+        (1, Error::VercelTeamsAccess, "Vercel", "/v2/teams"),
+        (2, Error::SupabaseIdentityAccess, "Supabase", "/v1/profile"),
+        (
+            3,
+            Error::SupabaseOrganizationsAccess,
+            "Supabase",
+            "/v1/organizations",
+        ),
+    ] {
+        let api = Recorder::new(account_responses());
+        api.responses.borrow_mut()[index] = Err(Error::Authentication);
+        let error = LiveProviders {
+            http: &api,
+            vault: &v,
+        }
+        .accounts(&s)
+        .unwrap_err();
+        assert_eq!(error, expected);
+        let message = error.to_string();
+        assert!(message.starts_with(provider));
+        assert!(message.contains(path));
+        assert!(!message.contains("SENTINEL"));
+        assert!(!serde_json::to_string(&error).unwrap().contains("SENTINEL"));
+        let calls = api.calls.borrow();
+        assert_eq!(calls.len(), index + 1);
+        assert!(calls
+            .iter()
+            .all(|call| call.1 == Method::GET && call.4.is_none()));
+    }
+}
+
+#[test]
+fn account_access_context_does_not_mislabel_other_errors_as_bad_tokens() {
+    let s = installation(&verified());
+    let v = credentials(&s);
+    for failure in [
+        Error::Offline,
+        Error::RateLimited,
+        Error::WrongTarget,
+        Error::Provider,
+        Error::Uncertain,
+    ] {
+        for index in 0..4 {
+            let api = Recorder::new(account_responses());
+            api.responses.borrow_mut()[index] = Err(failure.clone());
+            assert_eq!(
+                LiveProviders {
+                    http: &api,
+                    vault: &v
+                }
+                .accounts(&s)
+                .unwrap_err(),
+                failure
+            );
+        }
+    }
 }
 #[test]
 fn wrong_principal_is_rejected_using_real_adapter_response_shapes() {

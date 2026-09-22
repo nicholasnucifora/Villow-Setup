@@ -93,6 +93,12 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 
 ## Progress and coordination record
 
+### 2026-09-22 — diagnose account refusal without guessing token scope
+
+**Owner:** Setup agent. The maintainer encountered the generic authentication error while entering the Supabase token. The actual rejected provider/check remains unknown. Account discovery now reports one of four fixed Vercel/Supabase identity/list checks, preserving rejection and omitting raw provider bodies. No permission was broadened and no identity check was bypassed. The pre-creation error footer now describes the read-only account connection stage. See [security evidence](security-evidence.md#account-access-refusal-diagnostics--2026-09-22).
+
+**Passed:** dependency install/check/build, 23 UI and 36 native tests, all frontend profiles, five packaging tests and security scan. **Pending:** maintainer retry with saved tokens in the rebuilt Alpha and the exact provider/check from the resulting message, followed by any evidence-based adapter or token-guidance correction. Full paired qualification was not rerun; signing/public qualification flags remain unchanged. No computer use or real account access was performed. New installer identity is in the returned diagnostic build receipt.
+
 ### 2026-09-22 — account/token sequence and scoped-token guidance
 
 **Owner:** Setup agent, following the maintainer's real Alpha feedback. Configured setup now authenticates the release first, combines Vercel account/token on one page and Supabase organization/token on the next, and combines Google project/OAuth at the stage where the reserved callback is available. Each provider token is saved separately through existing native IPC and cleared from its input; saved tokens can be reused after reopening. Account discovery and explicit target/cost confirmation still precede project creation. Recovery can replace only an expired token without altering saved resources or app secrets.

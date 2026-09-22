@@ -322,8 +322,9 @@ export function App({
               <strong>This step needs attention</strong>
               <p>{error}</p>
               <small>
-                Saved resources remain in your account. Closing this window does
-                not remove them.
+                {s?.step === "projects" && !s.selection
+                  ? "Connecting accounts does not create cloud projects. Your saved setup is still here; correct the access and try again."
+                  : "Saved resources remain in your account. Closing this window does not remove them."}
               </small>
             </div>
           )}

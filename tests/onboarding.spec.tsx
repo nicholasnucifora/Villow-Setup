@@ -212,6 +212,12 @@ it("stays on Vercel and clears the input if native credential storage fails", as
   expect(await screen.findByRole("alert")).toHaveFocus();
   expect(screen.getByLabelText("Vercel access token")).toHaveValue("");
   expect(
+    screen.getByText(/Connecting accounts does not create cloud projects/),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(/Saved resources remain in your account/),
+  ).not.toBeInTheDocument();
+  expect(
     screen.queryByLabelText("Supabase management token"),
   ).not.toBeInTheDocument();
   expect(
