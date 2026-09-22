@@ -552,6 +552,8 @@ pub fn backup_fixture(
     let bytes = b"synthetic file receipt test only; crypto is tested separately";
     std::fs::write(&path, bytes).unwrap();
     BackupReceipt {
+        managed: false,
+        removed_at: None,
         path: path.to_str().unwrap().into(),
         sha256: hash(bytes),
         bytes: bytes.len() as u64,

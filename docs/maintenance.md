@@ -6,15 +6,14 @@ Setup versions, app release versions and schema identities are separate. New app
 
 The GUI provides recovery export, read-only import, local credential removal, local forgetting and provider-dashboard links. A checkpoint is not a backup of application data. Restoring it does not recover a missing encryption key. The hosted instance survives desktop uninstall and computer shutdown; provider charges and renewals remain active.
 
-## Automatic backup before an installed Alpha repair — manager 0.1.4
+## Temporary protection before an installed Alpha repair — manager 0.1.5
 
-**Back up and repair my app** replaces the manual Supabase-export/key-copy
-checklist. Setup includes the existing app key automatically. It does not use or
-request the developer's release-signing key or passphrase.
+**Repair my app** creates and checks an encrypted recovery copy automatically.
+Setup includes the existing app key and keeps a separate random unlock key in
+Windows Credential Manager. No password, backup file selection, provider export
+or developer signing passphrase is needed.
 
-The owner creates a backup password (12 or more characters), saves it in their
-password manager, and chooses a new `.villowbackup` file through the Windows save
-dialog. Prefer a location already backed up independently of the PC. Setup reads
+The temporary copy is stored in Setup's local data directory. Setup reads
 a consistent snapshot of all 60 app tables and its two installation-history
 tables over the existing certificate-verified connection. It includes the
 original eight vault credentials, configured environment, account/resource IDs,
@@ -22,9 +21,12 @@ checkpoint, original manifest/archive and signed channel provenance. No provider
 CLI, Docker, Vercel key retrieval or database-password change is needed.
 
 Only encrypted bytes are written. Setup finishes, closes, reopens, decrypts and
-compares the complete file before saving a receipt and starting repair. Cancel,
-partial writes, changed files and unsupported database layouts stop the operation.
-The same receipt/file is rechecked on resume. A repair started in 0.1.3 keeps its
+compares the complete file before saving a receipt and starting repair. Vault
+failures, partial writes, changed files and unsupported layouts stop the operation.
+The same receipt/file/key is rechecked on resume. The copy remains after failure
+or interruption, and is automatically removed only after the repaired website
+passes authenticated checks and success is saved. Cleanup failures retry on open.
+Portable backups created in 0.1.4 are retained. A repair started in 0.1.3 keeps its
 explicit manual confirmation, clearly labelled as unverified; it is not upgraded
 to a fabricated automatic backup. New repairs require a native backup receipt.
 The original encryption key is retained throughout; restoring it is essential to
@@ -43,8 +45,8 @@ local database using the exact original app release. It preserves every row,
 original ID, ciphertext and native ledger while keeping foreign keys active;
 any failure rolls back the transaction. It cannot overwrite a populated app.
 There is no restore/adoption button or generic SQL/file IPC in this Alpha. If
-recovery is needed, keep the encrypted file and its password and request
-maintainer assistance; do not post either in a support chat. Independent account
+recovery is needed, keep this Windows account and Setup's saved local data and
+request maintainer assistance; do not post backup files or keys in a support chat. Independent account
 and target authorization and current release trust are required before any real
 restore. A successful file check is not a live-provider restore drill.
 

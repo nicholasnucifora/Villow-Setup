@@ -105,6 +105,39 @@ fn native_encrypted_backup_restores_exact_rows_and_refuses_existing_or_changed_t
     let saved: Installation = serde_json::from_str(&package.checkpoint_json).unwrap();
     assert_eq!(saved.id, s.id);
     assert_eq!(saved.origin, s.origin);
+    // The runtime's automatic path produces the same complete restorable data,
+    // using an OS-vault-owned key rather than a renderer-supplied password.
+    let store = villow_setup::store::Store::open(temp.path()).unwrap();
+    store.save(&s).unwrap();
+    let (managed_path, managed_key) =
+        villow_setup::managed_backup::prepare(&store, &vault, &s, &new.digest).unwrap();
+    let mut managed_receipt = repair_backup::save(
+        &managed_path,
+        &managed_key,
+        &s,
+        &old,
+        &new,
+        &trust,
+        &channel_bytes,
+        &manifest,
+        &archive,
+        &vault,
+        || backup_database::capture(&mut source, &s, &old),
+    )
+    .unwrap();
+    managed_receipt.managed = true;
+    villow_setup::managed_backup::check(&store, &vault, &s, &managed_receipt).unwrap();
+    let managed_plaintext = backup_file::read(&managed_path, &managed_key).unwrap();
+    let managed_package: repair_backup::Package =
+        serde_json::from_slice(&managed_plaintext).unwrap();
+    assert_eq!(
+        serde_json::to_vec(&managed_package.database).unwrap(),
+        serde_json::to_vec(&package.database).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_vec(&managed_package.credentials).unwrap(),
+        serde_json::to_vec(&package.credentials).unwrap()
+    );
     let mut target = connect("backup_target", "backup_owner");
     backup_database::restore_empty(&mut target, &s, &old, &package.database).unwrap();
     let restored = backup_database::capture(&mut target, &s, &old).unwrap();

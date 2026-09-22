@@ -1,21 +1,26 @@
 # Villow integration contract
 
-## Verified backup before repair — manager 0.1.4
+## Temporary protection before repair — manager 0.1.5
 
 The published app manifests and SQL contracts remain unchanged. New installed
-repairs use `backup_and_repair {digest,password}` with a native save dialog;
+repairs use `backup_and_repair {digest}` with a native-owned temporary file and
+separate Windows Credential Manager key; there is no renderer password or path.
 `apply_installed_repair {digest}` only resumes saved intent. The renderer can no
 longer start a repair by asserting a backup boolean. The native checkpoint adds
 an optional `RepairIntent.backup` receipt binding an encrypted, read-back-verified
 file to installation, repair operation, source and destination. Receipt/file
-integrity is rechecked before resumed work. No existing app key is regenerated.
+integrity and key decryptability are rechecked before resumed work. No existing
+app key is regenerated. Receipts add `managed` (default false) and optional
+`removed_at`. Only managed copies are automatically removed after durable
+authenticated completion; failed cleanup is retried locally on reopen. Existing
+0.1.4 portable files are retained. No signed app contract or SQL has changed.
 
 The [backup contract](backup-contract.md) pins the exact 0.1.1→0.1.2 release pair,
 data scope, file format, native-only secret export and empty-target restore
 qualification. There is no restore/adoption IPC. Existing 0.1.3 manual-confirmation
 intent remains resumable and is labelled unverified; new work requires the native
 file receipt. Nonsecret recovery still strips all repair/backup authority.
-Use 0.1.4 or newer once its new checkpoint has been written.
+Use 0.1.5 or newer once its new checkpoint has been written.
 
 ## Installed Alpha correction — manager 0.1.3
 

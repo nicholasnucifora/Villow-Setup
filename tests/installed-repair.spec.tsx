@@ -29,92 +29,67 @@ const pending: RepairIntent = {
 };
 const state = (repair?: RepairIntent) =>
   ({ installed_repair: repair ?? null }) as Installation;
-it("canceling the native save leaves repair unstarted and clears the entered password", async () => {
+const backup = {
+  managed: true,
+  path: "native-owned-path",
+  sha256: "hash",
+  bytes: 100,
+  captured_at: "2026-09-23T00:00:00Z",
+  installation_id: "instance",
+  operation_id: "repair-op",
+  from: "old",
+  to: "new-digest",
+};
+it("starts automatic protection with only the release ID and stops on backup failure", async () => {
   vi.useFakeTimers();
-  const action = vi.fn().mockResolvedValue(true);
+  const action = vi.fn().mockResolvedValue(false);
   render(
     <InstalledRepair
       s={state()}
       offer={offer}
-      message="Backup canceled"
+      message=""
       busy={false}
       action={action}
       open={vi.fn()}
     />,
   );
-  fireEvent.change(screen.getByLabelText(/Backup password \(/), {
-    target: { value: "synthetic-password-only" },
-  });
-  fireEvent.change(screen.getByLabelText("Repeat backup password"), {
-    target: { value: "synthetic-password-only" },
-  });
+  expect(screen.queryByLabelText(/password/i)).toBeNull();
+  expect(
+    screen.getByText(/There is no password to create or file to manage/),
+  ).toBeVisible();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: /Back up and repair/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Repair my app/ }));
   });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(60_000);
   });
-  expect(action).toHaveBeenCalledTimes(1);
-  expect(action.mock.calls[0][0]).toBe("backup_and_repair");
+  expect(action).toHaveBeenCalledExactlyOnceWith("backup_and_repair", {
+    digest: "new-digest",
+  });
   expect(screen.queryByRole("button", { name: "Resume repair" })).toBeNull();
-  expect(screen.getByLabelText(/Backup password \(/)).toHaveValue("");
-  expect(
-    screen.getByRole("button", { name: /Back up and repair/ }),
-  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: /Repair my app/ })).toBeEnabled();
 });
-it("requires matching backup passwords, clears secrets after failure and resets them when the offer changes", () => {
-  const action = vi.fn().mockResolvedValue(false);
-  const open = vi.fn();
-  const ui = render(
+it("disables starting another repair while protection is being created", () => {
+  const action = vi.fn();
+  render(
     <InstalledRepair
       s={state()}
       offer={offer}
       message=""
-      busy={false}
+      busy={true}
       action={action}
-      open={open}
+      open={vi.fn()}
     />,
   );
-  const apply = screen.getByRole("button", { name: /Back up and repair/ });
-  expect(apply).toBeDisabled();
-  expect(screen.getByText(/existing app encryption key/)).toBeVisible();
-  fireEvent.change(screen.getByLabelText(/Backup password \(/), {
-    target: { value: "synthetic-password-only" },
-  });
-  fireEvent.change(screen.getByLabelText("Repeat backup password"), {
-    target: { value: "different-password" },
-  });
-  expect(apply).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("Repeat backup password"), {
-    target: { value: "synthetic-password-only" },
-  });
-  fireEvent.click(apply);
-  expect(action).toHaveBeenCalledWith("backup_and_repair", {
-    digest: "new-digest",
-    password: "synthetic-password-only",
-  });
-  expect(screen.getByLabelText(/Backup password \(/)).toHaveValue("");
-  expect(screen.getByLabelText("Repeat backup password")).toHaveValue("");
-  ui.rerender(
-    <InstalledRepair
-      s={state()}
-      offer={{ ...offer, digest: "different" }}
-      message=""
-      busy={false}
-      action={action}
-      open={open}
-    />,
-  );
-  expect(screen.getByLabelText(/Backup password \(/)).toHaveValue("");
-  expect(
-    screen.getByRole("button", { name: /Back up and repair/ }),
-  ).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: /Repair my app/ }));
+  expect(action).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: /Repair my app/ })).toBeDisabled();
 });
-it("reopening a repair waits for explicit resume and keeps the original destination", async () => {
+it("reopening waits for explicit resume and keeps the original destination", async () => {
   const action = vi.fn().mockResolvedValue(false);
   render(
     <InstalledRepair
-      s={state(pending)}
+      s={state({ ...pending, backup })}
       offer={{ ...offer, digest: "newer-channel-release" }}
       message=""
       busy={false}
@@ -123,19 +98,22 @@ it("reopening a repair waits for explicit resume and keeps the original destinat
     />,
   );
   expect(action).not.toHaveBeenCalled();
-  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.getByText(/You do not need to manage it/)).toBeVisible();
+  expect(screen.queryByText("native-owned-path")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Resume repair" }));
-  await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-  expect(action).toHaveBeenCalledWith("apply_installed_repair", {
-    digest: "new-digest",
-  });
+  await waitFor(() =>
+    expect(action).toHaveBeenCalledExactlyOnceWith("apply_installed_repair", {
+      digest: "new-digest",
+    }),
+  );
 });
-it("pauses automatic progress on failure and exposes build recovery with no create button", async () => {
+it("pauses on build failure and retains recovery with no create button", async () => {
   const action = vi.fn().mockResolvedValue(false);
   render(
     <InstalledRepair
       s={state({
         ...pending,
+        backup,
         phase: "verify",
         deployment_id: "new-deploy",
         deployment_status: "failed",
@@ -152,7 +130,7 @@ it("pauses automatic progress on failure and exposes build recovery with no crea
   ).toBeVisible();
   expect(
     screen.queryByRole("button", {
-      name: /Back up and repair|Build my app|Prepare my database/,
+      name: /Repair my app|Build my app|Prepare my database/,
     }),
   ).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Resume repair" }));
@@ -161,7 +139,46 @@ it("pauses automatic progress on failure and exposes build recovery with no crea
     screen.getByRole("button", { name: /Open Vercel build logs/ }),
   ).toBeEnabled();
 });
-it("shows honest no-repair availability without enabling database writes", async () => {
+it("reports cleanup accurately and retains older portable backups", () => {
+  const props = {
+    offer: null,
+    message: "",
+    busy: false,
+    action: vi.fn(),
+    open: vi.fn(),
+  };
+  const ui = render(
+    <InstalledRepair
+      {...props}
+      s={state({ ...pending, backup, phase: "complete" })}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /retry removing it when you reopen/,
+  );
+  ui.rerender(
+    <InstalledRepair
+      {...props}
+      s={state({
+        ...pending,
+        backup: { ...backup, removed_at: "2026-09-23T01:00:00Z" },
+        phase: "complete",
+      })}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /removed the temporary recovery copy automatically/,
+  );
+  ui.rerender(
+    <InstalledRepair
+      {...props}
+      s={state({ ...pending, backup: { ...backup, managed: false } })}
+    />,
+  );
+  expect(screen.getByText(/Keep that file and its password/)).toBeVisible();
+  expect(screen.getByText("native-owned-path")).toBeVisible();
+});
+it("shows no repair availability without enabling writes", async () => {
   const action = vi.fn().mockResolvedValue(true);
   render(
     <InstalledRepair
@@ -180,7 +197,5 @@ it("shows honest no-repair availability without enabling database writes", async
     "No signed repair is available",
   );
   expect(action).toHaveBeenCalledWith("check_installed_repair");
-  expect(
-    screen.queryByRole("button", { name: /Back up and repair/ }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: /Repair my app/ })).toBeNull();
 });

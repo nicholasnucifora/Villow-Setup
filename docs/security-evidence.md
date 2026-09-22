@@ -1,5 +1,32 @@
 # Security evidence and release qualification
 
+## Automatic temporary repair protection — 2026-09-23
+
+Manager 0.1.5 removes the routine password/file dialog. The typed repair command
+accepts only a release digest. A native-derived app-local encrypted file and
+separate OS-vault unlock key protect the single supported repair. Original app
+secrets, signed release/SQL and provider authorization are unchanged. Resume
+requires both exact ciphertext and successful decryption with the retained key.
+Success is durably recorded after authenticated health before cleanup removes
+the managed file and then its key. Failed cleanup retries on open, separately
+from SQL/deployment; older portable backups default to retained.
+
+UI tests cover automatic protection, failure/resume and truthful cleanup status.
+Native lifecycle tests cover pre-intent interruption/recapture, uncertain SQL,
+failed health, lost/wrong key, damaged/missing file, missing durable completion,
+file/key deletion failure/retry, original-secret retention and portable/read-only/
+outside-path refusal. The exact release fixture additionally compares all
+62 tables and eight credentials in the managed and portable snapshots.
+Final execution evidence, paired source identities and installer hash are
+recorded in the build receipt.
+
+This is local temporary repair protection, not an in-place restore, general
+updater or portable disaster-recovery system. Live provider repair/recovery and
+Windows signing remain unqualified. Earlier 0.1.4 GitHub run `35739648085`
+completed successfully for both Windows and PostgreSQL, resolving the reported
+mutation-fixture failure. That run applies to its exact 0.1.4 source; the new
+candidate is validated separately.
+
 ## Encrypted pre-repair backup and CI correction — 2026-09-23
 
 Manager 0.1.4 replaces the manual key/export checklist with a native encrypted

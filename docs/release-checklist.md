@@ -1,5 +1,16 @@
 # Villow Setup: maintainer release checklist
 
+## Temporary repair protection — manager 0.1.5, 2026-09-23
+
+The maintainer requested automatic temporary protection instead of a password
+and portable file on every repair. The new native lifecycle retains the copy
+after failure/interruption and removes only its own managed copy/key after
+durable authenticated success. Old portable backups remain retained. Genuine
+app 0.1.2, SQL and trust remain unchanged; no signing/publication is needed.
+Exact source/paired-check results and installer identity belong in the generated
+0.1.5 build receipt. Real-account repair is the maintainer's next manual test;
+no reset, new resources or developer signing passphrase is part of it.
+
 Started 2026-09-20. This is the ongoing backlog for the developer and both repository agents. It is separate from the machine-enforced [qualification record](qualification.json). Leave items open until there is dated evidence for the relevant candidate; local mocks, historical passes and moving repositories do not complete a real release gate.
 
 **Owners:** “You” means the maintainer; “Setup agent” works in `nicholasnucifora/Villow-Setup`; “web agent” works in `nicholasnucifora/Villow` (the local `disconnect` project). Both agents can continue implementation in separate repos. You need not keep the projects nested or translate this checklist into code yourself.

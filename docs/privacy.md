@@ -13,7 +13,7 @@ The demo stores fictional progress in its own local browser storage. It does not
 - Checking an official app release downloads signed metadata and source files from the configured GitHub release repository and its release-asset service. These requests carry no management credentials.
 - Connecting Vercel or Supabase sends the relevant management token directly to that provider's API. Setup reads your available accounts and performs the individual setup operations you request in the selected accounts.
 - Preparing the database connects to the selected Supabase project's database over TLS. It uses that database's credentials to install and verify the authenticated schema plan.
-- Choosing **Back up and repair** reads your Villow app data, including viewing history and account connections, over the existing secure database connection. It saves that snapshot, setup metadata and original credentials in an encrypted file at the location you choose. It does not upload the backup to the maintainer. A folder synchronized by another service follows that service's settings.
+- Choosing **Repair my app** reads your Villow app data, including viewing history and account connections, over the existing secure database connection. It saves that snapshot, setup metadata and original credentials in an encrypted temporary file in Setup's local data directory. A separate unlock key is kept in Windows Credential Manager. The copy is retained if repair fails and removed with its temporary key after verified success. It is not uploaded to the maintainer.
 - Configuring your hosted instance sends its required Google client secret, database service key, encryption key and other settings to your own Vercel project. Public settings and server secrets have different purposes.
 - Verifying the installed app sends a limited bootstrap credential and fresh challenge to that instance's setup endpoint. Setup does not download your viewing history.
 - Account, Google configuration and app sign-in buttons open the selected service in your system browser. Browser cookies and account sign-in are handled there.
@@ -30,12 +30,12 @@ Villow Setup itself contains no analytics uploader, crash-report uploader, adver
 
 Recovery export saves a file only where you choose. It includes your owner email, resource IDs and version details, but no passwords or tokens. Diagnostic information is available for your review; Setup does not submit it automatically. Review exports before sharing them.
 
-The separate encrypted data backup contains sensitive app data and credentials.
-Keep its password in your password manager and retain the file securely. Setup
-does not retain that unlock password or use the developer's signing passphrase.
-Backups are not removed by uninstalling Setup or deleting local credentials;
-manage saved copies and any synced copies yourself. Do not share the backup or
-its password in a public issue. See [backup scope and recovery limits](backup-contract.md).
+Temporary recovery copies contain sensitive app data and credentials. Setup
+manages their encryption and cleanup; they do not use a developer signing key.
+Keep Setup's local data and Windows account while a repair is unfinished.
+Portable backups created in 0.1.4 remain yours to retain/remove, together with
+their password and any synced copies. Neither kind is a support attachment to
+post in a public issue. See [backup scope and recovery limits](backup-contract.md).
 
 Removing saved credentials removes this computer's setup access. Forgetting an instance removes its local checkpoint after credential removal succeeds. Neither action revokes provider tokens or deletes the running cloud instance. Uninstalling Setup also does not cancel cloud billing; it is not a substitute for explicit credential removal. See [maintenance and removal](maintenance.md).
 

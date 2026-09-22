@@ -6,19 +6,18 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 
 ## Installed Alpha repair candidate
 
-Version 0.1.4 keeps the same Alpha identifier, checkpoint and vault namespace.
+Version 0.1.5 keeps the same Alpha identifier, checkpoint and vault namespace.
 At the unfinished final sign-in/check step, use **Check for an app repair**.
-If the genuine 0.1.2 repair matches your installed app, create a password for
-its data backup, save that password in your password manager, then choose
-**Back up and repair my app**. Select a new backup file location in the Windows
-save dialog. Setup includes the existing app encryption key automatically;
-you do not need a Vercel key or developer release-signing passphrase.
+If the genuine 0.1.2 repair matches your installed app, choose **Repair my app**.
+Setup creates an encrypted temporary recovery copy automatically. No backup
+password or file selection is needed. It includes the existing app key.
 
 Setup verifies the file before SQL, then applies the authenticated correction,
 rebuilds the same Vercel project and waits for the website and authenticated
-health. After closing, use **Resume repair**. Keep the original backup file at
-its saved location and retain its password. Continue with 0.1.4 or newer once
-this workflow starts. A manual-backup repair already started in 0.1.3 remains
+health. After closing, use **Resume repair**. The recovery copy stays if anything
+fails; after verified success Setup removes it and its temporary vault key.
+Continue with 0.1.5 or newer once this workflow starts. Portable backups already
+created in 0.1.4 are retained. A manual-backup repair already started in 0.1.3 remains
 resumable, but is visibly recorded as a user confirmation, not a verified backup.
 
 This preserves existing resources and data through the tested additive repair.
@@ -38,7 +37,7 @@ and real-provider recovery qualification remain deferred.
 The expected installer after a successful configured build is:
 
 ```text
-src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.4_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.5_x64-setup.exe
 ```
 
 That path is an expected output, not evidence an alpha has been built. The ordinary `Villow Setup_0.1.0_x64-setup.exe` and optional `Villow Setup Testing_0.1.0_x64-setup.exe` are different files. Rebuilding source does not change an already installed EXE. Do not use the shared build-directory `villow-setup.exe` to distinguish profiles; install the exact recorded installer and verify its hash. Keep alpha as a separate test installation; recovery import cannot migrate it into production or adopt its database.

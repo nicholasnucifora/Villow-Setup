@@ -150,6 +150,10 @@ pub struct RepairIntent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct BackupReceipt {
+    #[serde(default)]
+    pub managed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at: Option<String>,
     pub path: String,
     pub sha256: String,
     pub bytes: u64,

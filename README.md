@@ -21,11 +21,11 @@ To opt in to the isolated demo and interruption scenarios, run `npm run desktop:
 npm run desktop:build
 ```
 
-The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.4_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.5_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
 For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
 
-Manager 0.1.4 creates and verifies an encrypted app-data backup before the bounded repair of the known unfinished installed Alpha. It preserves the original app key automatically; users choose a backup password and file location, then Setup applies the authenticated repair and rebuilds the same Vercel project. Restore remains assisted and cannot overwrite an existing database. The genuine 0.1.2 repair is published. See [backup and recovery](docs/backup-contract.md) and [the installed repair contract](docs/villow-integration-contract.md). General upgrades and adoption remain deferred.
+Manager 0.1.5 creates and verifies a temporary encrypted recovery copy automatically before the bounded repair of the known unfinished installed Alpha. Choose **Repair my app**; no backup password or file selection is needed. Setup preserves the original app key, applies the authenticated repair and rebuilds the same Vercel project. The copy stays if anything fails and is removed after the repaired app passes authenticated checks. Later-stage recovery remains assisted and cannot overwrite an existing database. The genuine 0.1.2 repair is published. See [backup and recovery](docs/backup-contract.md) and [the installed repair contract](docs/villow-integration-contract.md). General upgrades and adoption remain deferred.
 
 ## Implemented
 

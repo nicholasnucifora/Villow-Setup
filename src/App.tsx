@@ -739,16 +739,17 @@ export function App({
                         </p>
                       </>
                     )}
-                  {__UNSIGNED_ALPHA__ && s.step === "health" && (
-                    <InstalledRepair
-                      s={s}
-                      offer={data?.installed_repair}
-                      message={data?.message ?? ""}
-                      busy={busy}
-                      action={action}
-                      open={open}
-                    />
-                  )}
+                  {__UNSIGNED_ALPHA__ &&
+                    ["health", "complete"].includes(s.step) && (
+                      <InstalledRepair
+                        s={s}
+                        offer={data?.installed_repair}
+                        message={data?.message ?? ""}
+                        busy={busy}
+                        action={action}
+                        open={open}
+                      />
+                    )}
                   {s.step === "complete" && (
                     <>
                       <p className="lead">
@@ -970,7 +971,7 @@ type Action = (
 ) => Promise<boolean>;
 function operationTitle(command: string, s?: Installation | null): string {
   if (command === "backup_and_repair")
-    return "Saving and verifying your Villow data backup, then starting the repair";
+    return "Protecting your data automatically, then starting the repair";
   if (command === "check_installed_repair")
     return "Checking the signed repair against your installed database";
   if (command === "apply_installed_repair")

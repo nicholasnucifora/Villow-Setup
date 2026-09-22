@@ -7,6 +7,7 @@ pub mod error;
 pub mod fresh_retry;
 pub mod http;
 pub mod installed_repair;
+pub mod managed_backup;
 pub mod manager;
 pub mod migration;
 pub mod model;

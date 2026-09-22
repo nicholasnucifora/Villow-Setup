@@ -21,7 +21,15 @@ fn windows_credential_manager_roundtrip_and_verified_removal() {
     let first = OsVault.ensure_random(&id, "encryption_key").unwrap();
     let second = OsVault.ensure_random(&id, "encryption_key").unwrap();
     assert_eq!(first.as_str(), second.as_str());
+    let temporary = OsVault.ensure_random(&id, "repair_backup_key").unwrap();
+    assert_eq!(temporary.len(), 64);
+    assert_eq!(
+        temporary.as_str(),
+        OsVault.require(&id, "repair_backup_key").unwrap().as_str()
+    );
+    assert_ne!(temporary.as_str(), first.as_str());
     OsVault.remove_all(&id).unwrap();
     assert!(OsVault.get(&id, "vercel_token").unwrap().is_none());
     assert!(OsVault.get(&id, "encryption_key").unwrap().is_none());
+    assert!(OsVault.get(&id, "repair_backup_key").unwrap().is_none());
 }

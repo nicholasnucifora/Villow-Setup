@@ -79,13 +79,13 @@ pub enum Error {
     RepairRefused,
     #[error("Finish the saved app repair using Resume repair. Normal setup actions are paused so the installed database and release stay consistent.")]
     RepairPending,
-    #[error("Save and verify your Villow backup using Back up and repair before continuing. Setup needs its own backup receipt for this exact repair; a checkbox or recovery-information file cannot replace it.")]
+    #[error("Setup could not verify the recovery copy for this repair. Keep your saved setup and use Repair my app to start, or Resume repair if already started. If this continues, report this message; do not reset the database.")]
     RepairBackupRequired,
     #[error("Choose a backup password of at least 12 characters and save it in your password manager. This protects your Villow data backup; it is separate from the developer's signing passphrase.")]
     BackupPassword,
-    #[error("The backup file could not be read, saved or verified. Check its location and free space. Keep the original backup and saved repair progress; no further repair work was performed.")]
+    #[error("Setup could not read, save or verify its recovery copy. Check that this PC has free disk space and reopen Setup. Keep its saved files and database; no further repair work was performed.")]
     BackupStorage,
-    #[error("The backup could not be unlocked or verified. Check its password and keep the original file. Setup stopped this operation; saved repair progress is retained.")]
+    #[error("The recovery copy could not be unlocked or verified. Keep this PC's saved Setup data and report this message. Setup stopped this operation; saved repair progress is retained.")]
     BackupInvalid,
     #[error("This backup exceeds this Alpha's limit of 128 MiB of app database data or 256 MiB for the recovery package. Keep your database and ask for help with a larger backup; this operation stopped.")]
     BackupTooLarge,

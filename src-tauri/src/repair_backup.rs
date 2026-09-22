@@ -171,6 +171,8 @@ pub fn save(
     // write_verified durably closes, reopens, decrypts and compares ALL plaintext
     // bytes, including COPY counts, columns, every row and the original vault.
     Ok(BackupReceipt {
+        managed: false,
+        removed_at: None,
         path: saved.path,
         sha256: saved.sha256,
         bytes: saved.bytes,
@@ -188,6 +190,7 @@ pub fn check_receipt(
     new: &VerifiedRelease,
 ) -> Result<()> {
     if receipt.installation_id != s.id
+        || receipt.removed_at.is_some()
         || receipt.from != old.digest
         || receipt.to != new.digest
         || uuid::Uuid::parse_str(&receipt.operation_id).is_err()

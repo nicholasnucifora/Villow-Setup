@@ -11,6 +11,7 @@ pub const SECRET_NAMES: &[&str] = &[
     "bootstrap_token",
     "anon_key",
     "service_key",
+    "repair_backup_key",
 ];
 pub trait Vault {
     fn get(&self, instance: &str, name: &str) -> Result<Option<Zeroizing<String>>>;

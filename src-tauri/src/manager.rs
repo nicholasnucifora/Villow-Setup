@@ -39,10 +39,18 @@ pub struct FreshRetryOffer {
 }
 impl Manager {
     pub fn open(path: &Path) -> Result<Self> {
-        Ok(Self {
+        let manager = Self {
             store: Store::open(path)?,
             trust: Trust::embedded()?,
-        })
+        };
+        // A crash after verified completion may leave only local cleanup. It
+        // needs no provider calls and must not make a working app look broken.
+        if let Ok(_lock) = manager.store.lock() {
+            if let Some(mut s) = manager.store.load()? {
+                let _ = crate::managed_backup::cleanup(&manager.store, &OsVault, &mut s);
+            }
+        }
+        Ok(manager)
     }
     pub fn snapshot(&self) -> Result<Snapshot> {
         Ok(Snapshot { manager_version: env!("CARGO_PKG_VERSION").into(), trust_configured: self.trust.configured(),
@@ -266,12 +274,7 @@ impl Manager {
         )?;
         self.snapshot()
     }
-    pub fn backup_and_repair(
-        &self,
-        digest: String,
-        password: &str,
-        path: &Path,
-    ) -> Result<Snapshot> {
+    pub fn backup_and_repair(&self, digest: String) -> Result<Snapshot> {
         let _lock = self.store.lock()?;
         let s = self.store.load()?.ok_or(Error::Precondition)?;
         let (channel, channel_bytes) = self.channel_document()?;
@@ -295,9 +298,11 @@ impl Manager {
             .map_err(|_| Error::Storage)?;
         let archive =
             std::fs::read(cache.join(format!("{}.zip", old.digest))).map_err(|_| Error::Storage)?;
-        let backup = crate::repair_backup::save(
-            path,
-            password,
+        let (path, password) =
+            crate::managed_backup::prepare(&self.store, &OsVault, &s, &new.digest)?;
+        let mut backup = crate::repair_backup::save(
+            &path,
+            &password,
             &s,
             &old,
             &new,
@@ -312,6 +317,7 @@ impl Manager {
                 crate::backup_database::capture(&mut client, &s, &old)
             },
         )?;
+        backup.managed = true;
         crate::installed_repair::advance(
             &self.store,
             &OsVault,

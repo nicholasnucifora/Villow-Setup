@@ -135,6 +135,7 @@ pub fn advance(
     if s.installed_repair.is_none() {
         let backup = backup.ok_or(Error::RepairBackupRequired)?;
         crate::repair_backup::check_receipt(&backup, &s, old, new)?;
+        crate::managed_backup::check(store, vault, &s, &backup)?;
         if providers.deployment_status(&s, old)? != DeploymentStatus::Ready {
             return Err(Error::DeploymentNotReady);
         }
@@ -159,6 +160,7 @@ pub fn advance(
             return Err(Error::RepairBackupRequired);
         }
         crate::repair_backup::check_receipt(receipt, &s, old, new)?;
+        crate::managed_backup::check(store, vault, &s, receipt)?;
     }
     // Existing 0.1.3 intent may have an explicitly owner-confirmed manual backup.
     // Resume that recorded operation; never label its backup as native-verified.
@@ -196,6 +198,9 @@ pub fn advance(
                 s.step = Step::Complete;
                 s.check("app", "Installed Alpha repair, replacement deployment and authenticated owner health verified");
                 save(store, &mut s)?;
+                // Success is durable before removing any temporary copy. A
+                // cleanup failure is retried on open and remains visible.
+                let _ = crate::managed_backup::cleanup(store, vault, &mut s);
             }
         }
         RepairPhase::Complete => return Err(Error::RepairRefused),

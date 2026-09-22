@@ -20,8 +20,6 @@ export function InstalledRepair({
   action: Action;
   open: (step: string) => Promise<void>;
 }) {
-  const [password, setPassword] = useState("");
-  const [repeat, setRepeat] = useState("");
   const [checked, setChecked] = useState(false);
   const [running, setRunning] = useState(false);
   const until = useRef(0);
@@ -31,10 +29,6 @@ export function InstalledRepair({
   const terminalBuild = ["failed", "canceled", "address_failed"].includes(
     pending?.deployment_status ?? "",
   );
-  useEffect(() => {
-    setPassword("");
-    setRepeat("");
-  }, [offer?.digest]);
   useEffect(() => {
     if (!running || !pending || pending.phase === "complete" || busy) return;
     if (terminalBuild || Date.now() >= until.current) {
@@ -60,7 +54,16 @@ export function InstalledRepair({
     });
     setRunning(ok);
   };
-  if (pending?.phase === "complete") return null;
+  if (pending?.phase === "complete") {
+    if (!pending.backup?.managed) return null;
+    return (
+      <p role="status">
+        {pending.backup.removed_at
+          ? "Repair verified. Setup removed the temporary recovery copy automatically."
+          : "Your repaired app passed its checks. The temporary recovery copy is still saved; Setup will retry removing it when you reopen this window."}
+      </p>
+    );
+  }
   return (
     <section className="repair-panel" aria-label="Repair your installed app">
       <h2>
@@ -98,79 +101,37 @@ export function InstalledRepair({
             existing Vercel project, then check the website.
           </p>
           <div className="alert">
-            <h3>First, save a copy of your Villow data</h3>
+            <h3>Setup protects your data automatically</h3>
             <p>
-              Setup will back up your settings, watch history, saved items and
-              account connections before changing the database. It includes the
-              existing app encryption key and saved setup credentials
-              automatically. You do not need to find a key in Vercel or use
-              Supabase backup tools.
+              Before changing anything, Setup saves and checks an encrypted
+              temporary copy of your Villow data and account connections on this
+              PC. There is no password to create or file to manage.
             </p>
             <p>
-              Choose where to save the encrypted backup file, such as a folder
-              you already back up or a removable drive. Keep it until you have
-              checked the repaired app. It contains your data at the time of the
-              backup; later activity is not included.
+              If the repair fails or you close Setup, the copy stays available
+              for recovery. Setup removes it automatically once the repaired
+              website passes its database and sign-in checks.
             </p>
-            <h3>Create a password for this backup file</h3>
             <p>
-              Save this password in your password manager under “Villow data
-              backup”. You would need it to recover the file on another
-              computer. This is separate from Google, your database password and
-              the developer’s release-signing passphrase.
-            </p>
-            <label>
-              Backup password (at least 12 characters)
-              <input
-                type="password"
-                autoComplete="new-password"
-                maxLength={1024}
-                value={password}
-                disabled={busy}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <label>
-              Repeat backup password
-              <input
-                type="password"
-                autoComplete="new-password"
-                maxLength={1024}
-                value={repeat}
-                disabled={busy}
-                onChange={(e) => setRepeat(e.target.value)}
-              />
-            </label>
-            {repeat && repeat !== password && (
-              <p role="status">The passwords do not match yet.</p>
-            )}
-            <p>
-              Setup saves, reopens and checks the complete file before the
-              repair begins. Canceling the save dialog leaves the repair
-              unstarted. This Alpha creates the backup for you; restoring it
-              still requires guided recovery into an empty database. It cannot
-              overwrite your current app or undo changes made on Google or
-              YouTube.
+              A failed database change rolls back automatically. If something
+              goes wrong after that, Setup keeps your progress and recovery copy
+              for a guided repair. This copy protects the data captured before
+              repair; it does not include later activity or replace a separate
+              backup against losing this PC.
             </p>
           </div>
           <button
             className="primary"
-            disabled={
-              busy || [...password.trim()].length < 12 || password !== repeat
-            }
+            disabled={busy || running}
             onClick={async () => {
-              const unlock = password;
-              setPassword("");
-              setRepeat("");
               until.current = Date.now() + 10 * 60_000;
               const ok = await action("backup_and_repair", {
                 digest: offer.digest,
-                password: unlock,
               });
               setRunning(ok);
             }}
           >
-            Back up and repair my app →
+            Repair my app →
           </button>
         </>
       )}
@@ -178,14 +139,21 @@ export function InstalledRepair({
         <>
           {pending.backup ? (
             <div className="success" role="status">
-              <strong>
-                Your encrypted data backup was saved and verified.
-              </strong>
-              <p>{pending.backup.path}</p>
-              <p>
-                Captured {new Date(pending.backup.captured_at).toLocaleString()}
-                . Keep this file and its password.
-              </p>
+              <strong>Your recovery copy was saved and verified.</strong>
+              {pending.backup.managed ? (
+                <p>
+                  Setup keeps this temporary copy until your repaired app passes
+                  its checks. You do not need to manage it.
+                </p>
+              ) : (
+                <>
+                  <p>{pending.backup.path}</p>
+                  <p>
+                    This backup was saved in an earlier Alpha. Keep that file
+                    and its password; Setup will not delete it.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <p>

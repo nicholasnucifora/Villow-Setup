@@ -1,7 +1,41 @@
 # Encrypted pre-repair backup, format 1
 
-Manager 0.1.4, 2026-09-23. This extends the bounded installed Alpha repair;
+Manager 0.1.5, 2026-09-23. This extends the bounded installed Alpha repair;
 it does not add general upgrades, provider-wide backup or writable adoption.
+
+## Automatic temporary protection
+
+**Repair my app** creates and verifies a temporary encrypted recovery copy with
+no password prompt or file dialog. A separate random 256-bit unlock secret is
+saved and reread in Windows Credential Manager as `repair_backup_key`, under the
+existing installation UUID. The eight original app/provider secrets are unchanged.
+The native-derived path is `<app-local-data>/repair-backups/<installation UUID>.villowbackup`.
+Neither the path nor unlock key is accepted from the renderer; the unlock key
+is never returned to it. Only the nonsecret receipt contains the native path.
+
+This contract permits only one bounded installed repair per installation. The
+key's identity is fixed to that installation; the encrypted package and native
+receipt additionally bind the exact repair operation, source and destination.
+The key and predetermined path are discoverable even if capture is interrupted.
+Before intent exists, a complete orphan file can be decrypted and matched to the
+original installation before being replaced with a fresh snapshot. A partial or
+unverifiable file stops for review. After intent exists, recapture/key generation
+are forbidden; every resume requires the original key to decrypt the exact file.
+
+The copy and key remain after SQL/deployment/health failure or interruption.
+Only after destination health passes and Complete is durably checkpointed does
+native cleanup remove the exact managed file, then its temporary key. Cleanup
+refuses redirected paths, symlinks/junctions, portable receipts and read-only
+imports. Missing-file retries after deletion are idempotent. Cleanup failures
+leave success intact with a visible pending-cleanup message; opening Setup again
+retries locally without contacting providers or repeating repair.
+
+This is temporary repair protection on this PC, not portable disaster recovery
+or guaranteed recovery from problems discovered after the checks pass. Existing
+0.1.4 portable backups default to retained and keep their owner-selected password;
+existing 0.1.3 manual intents remain accurately labelled. No completed/failed
+repair is converted to fresh installation. Transactional SQL failures roll back;
+later failures retain the snapshot for assisted recovery, not automatic overwrite.
 
 ## Supported identity and contents
 
@@ -60,9 +94,10 @@ Ciphertext follows, with a 16-byte GCM tag. The entire UTF8 JSON package is one
 authenticated message; altered ordering, header, truncation and appended bytes
 are rejected. Passwords are used as entered (no normalization), must have at
 least 12 non-padding characters, at most 1024 UTF8 bytes and no NUL. Only the
-owner retains the unlock password; it is not saved in the vault being backed up.
-The renderer supplies that newly entered password and a digest, never paths,
-SQL, existing secrets or a claimed backup-complete flag.
+owner retained the unlock password in 0.1.4. In 0.1.5 the native random key uses
+the same authenticated format and is retained in the OS vault separately from
+the eight credentials inside the package. The renderer supplies only a digest,
+never a password, path, SQL, existing secret or backup-complete flag.
 
 COPY data is capped at 128 MiB cumulatively before base64 expansion. A bounded
 JSON writer caps plaintext at 256 MiB. Input sizes and fixed KDF parameters are
@@ -70,14 +105,15 @@ checked before allocation/decryption. This implementation uses bounded memory,
 not unbounded streaming. Primary secret buffers are zeroized; it does not claim
 to erase all library/OS/renderer copies from memory.
 
-An encrypted temporary file is written and synchronized in the chosen directory,
+An encrypted temporary file is written and synchronized in the native directory,
 then persisted without replacing any existing filename. The final file is
 closed, reopened, decrypted and its entire plaintext hash compared with capture.
 Only then is the native receipt bound to installation, source, destination,
 repair operation, capture time, file path, length and ciphertext SHA-256 saved
 before SQL. Interrupted writes cannot create a receipt. Resume checks those exact
-bytes; imported recovery JSON strips the containing repair record. A successfully
-saved but unrecorded file after a crash may remain; it cannot authorize a repair.
+bytes and decryptability; imported recovery JSON strips the containing repair
+record. A successfully saved but unrecorded file after a crash cannot authorize
+a repair; the pre-intent path above captures fresh data before proceeding.
 
 ## Restore boundary and qualification
 
@@ -100,6 +136,8 @@ changed/nonempty target refusal, unsupported catalog objects and transactional
 restore failure. Crypto/file tests cover randomization, wrong passwords, changed
 headers/ciphertext, truncation, no overwrite and simulated disk-full writes.
 Repair tests ensure invalid/missing/changed/other-installation receipts stop both
-initial work and resumed SQL/deployment. UI tests cover password matching,
-secret clearing, explicit resume and failure states. These use synthetic data;
+initial work and resumed SQL/deployment. Managed lifecycle tests cover vault/file
+loss and corruption, interrupted preparation, retained failed health, durable
+completion, deletion failure/retry and portable/read-only/path refusal. UI tests
+cover one-button protection, explicit resume, failure and cleanup states. These use synthetic data;
 no real user vault, provider database or installer UI is used during development.

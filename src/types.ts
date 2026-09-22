@@ -92,6 +92,8 @@ export interface RepairIntent {
   previous_deployment_id: string;
   backup_confirmed_at: string;
   backup?: {
+    managed?: boolean;
+    removed_at?: string | null;
     path: string;
     sha256: string;
     bytes: number;
