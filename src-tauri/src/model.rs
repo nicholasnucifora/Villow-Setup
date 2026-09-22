@@ -105,6 +105,12 @@ pub struct Check {
     pub title: String,
     pub at: String,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FreshRetryIntent {
+    pub from: String,
+    pub to: String,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Installation {
@@ -133,6 +139,8 @@ pub struct Installation {
     pub checks: Vec<Check>,
     pub read_only: bool,
     pub credentials_removed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_retry: Option<FreshRetryIntent>,
 }
 impl Installation {
     pub fn new(
@@ -177,6 +185,7 @@ impl Installation {
             checks: vec![],
             read_only: false,
             credentials_removed: false,
+            fresh_retry: None,
         })
     }
     pub fn selection(&self) -> Result<&Selection> {

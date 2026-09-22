@@ -21,7 +21,7 @@ To opt in to the isolated demo and interruption scenarios, run `npm run desktop:
 npm run desktop:build
 ```
 
-The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.1_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
 For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
 

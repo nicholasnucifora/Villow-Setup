@@ -29,6 +29,9 @@ impl Engine<'_> {
         let _lock = self.store.lock()?;
         let mut s = self.store.load()?.ok_or(Error::Precondition)?;
         s.assert_writable()?;
+        if s.fresh_retry.is_some() {
+            return Err(Error::FreshRetryPending);
+        }
         if s.release_digest != release.digest
             || s.commit != release.manifest.commit
             || s.app_version != release.manifest.app_version

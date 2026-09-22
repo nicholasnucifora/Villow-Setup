@@ -17,6 +17,7 @@ pub fn export(s: &Installation) -> Result<String> {
     installation.read_only = true;
     // Never carry credentials or inferred write authorization in an export.
     installation.effects.clear();
+    installation.fresh_retry = None;
     installation.credentials_removed = true;
     for r in [&mut installation.vercel, &mut installation.database]
         .into_iter()
@@ -59,6 +60,7 @@ pub fn import(text: &str) -> Result<Installation> {
     r.installation.read_only = true;
     r.installation.credentials_removed = true;
     r.installation.effects.clear();
+    r.installation.fresh_retry = None;
     r.installation.checks.clear(); // Imported assertions never render as verified checks.
     if r.installation.step == Step::Complete {
         r.installation.step = Step::Health;

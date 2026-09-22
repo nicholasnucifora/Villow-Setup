@@ -74,6 +74,7 @@ pub fn fixtures() -> (Trust, Vec<u8>, Vec<u8>, Vec<u8>) {
         channel: "stable".into(),
         minimum_manager: "0.1.0".into(),
         upgrade_from: vec![],
+        fresh_retry_from: vec![],
         archive_url: "https://github.com/test-owner/test-releases/releases/download/v1.0.0/app.zip"
             .into(),
         archive_sha256: hash(&archive),
@@ -155,6 +156,73 @@ pub fn installation(r: &VerifiedRelease) -> Installation {
         costs_acknowledged: true,
     });
     s
+}
+pub fn fresh_retry_fixture() -> (VerifiedRelease, VerifiedRelease, Installation) {
+    let old = verified();
+    let (trust, _, _, archive) = fixtures();
+    let mut manifest = old.manifest.clone();
+    manifest.app_version = "1.0.1".into();
+    manifest.schema.compatible_apps = "=1.0.1".into();
+    manifest.minimum_manager = "0.1.1".into();
+    manifest.sequence = 2;
+    manifest.fresh_retry_from = vec![old.digest.clone()];
+    let bytes = serde_json::to_vec(&manifest).unwrap();
+    let channel = Channel {
+        format: 1,
+        channel: "stable".into(),
+        sequence: 5,
+        generated_at: "2026-09-09T00:00:00Z".into(),
+        expires_at: "2026-09-12T00:00:00Z".into(),
+        releases: vec![ReleasePointer {
+            version: "1.0.1".into(),
+            sha256: hash(&bytes),
+            url:
+                "https://github.com/test-owner/test-releases/releases/download/v1.0.1/manifest.json"
+                    .into(),
+        }],
+        revoked: vec![],
+    };
+    let (channel, _) = verify_channel(
+        &sign_channel(&channel),
+        &trust,
+        "2026-09-10T00:00:00Z".parse().unwrap(),
+    )
+    .unwrap();
+    let new = verify_bundle(&bytes, &archive, &channel.releases[0], &channel, &trust).unwrap();
+    let mut s = installation(&old);
+    s.step = Step::Database;
+    s.vercel = Some(Resource {
+        id: "prj_test".into(),
+        account_id: "team_1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "synthetic".into(),
+    });
+    s.database = Some(Resource {
+        id: "abcdefghijklmnopqrst".into(),
+        account_id: "org1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "synthetic".into(),
+    });
+    s.origin = Some("https://test-villow.vercel.app".into());
+    s.google = Some(Google {
+        project_id: "synthetic-google".into(),
+        client_id: "synthetic.apps.googleusercontent.com".into(),
+        api_enabled_confirmed: true,
+        audience: "external_testing".into(),
+        consent_published_confirmed: false,
+        testing_access_confirmed: true,
+    });
+    s.effects.insert(
+        "migrate".into(),
+        Effect {
+            status: EffectStatus::NeedsReview,
+            started_at: now(),
+            verified_at: None,
+        },
+    );
+    (old, new, s)
 }
 #[derive(Default)]
 pub struct MemoryVault {

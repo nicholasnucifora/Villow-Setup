@@ -2,6 +2,7 @@
 mod desktop;
 pub mod engine;
 pub mod error;
+pub mod fresh_retry;
 pub mod http;
 pub mod manager;
 pub mod migration;

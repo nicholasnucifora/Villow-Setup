@@ -299,6 +299,69 @@ fn migration_error(unit: usize, stage: MigrationStage, error: &postgres::Error) 
         code: safe_sqlstate(error.code().map(|code| code.code())),
     }
 }
+
+pub fn retarget_unapplied(
+    client: &mut Client,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+) -> Result<()> {
+    crate::fresh_retry::validate(s, old, new)?;
+    if s.fresh_retry.is_none() {
+        return Err(Error::FreshRetryRefused);
+    }
+    client
+        .batch_execute("SET lock_timeout = '10s'; SET statement_timeout = '120s';")
+        .map_err(|_| Error::Database)?;
+    let locked: bool = client
+        .query_one("SELECT pg_try_advisory_lock($1)", &[&LOCK_ID])
+        .map_err(|_| Error::Database)?
+        .get(0);
+    if !locked {
+        return Err(Error::Busy);
+    }
+    let result = retarget_locked(client, s, old, new);
+    let _ = client.execute("SELECT pg_advisory_unlock($1)", &[&LOCK_ID]);
+    result
+}
+fn retarget_locked(
+    client: &mut Client,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+) -> Result<()> {
+    let mut tx = client.transaction().map_err(|_| Error::Database)?;
+    tx.batch_execute(
+        "LOCK TABLE villow_setup.instance, villow_setup.migrations IN ACCESS EXCLUSIVE MODE",
+    )
+    .map_err(|_| Error::FreshRetryRefused)?;
+    let owners = tx
+        .query(
+            "SELECT installation_id, release_digest FROM villow_setup.instance",
+            &[],
+        )
+        .map_err(|_| Error::FreshRetryRefused)?;
+    if owners.len() != 1 {
+        return Err(Error::FreshRetryRefused);
+    }
+    let id: String = owners[0].try_get(0).map_err(|_| Error::FreshRetryRefused)?;
+    let digest: String = owners[0].try_get(1).map_err(|_| Error::FreshRetryRefused)?;
+    let units: i64 = tx
+        .query_one("SELECT count(*) FROM villow_setup.migrations", &[])
+        .map_err(|_| Error::FreshRetryRefused)?
+        .get(0);
+    let objects: i64 = tx.query_one("SELECT (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')) + (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=p.oid AND d.deptype='e'))",&[]).map_err(|_| Error::Database)?.get(0);
+    if id != s.id || (digest != old.digest && digest != new.digest) || units != 0 || objects != 0 {
+        return Err(Error::FreshRetryRefused);
+    }
+    if digest == old.digest {
+        let changed = tx.execute("UPDATE villow_setup.instance SET release_digest=$1 WHERE installation_id=$2 AND release_digest=$3", &[&new.digest, &s.id, &old.digest]).map_err(|_| Error::Database)?;
+        if changed != 1 {
+            return Err(Error::FreshRetryRefused);
+        }
+    }
+    tx.commit().map_err(|_| Error::Uncertain)
+}
 fn safe_sqlstate(code: Option<&str>) -> String {
     code.filter(|code| {
         code.len() == 5

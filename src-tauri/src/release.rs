@@ -112,6 +112,8 @@ pub struct Manifest {
     pub channel: String,
     pub minimum_manager: String,
     pub upgrade_from: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fresh_retry_from: Vec<String>,
     pub archive_url: String,
     pub archive_sha256: String,
     pub archive_size: u64,
@@ -233,6 +235,7 @@ pub fn verify_bundle(
     let manifest: Manifest = serde_json::from_slice(manifest_bytes).map_err(|_| Error::Release)?;
     validate_manifest(&manifest, trust)?;
     if manifest.app_version != pointer.version
+        || manifest.fresh_retry_from.contains(&digest)
         || manifest.channel != channel.channel
         || archive.len() as u64 != manifest.archive_size
         || hash(archive) != manifest.archive_sha256
@@ -253,6 +256,18 @@ pub fn verify_bundle(
     })
 }
 pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
+    let retry_sources: BTreeSet<_> = m.fresh_retry_from.iter().collect();
+    if retry_sources.len() != m.fresh_retry_from.len()
+        || retry_sources.len() > 8
+        || retry_sources.iter().any(|digest| !is_hash(digest))
+        || (!retry_sources.is_empty()
+            && (m.schema.kind != "fresh_baseline" || !m.upgrade_from.is_empty()))
+        || (!retry_sources.is_empty()
+            && semver::Version::parse(&m.minimum_manager).map_err(|_| Error::Release)?
+                < semver::Version::new(0, 1, 1))
+    {
+        return Err(Error::Release);
+    }
     trust.artifact_url(&m.archive_url)?;
     if m.format != 1
         || m.bootstrap_contract != 1

@@ -24,6 +24,12 @@ pub struct Snapshot {
     pub release_checked_at: Option<String>,
     pub message: String,
     pub release_digest: Option<String>,
+    pub fresh_retry: Option<FreshRetryOffer>,
+}
+#[derive(Serialize)]
+pub struct FreshRetryOffer {
+    pub digest: String,
+    pub app_version: String,
 }
 impl Manager {
     pub fn open(path: &Path) -> Result<Self> {
@@ -34,12 +40,16 @@ impl Manager {
     }
     pub fn snapshot(&self) -> Result<Snapshot> {
         Ok(Snapshot { manager_version: env!("CARGO_PKG_VERSION").into(), trust_configured: self.trust.configured(),
-            installation: self.store.load()?, release: None, release_checked_at: None, release_digest: None,
+            installation: self.store.load()?, release: None, release_checked_at: None, release_digest: None, fresh_retry: None,
             message: if self.trust.configured() { "Release status has not been checked this session." } else {
                 "The official signed Villow release and publisher are not configured. Cloud setup is unavailable; you can read the account guide without creating accounts or tokens."
             }.into() })
     }
     pub fn release(&self, pinned: Option<&str>) -> Result<VerifiedRelease> {
+        let channel = self.channel()?;
+        self.release_in_channel(&channel, pinned)
+    }
+    fn channel(&self) -> Result<release::Channel> {
         if !self.trust.configured() {
             return Err(Error::Unconfigured);
         }
@@ -56,6 +66,14 @@ impl Manager {
             release::verify_channel(&channel_bytes, &self.trust, chrono::Utc::now())?;
         self.store
             .accept_release(channel.sequence, &channel_digest)?;
+        Ok(channel)
+    }
+    fn release_in_channel(
+        &self,
+        channel: &release::Channel,
+        pinned: Option<&str>,
+    ) -> Result<VerifiedRelease> {
+        let http = Http::new()?;
         let pointer = if let Some(digest) = pinned {
             channel
                 .releases
@@ -105,6 +123,58 @@ impl Manager {
         snapshot.release = Some(r.manifest);
         snapshot.release_checked_at = Some(now());
         snapshot.message = "Release signature, archive and migration checksums verified.".into();
+        Ok(snapshot)
+    }
+    pub fn check_fresh_retry(&self) -> Result<Snapshot> {
+        let _lock = self.store.lock()?;
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        s.assert_writable()?;
+        let channel = self.channel()?;
+        let old = self.release_in_channel(&channel, Some(&s.release_digest))?;
+        let new = self.release_in_channel(
+            &channel,
+            s.fresh_retry.as_ref().map(|intent| intent.to.as_str()),
+        )?;
+        if s.fresh_retry.is_none() && !new.manifest.fresh_retry_from.contains(&old.digest) {
+            let mut snapshot = self.snapshot()?;
+            snapshot.message = "No authenticated correction is available for this unfinished setup yet. Keep your saved setup and wait for the release update.".into();
+            return Ok(snapshot);
+        }
+        crate::fresh_retry::validate(&s, &old, &new)?;
+        let http = Http::new()?;
+        LiveProviders {
+            http: &http,
+            vault: &OsVault,
+        }
+        .verify_targets(&s)?;
+        let mut snapshot = self.snapshot()?;
+        snapshot.fresh_retry = Some(FreshRetryOffer {
+            digest: new.digest,
+            app_version: new.manifest.app_version,
+        });
+        Ok(snapshot)
+    }
+    pub fn use_fresh_retry(&self, digest: String) -> Result<Snapshot> {
+        let _lock = self.store.lock()?;
+        let s = self.store.load()?.ok_or(Error::Precondition)?;
+        s.assert_writable()?;
+        let channel = self.channel()?;
+        let old = self.release_in_channel(&channel, Some(&s.release_digest))?;
+        let new = self.release_in_channel(&channel, Some(&digest))?;
+        crate::fresh_retry::validate(&s, &old, &new)?;
+        let http = Http::new()?;
+        let providers = LiveProviders {
+            http: &http,
+            vault: &OsVault,
+        };
+        providers.verify_targets(&s)?;
+        crate::fresh_retry::execute(&self.store, &OsVault, s, &old, &new, |state| {
+            let connection = providers.database_connection(state)?;
+            let mut client = crate::migration::connect(state, &OsVault, &connection)?;
+            crate::migration::retarget_unapplied(&mut client, state, &old, &new)
+        })?;
+        let mut snapshot = self.snapshot()?;
+        snapshot.message = "Corrected release saved. Your accounts and credentials are retained. Click Prepare my database to continue.".into();
         Ok(snapshot)
     }
     pub fn start(&self, name: String, email: String, digest: String) -> Result<Snapshot> {

@@ -40,6 +40,21 @@ async fn check_release(
     work(app, &gate, |m| m.check_release()).await
 }
 #[tauri::command]
+async fn check_fresh_retry(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, |m| m.check_fresh_retry()).await
+}
+#[tauri::command]
+async fn use_fresh_retry(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, move |m| m.use_fresh_retry(digest)).await
+}
+#[tauri::command]
 async fn start_installation(
     app: AppHandle,
     gate: State<'_, Gate>,
@@ -200,6 +215,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             snapshot,
             check_release,
+            check_fresh_retry,
+            use_fresh_retry,
             start_installation,
             save_credentials,
             discover_accounts,

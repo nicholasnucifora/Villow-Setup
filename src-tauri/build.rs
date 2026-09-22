@@ -4,6 +4,8 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "snapshot",
             "check_release",
+            "check_fresh_retry",
+            "use_fresh_retry",
             "start_installation",
             "save_credentials",
             "discover_accounts",

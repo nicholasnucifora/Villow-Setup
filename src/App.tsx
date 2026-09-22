@@ -618,6 +618,8 @@ export function App({
                   )}
                   {s.step === "database" && (
                     <DatabaseStep
+                      offer={data.fresh_retry}
+                      releaseMessage={data.message}
                       s={s}
                       busy={busy}
                       demo={__TESTING_TOOLS__ && bridge.demo}
@@ -1740,12 +1742,16 @@ function GoogleForm({
   );
 }
 function DatabaseStep({
+  offer,
+  releaseMessage,
   s,
   busy,
   demo,
   action,
   open,
 }: {
+  offer?: Snapshot["fresh_retry"];
+  releaseMessage: string;
   s: Installation;
   busy: boolean;
   demo: boolean;
@@ -1758,6 +1764,7 @@ function DatabaseStep({
     ),
     [password, setPassword] = useState(""),
     [saved, setSaved] = useState(false);
+  const [retryChecked, setRetryChecked] = useState(false);
   const connectionMatches = s.db_connection
     ? host.trim() === s.db_connection.host &&
       user.trim() === s.db_connection.user
@@ -1920,11 +1927,61 @@ function DatabaseStep({
           )}
         </section>
       )}
+      {!demo && !s.credentials_removed && s.effects.migrate && (
+        <section aria-label="Corrected app release">
+          <h2>If database preparation still fails</h2>
+          <p>
+            A corrected app release may be needed. Setup can keep your accounts,
+            credentials and projects, but first checks that no app installation
+            has completed in this database.
+          </p>
+          {s.fresh_retry ? (
+            <button
+              disabled={busy || unsaved}
+              onClick={() =>
+                action("use_fresh_retry", { digest: s.fresh_retry!.to })
+              }
+            >
+              Resume release change
+            </button>
+          ) : (
+            <>
+              <button
+                className="secondary"
+                disabled={busy || unsaved}
+                onClick={() => {
+                  setRetryChecked(false);
+                  return action("check_fresh_retry", undefined, () =>
+                    setRetryChecked(true),
+                  );
+                }}
+              >
+                Check for a corrected release
+              </button>
+              {offer && (
+                <p>
+                  Authenticated Villow {offer.app_version} is available for this
+                  unfinished setup.{" "}
+                  <button
+                    disabled={busy || unsaved}
+                    onClick={() =>
+                      action("use_fresh_retry", { digest: offer.digest })
+                    }
+                  >
+                    Use corrected release
+                  </button>
+                </p>
+              )}
+              {retryChecked && !offer && <p role="status">{releaseMessage}</p>}
+            </>
+          )}
+        </section>
+      )}
       {!s.credentials_removed && (
         <div className="action-row">
           <button
             className="primary"
-            disabled={busy || !s.selection || unsaved}
+            disabled={busy || !s.selection || unsaved || !!s.fresh_retry}
             onClick={() => action("advance")}
           >
             Prepare my database →

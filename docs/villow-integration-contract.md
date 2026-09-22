@@ -1,5 +1,17 @@
 # Villow integration contract
 
+## Authenticated retry before installation — manager 0.1.1
+
+The optional format-1 manifest field `fresh_retry_from` is an array of at most eight distinct lowercase SHA-256 manifest digests. It defaults to empty and is omitted when empty. Nonempty values require `minimum_manager >= 0.1.1`, `fresh_baseline` and empty `upgrade_from`; a manifest cannot name its own digest. This authorizes replacement of a specific release before any app unit commits, not upgrades or adoption. The app-owned ACL correction is tracked in [the database investigation](database-release-investigation.md).
+
+`check_fresh_retry` offers the channel's recommended authenticated correction, or the exact pending target after interruption. `use_fresh_retry` accepts only a digest, not URLs or SQL. Both old and new releases are authenticated against the same freshly fetched channel, with expiry, replay and revocation checks. The old pointer must remain available and unrevoked during the supported transition. Configuration classifications, Google scopes and bootstrap/health contracts must match.
+
+Only a writable local Database-step installation with an attempted but unverified migration is eligible. Later effects, removed credentials, read-only imports, missing prerequisite/resource state and changed pending targets are refused. Live provider identity/resource checks precede any transition. Existing vault secrets are required; none are generated or changed.
+
+Setup saves local `{from,to}` intent before the SQL operation. Under its session advisory lock and a transaction locking the installation-history tables, it requires one matching installation identity, the old or pending-new digest, zero migration rows and the original fresh-public-object predicate. It changes only the owned `villow_setup.instance.release_digest` with a conditional update, then saves the new local release identity, retaining resource IDs, owner, origin, Google settings and credentials. No baseline runs during this action. Ordinary advance is blocked while intent remains. A lost SQL response or failed final local save reconciles against the same old/new digest and all the same guards. Recovery import/export clears transition intent.
+
+A new immutable signed app release and channel update must follow paired qualification and publisher approval. Implementing this protocol does not make that release publicly available or qualify real-provider recovery. Windows signing remains deferred.
+
 ## Current app integration
 
 The app-side integration was implemented on 2026-09-11 with explicit user authorization. It remains a local candidate, not an authenticated public release.

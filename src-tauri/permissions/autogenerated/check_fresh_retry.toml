@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-check-fresh-retry"
+description = "Enables the check_fresh_retry command without any pre-configured scope."
+commands.allow = ["check_fresh_retry"]
+
+[[permission]]
+identifier = "deny-check-fresh-retry"
+description = "Denies the check_fresh_retry command without any pre-configured scope."
+commands.deny = ["check_fresh_retry"]

@@ -524,6 +524,78 @@ describe("owner-facing setup", () => {
     );
     expect(host).toHaveValue("aws-1-ap-southeast-2.pooler.supabase.com");
   });
+  it("requires an explicit choice for a corrected release and blocks preparation during an unfinished switch", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.effects.migrate = {
+      status: "needs_review",
+      started_at: "2026-09-22",
+      verified_at: null,
+    };
+    const digest = "a".repeat(64);
+    const call = vi.fn(
+      async (command: string, args?: Record<string, unknown>) => {
+        if (command === "check_fresh_retry")
+          snapshot = {
+            ...snapshot,
+            fresh_retry: { digest, app_version: "0.1.1" },
+          };
+        if (command === "use_fresh_retry") {
+          expect(args).toEqual({ digest });
+          snapshot = {
+            ...snapshot,
+            fresh_retry: null,
+            installation: {
+              ...snapshot.installation!,
+              fresh_retry: {
+                from: snapshot.installation!.release_digest,
+                to: digest,
+              },
+            },
+          };
+          throw new Error("A remote effect may have completed.");
+        }
+        return snapshot;
+      },
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string, args?: Record<string, unknown>) =>
+            call(command, args) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Check for a corrected release",
+      }),
+    );
+    expect(
+      call.mock.calls.some(([command]) => command === "use_fresh_retry"),
+    ).toBe(false);
+    await user.click(
+      screen.getByRole("button", { name: "Use corrected release" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A remote effect may have completed.",
+    );
+    expect(
+      screen.getByRole("button", { name: /Prepare my database/ }),
+    ).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Resume release change" }),
+    );
+    expect(
+      call.mock.calls.filter(([command]) => command === "use_fresh_retry"),
+    ).toHaveLength(2);
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
+    );
+  });
   it("keeps a failed secret replacement unsaved even after clearing its input", async () => {
     const user = userEvent.setup();
     const demo = await googleDemo();

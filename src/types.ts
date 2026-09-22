@@ -71,6 +71,7 @@ export interface Installation {
   checks: { kind: string; title: string; at: string }[];
   read_only: boolean;
   credentials_removed: boolean;
+  fresh_retry?: { from: string; to: string } | null;
 }
 export interface Release {
   app_version: string;
@@ -88,6 +89,7 @@ export interface Snapshot {
   release_digest?: string | null;
   release_checked_at: string | null;
   message: string;
+  fresh_retry?: { digest: string; app_version: string } | null;
 }
 export interface Bridge {
   call<T>(command: string, args?: Record<string, unknown>): Promise<T>;

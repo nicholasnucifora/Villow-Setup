@@ -182,6 +182,112 @@ fn incomplete_history_stops_without_adoption() {
     assert!(ledger.is_none());
 }
 
+fn seed_unapplied_history(c: &mut Client, s: &villow_setup::model::Installation) {
+    c.batch_execute("CREATE SCHEMA villow_setup; CREATE TABLE villow_setup.instance (singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton), installation_id text NOT NULL, release_digest text NOT NULL); CREATE TABLE villow_setup.migrations (id text PRIMARY KEY, checksum text NOT NULL, postcondition_checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now());").unwrap();
+    c.execute(
+        "INSERT INTO villow_setup.instance VALUES (true,$1,$2)",
+        &[&s.id, &s.release_digest],
+    )
+    .unwrap();
+}
+
+#[test]
+#[ignore = "requires explicitly authorized local disposable Postgres"]
+fn fresh_retry_database_compare_and_swap_is_locked_and_idempotent() {
+    let db = Database::new();
+    let mut c = db.client();
+    let (old, new, mut s) = fresh_retry_fixture();
+    s.fresh_retry = Some(villow_setup::model::FreshRetryIntent {
+        from: old.digest.clone(),
+        to: new.digest.clone(),
+    });
+    seed_unapplied_history(&mut c, &s);
+    let mut second = db.client();
+    c.query_one("SELECT pg_advisory_lock($1)", &[&0x56494c4c4f57i64])
+        .unwrap();
+    assert_eq!(
+        migration::retarget_unapplied(&mut second, &s, &old, &new),
+        Err(Error::Busy)
+    );
+    c.query_one("SELECT pg_advisory_unlock($1)", &[&0x56494c4c4f57i64])
+        .unwrap();
+    migration::retarget_unapplied(&mut c, &s, &old, &new).unwrap();
+    drop(c);
+    let mut c = db.client();
+    migration::retarget_unapplied(&mut c, &s, &old, &new).unwrap();
+    assert_eq!(
+        c.query_one("SELECT release_digest FROM villow_setup.instance", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        new.digest
+    );
+    let mut updated = s.clone();
+    updated.release_digest = new.digest.clone();
+    migration::apply(&mut c, &updated, &new).unwrap();
+    assert_eq!(
+        migration::retarget_unapplied(&mut c, &s, &old, &new),
+        Err(Error::FreshRetryRefused)
+    );
+    assert_eq!(
+        c.query_one("SELECT count(*) FROM villow_setup.migrations", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        1
+    );
+}
+
+#[test]
+#[ignore = "requires explicitly authorized local disposable Postgres"]
+fn fresh_retry_never_rebinds_unowned_nonempty_or_committed_database() {
+    for changed in [
+        "owner",
+        "release",
+        "unit",
+        "table",
+        "function",
+        "missing_history",
+    ] {
+        let db = Database::new();
+        let mut c = db.client();
+        let (old, new, mut s) = fresh_retry_fixture();
+        s.fresh_retry = Some(villow_setup::model::FreshRetryIntent {
+            from: old.digest.clone(),
+            to: new.digest.clone(),
+        });
+        seed_unapplied_history(&mut c, &s);
+        c.batch_execute(match changed {
+            "owner" => "UPDATE villow_setup.instance SET installation_id='another-installation'",
+            "release" => "UPDATE villow_setup.instance SET release_digest='another-release'",
+            "unit" => "INSERT INTO villow_setup.migrations VALUES ('existing','checksum','postcondition',now())",
+            "table" => "CREATE TABLE public.keep_me (value text); INSERT INTO public.keep_me VALUES ('retain')",
+            "function" => "CREATE FUNCTION public.keep_me() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+            _ => "DROP TABLE villow_setup.migrations",
+        }).unwrap();
+        let before: String = c
+            .query_one("SELECT release_digest FROM villow_setup.instance", &[])
+            .unwrap()
+            .get(0);
+        assert_eq!(
+            migration::retarget_unapplied(&mut c, &s, &old, &new),
+            Err(Error::FreshRetryRefused)
+        );
+        assert_eq!(
+            c.query_one("SELECT release_digest FROM villow_setup.instance", &[])
+                .unwrap()
+                .get::<_, String>(0),
+            before
+        );
+        if changed == "table" {
+            assert_eq!(
+                c.query_one("SELECT value FROM public.keep_me", &[])
+                    .unwrap()
+                    .get::<_, String>(0),
+                "retain"
+            );
+        }
+    }
+}
+
 #[test]
 #[ignore = "requires explicitly authorized local disposable Postgres"]
 fn real_schema_permissions_functions_constraints_and_reference_data() {

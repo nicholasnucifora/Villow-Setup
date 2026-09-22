@@ -71,6 +71,10 @@ pub enum Error {
     },
     #[error("The database connection worked, but the result check for release unit {unit} did not pass. The unfinished unit was not committed. Keep this project and report this message for review; do not reset the database or change its password.")]
     DatabasePostcondition { unit: usize },
+    #[error("A corrected release cannot be used at this stage. Setup requires the same owned, unfinished installation with no committed app tables or migration units. Your saved setup has not been reset.")]
+    FreshRetryRefused,
+    #[error("Finish switching to the saved corrected release before preparing the database. Use Resume release change below; your accounts and credentials are retained.")]
+    FreshRetryPending,
     #[error("A database operation failed after connecting. Progress is saved. Retry Prepare my database; if it persists, report this message. Do not recreate the project or reset its tables.")]
     Database,
     #[error("Setup could not reach the database host on port 5432. In the connection settings below, use the Session pooler host and user from Supabase → your project → Connect. Direct connections usually need IPv6. Check your network, firewall and Supabase network restrictions; keep the saved password unless you changed it.")]

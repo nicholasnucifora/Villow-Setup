@@ -1,6 +1,6 @@
 [package]
 name = "villow-setup"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local owner-operated setup for Villow"
 license = "MIT"
 edition = "2021"
