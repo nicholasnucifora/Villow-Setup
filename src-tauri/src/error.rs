@@ -48,8 +48,20 @@ pub enum Error {
     Precondition,
     #[error("Database history, schema or ownership differs from the verified plan. Manual review is required; nothing will be reset.")]
     SchemaDrift,
-    #[error("The database is not reachable over a certificate-verified connection. Check the direct or session-pooler host and password.")]
+    #[error("A database operation failed after connecting. Progress is saved. Retry Prepare my database; if it persists, report this message. Do not recreate the project or reset its tables.")]
     Database,
+    #[error("Setup could not reach the database host on port 5432. In the connection settings below, use the Session pooler host and user from Supabase → your project → Connect. Direct connections usually need IPv6. Check your network, firewall and Supabase network restrictions; keep the saved password unless you changed it.")]
+    DatabaseNetwork,
+    #[error("Setup could not verify the database's secure connection. The Supabase root certificate is bundled, and certificate and hostname checks remain enabled. Check your PC's date/time and the host copied from Supabase Connect. If this continues, report this exact message; do not turn off SSL or certificate checks.")]
+    DatabaseTls,
+    #[error("The database refused its saved login or access rules. Check the host and user against Supabase Connect. Only enter a replacement database password if you changed it in Supabase; the management token is not the database password. Also check the project's network restrictions.")]
+    DatabaseAccess,
+    #[error("The database is starting up or has no free connections. Wait until the Supabase project is healthy, then retry Prepare my database. Keep your existing project and saved settings.")]
+    DatabaseUnavailable,
+    #[error("The database connection could not finish. Check Supabase → your project → Connect → Session pooler, and use its host and user in the settings below. Port 5432 is required. Keep the saved password unless you changed it. If it still fails, report this exact message.")]
+    DatabaseConnect,
+    #[error("Setup could not read usable Session pooler details from Supabase. Open your project → Connect → Session pooler and copy its host and user into the connection settings below. Keep the saved password; do not select Transaction pooler.")]
+    DatabasePooler,
     #[error("The deployed app has not passed its required authenticated checks.")]
     Health,
     #[error("This recovery file provides read-only information. Resource ownership must be re-established before a future repair feature can write.")]

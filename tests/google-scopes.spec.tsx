@@ -21,8 +21,8 @@ it("copies only the supplied release scopes and displays both locally bundled re
   render(<GoogleScopes scopes={scopes} busy={false} />);
   await user.click(screen.getByRole("button", { name: "Copy scope list" }));
   expect(copy).toHaveBeenCalledWith(scopes.join("\n"));
-  await user.click(screen.getByText(/See the matching checkboxes/));
   const images = screen.getAllByRole("img");
+  expect(images.every((image) => image.closest("details") === null)).toBe(true);
   expect(images).toHaveLength(2);
   expect(images[0]).toHaveAttribute(
     "src",

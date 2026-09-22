@@ -32,6 +32,34 @@ fn account_access(error: Error, context: Error) -> Error {
     }
 }
 impl LiveProviders<'_> {
+    pub fn database_connection(&self, s: &Installation) -> Result<DbConnection> {
+        let reference = &s.database()?.id;
+        if let Some(connection) = &s.db_connection {
+            migration::validate_connection(reference, connection)?;
+            return Ok(connection.clone());
+        }
+        // Read the actual cluster host; its index cannot be inferred from region.
+        // Both pooler modes share this host. connect() fixes port 5432 (session),
+        // regardless of the provider's default pool_mode/db_port values.
+        let value = self
+            .supabase(
+                s,
+                Method::GET,
+                &format!(
+                    "/v1/projects/{}/config/database/pooler",
+                    identifier(reference)?
+                ),
+                None,
+            )
+            .map_err(|e| {
+                if e == Error::Authentication {
+                    Error::DatabasePooler
+                } else {
+                    e
+                }
+            })?;
+        session_pooler_connection(reference, &value)
+    }
     fn vercel(
         &self,
         s: &Installation,
@@ -316,9 +344,10 @@ impl Providers for LiveProviders<'_> {
         )?;
         self.verify_database_resource(s, &v)?;
         if v["status"] != "ACTIVE_HEALTHY" {
-            return Err(Error::Precondition);
+            return Err(Error::DatabaseUnavailable);
         }
-        let mut client = migration::connect(s, self.vault)?;
+        let connection = self.database_connection(s)?;
+        let mut client = migration::connect(s, self.vault, &connection)?;
         migration::apply(&mut client, s, r)
     }
     fn configure(&self, s: &Installation, _r: &VerifiedRelease) -> Result<()> {
@@ -459,6 +488,24 @@ impl Providers for LiveProviders<'_> {
         let h = self.http.health(s.origin()?, &token, &nonce)?;
         validate_health(&h, s, r, &nonce)
     }
+}
+
+pub fn session_pooler_connection(reference: &str, value: &Value) -> Result<DbConnection> {
+    let rows = value.as_array().ok_or(Error::DatabasePooler)?;
+    let mut connections = rows.iter().filter(|row| row["database_type"] == "PRIMARY");
+    let row = connections.next().ok_or(Error::DatabasePooler)?;
+    if connections.next().is_some() || row["db_name"] != "postgres" {
+        return Err(Error::DatabasePooler);
+    }
+    let connection = DbConnection {
+        host: string(row, "db_host").map_err(|_| Error::DatabasePooler)?,
+        user: string(row, "db_user").map_err(|_| Error::DatabasePooler)?,
+    };
+    if !connection.host.ends_with(".pooler.supabase.com") {
+        return Err(Error::DatabasePooler);
+    }
+    migration::validate_connection(reference, &connection).map_err(|_| Error::DatabasePooler)?;
+    Ok(connection)
 }
 fn upload_digest(bytes: &[u8]) -> String {
     use sha1::{Digest, Sha1};

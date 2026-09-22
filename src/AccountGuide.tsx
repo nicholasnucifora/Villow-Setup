@@ -237,8 +237,8 @@ export function ProviderAccountGuide({
               find it.
             </p>
           </div>
-          <details>
-            <summary>What about the other Google Cloud options?</summary>
+          <div className="guide-takeaway">
+            <h3>Other Google Cloud options</h3>
             <p>
               Gemini, Cloud Assist, API keys and service accounts are not needed
               for this setup. There is no setup action attached to the
@@ -249,7 +249,7 @@ export function ProviderAccountGuide({
               client during Connect Google. Setup reserves your website address
               before that step so you can enter the exact origin and callback.
             </p>
-          </details>
+          </div>
         </section>
       )}
     </>

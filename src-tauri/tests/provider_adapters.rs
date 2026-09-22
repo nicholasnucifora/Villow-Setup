@@ -81,6 +81,73 @@ fn credentials(s: &Installation) -> MemoryVault {
 }
 
 #[test]
+fn session_pooler_is_discovered_from_the_selected_project_without_exposing_connection_strings() {
+    let mut s = installation(&verified());
+    s.database = Some(Resource {
+        id: "abcdefghijklmnopqrst".into(),
+        account_id: "org1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "created".into(),
+    });
+    let vault = credentials(&s);
+    let response = json!([{
+        "database_type": "PRIMARY", "db_name": "postgres",
+        "db_host": "aws-1-ap-southeast-2.pooler.supabase.com",
+        "db_user": "postgres.abcdefghijklmnopqrst",
+        "db_port": 6543, "pool_mode": "transaction",
+        "connection_string": "SENTINEL-DO-NOT-USE"
+    }]);
+    let api = Recorder::new(vec![response.clone()]);
+    let provider = LiveProviders {
+        http: &api,
+        vault: &vault,
+    };
+    let connection = provider.database_connection(&s).unwrap();
+    assert_eq!(connection.host, "aws-1-ap-southeast-2.pooler.supabase.com");
+    assert_eq!(connection.user, "postgres.abcdefghijklmnopqrst");
+    assert_eq!(api.calls.borrow()[0].1, Method::GET);
+    assert_eq!(
+        api.calls.borrow()[0].2,
+        "/v1/projects/abcdefghijklmnopqrst/config/database/pooler"
+    );
+    s.db_connection = Some(connection);
+    provider.database_connection(&s).unwrap();
+    assert_eq!(
+        api.calls.borrow().len(),
+        1,
+        "explicit saved settings must be preserved"
+    );
+    for (field, bad) in [
+        ("db_user", "postgres.otherproject"),
+        (
+            "db_host",
+            "aws-1-ap-southeast-2.pooler.supabase.com.evil.test",
+        ),
+        ("db_host", "db.abcdefghijklmnopqrst.supabase.co"),
+        ("db_name", "other_database"),
+        ("database_type", "READ_REPLICA"),
+    ] {
+        let mut tampered = response.clone();
+        tampered[0][field] = json!(bad);
+        assert_eq!(
+            villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &tampered)
+                .unwrap_err(),
+            Error::DatabasePooler
+        );
+    }
+    let ambiguous = json!([response[0].clone(), response[0].clone()]);
+    assert!(
+        villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &ambiguous)
+            .is_err()
+    );
+    assert!(
+        villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &json!([]))
+            .is_err()
+    );
+}
+
+#[test]
 fn account_access_refusals_identify_the_exact_check_without_exposing_secrets() {
     let s = installation(&verified());
     let v = credentials(&s);

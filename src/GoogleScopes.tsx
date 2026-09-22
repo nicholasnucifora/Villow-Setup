@@ -38,10 +38,8 @@ export function GoogleScopes({
         a scope is missing, check YouTube Data API v3 is enabled in the same
         project and refresh Google’s page.
       </p>
-      <details>
-        <summary>
-          See the matching checkboxes: identity and YouTube screenshots
-        </summary>
+      <div>
+        <h3>Matching checkboxes: identity and YouTube</h3>
         <p>
           These reference screenshots show the three permissions for Villow
           0.1.0. Page numbers may change. Always use the exact list above for
@@ -49,7 +47,7 @@ export function GoogleScopes({
         </p>
         <GuideImage name="google-identity-scopes" />
         <GuideImage name="google-youtube-scope" />
-      </details>
+      </div>
     </section>
   );
 }

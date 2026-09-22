@@ -30,11 +30,11 @@ The [region](https://supabase.com/docs/guides/platform/regions) is where the pri
 
 The form follows five numbered steps: project and Project ID; YouTube API; audience/data access; Web application client; copy credentials and save. Project ID appears next to project preparation, and client fields appear next to Google's creation dialog. Each is entered once. Unsaved values live only in the open form; the existing typed save writes the configuration and places the secret in Windows Credential Manager. The guide does not promise draft recovery after closing Setup.
 
-Choose **External** for personal use/friends and keep **Testing** for the prototype. These are separate settings: audience controls who may authorize; publishing status controls testing restrictions. Add the intended owner email under **Audience → Test users → Add users** and acknowledge the seven-day Google access/refresh limit. Friends must be added before signing in. The UI no longer offers Internal for new setups; previously saved internal configurations remain readable without being silently converted. An expandable confirmation is available for an already published External app. See [Google's audience guide](https://support.google.com/cloud/answer/15549945) and [refresh expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
+Choose **External** and keep **Testing**, the single walkthrough path. In **Audience**, scroll below **OAuth user cap** to **Test users → + Add users**, enter the intended owner's Google email, save and check it appears in the table. Friends must be added before signing in. The supplied Audience screenshot is shown inline at this point. Acknowledge the seven-day Google access/refresh limit. There are no publishing instructions or collapsed Google guide sections. Previously saved internal/production configurations remain readable without being silently converted; only those saved setups see a compatibility notice and an explicit confirmation if they changed Google to Testing. See [Google's audience guide](https://support.google.com/cloud/answer/15549945) and [refresh expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 Setup now accepts External Testing in the native engine only with the new explicit `testing_access_confirmed` acknowledgment, the API confirmation, actual Testing audience and a stored OAuth secret. It records `consent_published_confirmed: false`; Testing is never relabeled as production. The new field defaults to false on older checkpoints. Unknown audiences and unacknowledged Testing still fail. A reminder survives the remaining steps and completion. Google configuration remains a user declaration, not an API-verified Google-console status. The hosted release contract, provider writes, signature verification and fresh-database restrictions are unchanged.
 
-The maintainer encountered Google's **complete your configuration on the Branding page** message with name/contact/domain set but homepage/privacy/terms absent. The starred initial fields are not a complete production checklist. Google's [Branding guide](https://support.google.com/cloud/answer/15549049) describes additional production links; a logo is optional. Prototype Testing avoids the former dependency on publishing before the website exists. Later publication needs real instance homepage/policy pages and valid domain/contact information, followed by saving Branding and publishing from Audience. Do not invent a privacy route, use a nonexistent page, or claim waiting resolves missing configuration. Web-owned homepage/policy content is separate work; these changes do not certify it exists in the frozen app.
+Google's disabled Publish app button and message about completing Branding do not block this Testing walkthrough. The earlier production/Branding troubleshooting sections were removed at the maintainer's request; no future publishing workflow is promised.
 
 Data Access now has a direct fixed dashboard link and a **Copy scope list** action sourced from the authenticated release's `google_scopes`. Paste into **Manually add scopes → Add to table**, then **Update**, and save on Data Access if offered. The two maintainer-supplied screenshots are bundled locally as received; they contain no visible account credentials. Captions explain the identity checkboxes, the final-page YouTube checkbox, and the priority of the release's live list over static references. The frozen 0.1.0 manifest's three scopes match these examples; its SHA-256 was rechecked against the supplied digest.
 
@@ -44,11 +44,19 @@ The creation dialog supplies Client ID and Client secret. Save both through Setu
 
 ## Expiry and reconnecting
 
+### Database connection recovery
+
+The default asks Supabase for its actual PRIMARY pooler host/user via [Get pooler config](https://supabase.com/docs/reference/api/v1-get-pooler-config); the native connector always uses session mode on port 5432 with the saved database password. The API requires `database_pooling_config_read` for scoped tokens; this Alpha's working documented token path remains legacy. Explicit saved connection settings override discovery. The bundled public Supabase CA supplies certificate verification without changing Windows trust or requiring a certificate download from the user.
+
+If the step fails, use the always-visible **Supabase → project → Connect → Session pooler → View parameters** instructions. Copy host/user, keep the password blank unless changed, save, then retry. Do not paste a full connection string or choose transaction mode. The displayed error distinguishes recognized network, TLS, login and availability causes from unknown connection and later SQL-operation failures. The previous generic message does not prove which cause the user encountered. Sources: [connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [SSL verification](https://supabase.com/docs/guides/platform/ssl-enforcement).
+
+### Management tokens
+
 Vercel and Supabase management tokens stay with the desktop manager and are not copied into the hosted website's environment. Expiry/revocation prevents subsequent manager API calls; the deployed app keeps running with separate runtime credentials. Under **Recovery & settings → Reconnect expired provider access**, replace the expired token with one for the same identity/scope and leave the other field blank. Saved resource IDs, app secrets and progress remain intact. After installation checks finish, management tokens can be revoked at their providers. Google OAuth credentials, database password and app keys are separate and must not be revoked as part of that cleanup. Removing all local credentials is a different operation that also removes the local encryption-key copy.
 
 ## Screenshot slots
 
-The reusable `src/GuideImage.tsx` registry contains ten named slots: eight placeholders and the two supplied scope screenshots. Capture clean future examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. Only the two reviewed scope screenshots were copied into the shipped app; previous account/credential screenshots remain reference material.
+The reusable `src/GuideImage.tsx` registry contains ten named slots: six placeholders and four supplied screenshots (two scopes, Audience/Add users, and the client-created dialog with synthetic placeholder values). All four are shown inline. Capture clean future examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. Earlier screenshots containing credentials are not bundled.
 
 | Slot | Capture | Placement |
 | --- | --- | --- |
@@ -58,8 +66,8 @@ The reusable `src/GuideImage.tsx` registry contains ten named slots: eight place
 | `vercel-token` | Personal token URL, team scope and expiry; hide value | Vercel → Screenshot guide |
 | `supabase-token` | Small Create legacy token link under Resource access, then name/expiry; hide value | Supabase → Screenshot guide |
 | `google-oauth` | Application type, Name, origins and redirect URI fields; hide credentials | Google step 4 |
-| `google-audience` | External, Publishing status and Publish app; hide test-user emails | Google step 3 |
-| `google-client-created` | Client ID and secret copy controls; fully redact both values | Google step 5 |
+| `google-audience` | Supplied Audience screenshot highlighting Test users → + Add users | Google step 3 |
+| `google-client-created` | Supplied dialog with copy controls highlighted and placeholder values | Google step 5, before the matching fields |
 | `google-identity-scopes` | Supplied identity-scope checkboxes (bundled PNG) | Google Data Access reference |
 | `google-youtube-scope` | Supplied youtube.force-ssl checkbox on final page (bundled PNG) | Google Data Access reference |
 

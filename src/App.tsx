@@ -622,6 +622,7 @@ export function App({
                       busy={busy}
                       demo={__TESTING_TOOLS__ && bridge.demo}
                       action={action}
+                      open={open}
                     />
                   )}
                   {s.step === "configuration" && (
@@ -697,6 +698,7 @@ export function App({
                     </>
                   )}
                   {s.step !== "google" &&
+                    s.step !== "database" &&
                     (s.step !== "projects" || !!s.selection) &&
                     (!s.credentials_removed || s.step === "complete") && (
                       <div className="action-row">
@@ -1486,11 +1488,8 @@ function GoogleForm({
               </button>
             </li>
             <li>
-              Open <b>Audience</b>, set <b>User type</b> to <b>External</b> and
-              leave <b>Publishing status</b> as <b>Testing</b> for now. Under{" "}
-              <b>Test users → Add users</b>, add <b>{s.owner_email}</b>
-              and save. Add friends’ Google email addresses here before inviting
-              them.
+              Open <b>Audience</b>. Check <b>User type</b> is <b>External</b>
+              and <b>Publishing status</b> is <b>Testing</b>.
               <button
                 type="button"
                 className="text-button"
@@ -1500,6 +1499,32 @@ function GoogleForm({
                 Open Audience and test users ↗
               </button>
             </li>
+          </ol>
+          <h3>Add yourself as a test user</h3>
+          <ol className="instructions">
+            <li>
+              On Audience, scroll down past <b>OAuth user cap</b> to{" "}
+              <b>Test users</b>.
+            </li>
+            <li>
+              Click <b>+ Add users</b>, highlighted in the picture below.
+            </li>
+            <li>
+              In the panel that opens, enter <b>{s.owner_email}</b> — the Google
+              account you will use to sign in to Villow — and click <b>Save</b>.
+            </li>
+            <li>
+              Check that your email now appears in the <b>Test users</b> table.
+              You can add friends’ Google email addresses the same way before
+              they sign in.
+            </li>
+          </ol>
+          <GuideImage name="google-audience" />
+          <p className="quiet">
+            Leave status as Testing. A disabled Publish app button or a message
+            about completing Branding does not block this walkthrough.
+          </p>
+          <ol className="instructions">
             <li>
               Open <b>Data Access</b> in the same project and follow the scope
               instructions below.
@@ -1533,13 +1558,17 @@ function GoogleForm({
               </CheckBox>
             </div>
           )}
-          {audience === "internal" ? (
-            <details>
-              <summary>Existing saved organization-only configuration</summary>
+          {!testing && (
+            <div className="guide-takeaway">
+              <strong>Previously saved Google configuration</strong>
               <p>
-                This setup previously used Internal. It is preserved for
-                compatibility; friends outside that Google organization cannot
-                sign in.
+                Your saved audience is{" "}
+                {audience === "internal"
+                  ? "Internal"
+                  : "External / In production"}
+                . Setup has kept it unchanged. This walkthrough uses External /
+                Testing. If you have changed those settings in Google, confirm
+                that below.
               </p>
               <button
                 type="button"
@@ -1551,60 +1580,10 @@ function GoogleForm({
                   setTestingConfirmed(false);
                 }}
               >
-                Use External instead
+                I changed Google to External / Testing
               </button>
-            </details>
-          ) : (
-            <details>
-              <summary>Already switched Google to In production?</summary>
-              <p>
-                In production is a later publishing status for the same External
-                audience. It removes the Testing-only seven-day expiry and
-                test-user list requirement. Verification, warnings and user
-                limits are separate. This is not required for your first
-                prototype installation.
-              </p>
-              <CheckBox
-                checked={audience === "external_production"}
-                onChange={(value) =>
-                  setAudience(
-                    value ? "external_production" : "external_testing",
-                  )
-                }
-              >
-                Google’s Audience page already shows External and In production.
-              </CheckBox>
-            </details>
+            </div>
           )}
-          <details>
-            <summary>
-              Google says “complete your configuration on the Branding page”
-            </summary>
-            <p>
-              You can keep Testing for this installation. That message points to
-              incomplete production branding; it is not a notice that a review
-              is underway.
-            </p>
-            <p>
-              When your website and policy pages are available, return to
-              Branding. Check App Domain: Application home page, Application
-              privacy policy link and Application terms of service link, plus
-              Authorized domains and your support/developer emails. Google can
-              require more information for production than the initial starred
-              fields. A logo is optional.
-            </p>
-            <p>
-              Use real pages for your own instance, not invented URLs. Save,
-              return to Audience and choose Publish app when available. If Save
-              fails, follow its validation message. If publication is still
-              blocked, report the exact message; waiting alone is not a fix for
-              missing configuration.
-            </p>
-          </details>
-          <details>
-            <summary>Screenshot guide: audience and publishing status</summary>
-            <GuideImage name="google-audience" />
-          </details>
         </section>
         <section className="google-step" aria-labelledby="google-client-title">
           <h2 id="google-client-title">
@@ -1655,12 +1634,7 @@ function GoogleForm({
               while you complete step 5 below.
             </li>
           </ol>
-          <details>
-            <summary>
-              Screenshot guide: create the Web application client
-            </summary>
-            <GuideImage name="google-oauth" />
-          </details>
+          <GuideImage name="google-oauth" />
         </section>
         <section className="google-step" aria-labelledby="google-save-title">
           <h2 id="google-save-title">5. Copy the two client values and save</h2>
@@ -1669,6 +1643,7 @@ function GoogleForm({
             <b> Client secret</b> into their matching fields below. The client
             ID ends in <b>.apps.googleusercontent.com</b>.
           </p>
+          <GuideImage name="google-client-created" />
           <div className="form-grid">
             <Field
               label="OAuth Web client ID"
@@ -1708,10 +1683,8 @@ function GoogleForm({
             private backup in your password manager if you want your own copy.
             Creation date and Enabled status do not need to be copied.
           </p>
-          <details>
-            <summary>
-              Already closed the dialog, or seeing “test users”?
-            </summary>
+          <div className="guide-takeaway">
+            <h3>If you already closed Google’s dialog</h3>
             <p>
               A message restricting access to test users is expected while your
               External app is in Testing. Check that your email is in Audience →
@@ -1724,11 +1697,7 @@ function GoogleForm({
               value here; Google no longer shows the old secret in full. A
               failed save clears this input, so copy it again before retrying.
             </p>
-          </details>
-          <details>
-            <summary>Screenshot guide: where to copy the client values</summary>
-            <GuideImage name="google-client-created" />
-          </details>
+          </div>
           <CheckBox checked={configured} onChange={setConfigured}>
             I configured the required Google permissions and exact callback in
             this Google project.
@@ -1775,17 +1744,25 @@ function DatabaseStep({
   busy,
   demo,
   action,
+  open,
 }: {
   s: Installation;
   busy: boolean;
   demo: boolean;
   action: Action;
+  open: (step: string) => void;
 }) {
-  const [host, setHost] = useState(
-      s.db_connection?.host ?? `db.${s.database?.id}.supabase.co`,
+  const [host, setHost] = useState(s.db_connection?.host ?? ""),
+    [user, setUser] = useState(
+      s.db_connection?.user ?? `postgres.${s.database?.id}`,
     ),
-    [user, setUser] = useState(s.db_connection?.user ?? "postgres"),
-    [password, setPassword] = useState("");
+    [password, setPassword] = useState(""),
+    [saved, setSaved] = useState(false);
+  const connectionMatches = s.db_connection
+    ? host.trim() === s.db_connection.host &&
+      user.trim() === s.db_connection.user
+    : !host.trim() && user === `postgres.${s.database?.id}`;
+  const unsaved = !demo && (!connectionMatches || !!password);
   return (
     <section>
       <p className="lead">
@@ -1804,39 +1781,102 @@ function DatabaseStep({
           are needed.
         </p>
       ) : (
-        <details>
-          <summary>Connection settings for IPv4-only networks</summary>
+        <section aria-label="Database connection">
+          <h2>Connect to your database</h2>
           <p>
-            The direct connection uses IPv6. In Supabase’s Connect dialog,
-            choose Session pooler (port 5432) if your network needs IPv4. Copy
-            only the host and username here. The generated database password is
-            already saved.
+            {s.db_connection
+              ? "Setup will use your saved connection settings below."
+              : "Click Prepare my database to continue. Setup automatically asks Supabase for your Session pooler connection, which works on IPv4 networks."}{" "}
+            Setup includes Supabase’s public database certificate and verifies
+            the secure connection.
           </p>
+          <h3>If the connection needs attention</h3>
+          <ol className="instructions">
+            <li>
+              Open Supabase and select the database project shown under Your
+              saved resources below. Wait for it to finish starting.
+            </li>
+            <li>
+              Click <b>Connect</b> at the top, select <b>Session pooler</b>,
+              then open <b>View parameters</b> if shown.
+            </li>
+            <li>
+              Copy <b>Host</b> and <b>User</b> into the fields below. The host
+              ends in <b>.pooler.supabase.com</b>; the user is{" "}
+              <b>postgres.{s.database?.id}</b>. Use the exact host Supabase
+              shows.
+            </li>
+            <li>
+              Leave the password field blank unless you changed the database
+              password in Supabase. Click <b>Save connection settings</b>, then{" "}
+              <b>Prepare my database</b>.
+            </li>
+          </ol>
+          <p>
+            Setup uses port <b>5432</b> and database <b>postgres</b>. Do not
+            choose Transaction pooler (6543): preparing the database needs one
+            continuous session. A Direct connection is also supported if your
+            network can reach it.
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() => open("supabase_dashboard")}
+          >
+            Open Supabase projects ↗
+          </button>
           <div className="form-grid">
-            <Field label="Database host">
-              <input value={host} onChange={(e) => setHost(e.target.value)} />
+            <Field
+              label="Database host"
+              hint="Copy only Host from View parameters, without a URL, password or port."
+            >
+              <input
+                autoComplete="off"
+                spellCheck={false}
+                value={host}
+                onChange={(e) => {
+                  setHost(e.target.value);
+                  setSaved(false);
+                }}
+              />
             </Field>
             <Field label="Database user">
-              <input value={user} onChange={(e) => setUser(e.target.value)} />
+              <input
+                autoComplete="off"
+                spellCheck={false}
+                value={user}
+                onChange={(e) => {
+                  setUser(e.target.value);
+                  setSaved(false);
+                }}
+              />
             </Field>
             <Field label="Database password, only if changed">
               <input
                 type="password"
                 autoComplete="off"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setSaved(false);
+                }}
               />
             </Field>
           </div>
           <button
             className="secondary"
-            disabled={busy}
+            disabled={busy || !host.trim() || !user.trim()}
             onClick={async () => {
               try {
-                await action("set_database_connection", {
-                  connection: { host, user },
-                  password,
-                });
+                await action(
+                  "set_database_connection",
+                  {
+                    connection: { host: host.trim(), user: user.trim() },
+                    password,
+                  },
+                  () => setSaved(true),
+                );
               } finally {
                 setPassword("");
               }
@@ -1844,7 +1884,27 @@ function DatabaseStep({
           >
             Save connection settings
           </button>
-        </details>
+          {saved && (
+            <p role="status">
+              Connection settings saved. Now click Prepare my database.
+            </p>
+          )}
+          {unsaved && (
+            <p>Save your connection settings before preparing the database.</p>
+          )}
+        </section>
+      )}
+      {!s.credentials_removed && (
+        <div className="action-row">
+          <button
+            className="primary"
+            disabled={busy || !s.selection || unsaved}
+            onClick={() => action("advance")}
+          >
+            Prepare my database →
+          </button>
+          <span className="quiet">Progress saves after every operation.</span>
+        </div>
       )}
     </section>
   );

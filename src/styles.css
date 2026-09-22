@@ -719,6 +719,7 @@ details ul {
   overflow: hidden;
   margin: 24px 0;
   background: #f0f3e9;
+  max-width: 720px;
 }
 .guide-image img {
   display: block;

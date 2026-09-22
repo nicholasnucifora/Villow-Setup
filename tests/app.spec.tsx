@@ -222,7 +222,7 @@ describe("owner-facing setup", () => {
     await demo.call("advance");
     render(<App initialBridge={demo} />);
     await screen.findByRole("heading", { name: "Google Cloud", level: 1 });
-    await chooseProduction(user);
+    await chooseTesting(user);
     await user.click(
       screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
     );
@@ -280,6 +280,25 @@ describe("owner-facing setup", () => {
     };
     render(<App initialBridge={bridge} />);
     const project = await screen.findByLabelText("Google Cloud project ID");
+    const audienceImage = screen.getByRole("img", {
+      name: /scroll down to Test users/,
+    });
+    const clientImage = screen.getByRole("img", {
+      name: /Use the copy icon on the right of Client ID/,
+    });
+    expect(audienceImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("google-test-users.png"),
+    );
+    expect(clientImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("google-client-created.png"),
+    );
+    expect(audienceImage.closest("details")).toBeNull();
+    expect(clientImage.closest("details")).toBeNull();
+    expect(
+      screen.queryByText("Already switched Google to In production?"),
+    ).not.toBeInTheDocument();
     await user.type(project, "example-villow-123456");
     expect(
       screen.getByText("Testing is enough to continue"),
@@ -309,16 +328,16 @@ describe("owner-facing setup", () => {
     expect(call.mock.calls.some(([command]) => command === "set_google")).toBe(
       false,
     );
-    await chooseProduction(user);
+    await chooseTesting(user);
     await user.click(save);
     expect(call).toHaveBeenCalledWith("set_google", {
       google: {
         project_id: "example-villow-123456",
         client_id: "example.apps.googleusercontent.com",
         api_enabled_confirmed: true,
-        audience: "external_production",
-        consent_published_confirmed: true,
-        testing_access_confirmed: false,
+        audience: "external_testing",
+        consent_published_confirmed: false,
+        testing_access_confirmed: true,
       },
       secret: "synthetic-client-secret",
     });
@@ -343,11 +362,8 @@ describe("owner-facing setup", () => {
     const next = await screen.findByRole("button", {
       name: /Continue to my database/,
     });
-    await user.click(
-      screen.getByText("Already switched Google to In production?"),
-    );
     const audience = screen.getByRole("checkbox", {
-      name: /Google’s Audience page already shows/,
+      name: /I added owner@example.test as a Google test user/,
     });
     const enabled = screen.getByRole("checkbox", { name: /I enabled YouTube/ });
     const published = screen.getByRole("checkbox", {
@@ -439,11 +455,13 @@ describe("owner-facing setup", () => {
     expect(
       screen.queryByRole("combobox", { name: "Audience" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Previously saved Google configuration"),
+    ).toBeVisible();
     await user.click(
-      screen.getByText("Existing saved organization-only configuration"),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Use External instead" }),
+      screen.getByRole("button", {
+        name: "I changed Google to External / Testing",
+      }),
     );
     expect(next).toBeDisabled();
     expect(
@@ -451,6 +469,60 @@ describe("owner-facing setup", () => {
         name: /I added owner@example.test as a Google test user/,
       }),
     ).not.toBeChecked();
+  });
+  it("shows database recovery settings and requires saving edits before retrying with the retained password", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    const call = vi.fn(
+      async <T,>(
+        command: string,
+        args?: Record<string, unknown>,
+      ): Promise<T> => {
+        if (command === "advance")
+          throw new Error("The database connection could not finish.");
+        return demo.call<T>(command, args);
+      },
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string, args?: Record<string, unknown>) =>
+            call(command, args) as Promise<T>,
+        }}
+      />,
+    );
+    const host = await screen.findByLabelText("Database host");
+    expect(host.closest("details")).toBeNull();
+    const prepare = screen.getByRole("button", { name: /Prepare my database/ });
+    expect(prepare).toBeEnabled();
+    await user.type(host, "aws-1-ap-southeast-2.pooler.supabase.com");
+    expect(prepare).toBeDisabled();
+    const password = screen.getByLabelText(
+      "Database password, only if changed",
+    );
+    expect(password).not.toBeRequired();
+    expect(password).toHaveValue("");
+    await user.click(
+      screen.getByRole("button", { name: "Save connection settings" }),
+    );
+    expect(call).toHaveBeenCalledWith("set_database_connection", {
+      connection: {
+        host: "aws-1-ap-southeast-2.pooler.supabase.com",
+        user: expect.stringMatching(/^postgres\./),
+      },
+      password: "",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Connection settings saved",
+    );
+    expect(prepare).toBeEnabled();
+    await user.click(prepare);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The database connection could not finish.",
+    );
+    expect(host).toHaveValue("aws-1-ap-southeast-2.pooler.supabase.com");
   });
   it("keeps a failed secret replacement unsaved even after clearing its input", async () => {
     const user = userEvent.setup();
@@ -576,7 +648,7 @@ describe("owner-facing setup", () => {
   });
 });
 
-async function googleDemo(audience = "external_production") {
+async function googleDemo(audience = "external_testing") {
   const demo = await selectedDemo();
   for (let i = 0; i < 3; i++) await demo.call("advance");
   await demo.call("set_google", {
@@ -584,20 +656,18 @@ async function googleDemo(audience = "external_production") {
       project_id: "demo-google-project",
       client_id: "demo.apps.googleusercontent.com",
       api_enabled_confirmed: true,
-      consent_published_confirmed: true,
+      consent_published_confirmed: audience !== "external_testing",
+      testing_access_confirmed: audience === "external_testing",
       audience,
     },
   });
   return demo;
 }
 
-async function chooseProduction(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(
-    screen.getByText("Already switched Google to In production?"),
-  );
+async function chooseTesting(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
     screen.getByRole("checkbox", {
-      name: /Google’s Audience page already shows/,
+      name: /I added owner@example.test as a Google test user/,
     }),
   );
 }

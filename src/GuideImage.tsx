@@ -1,5 +1,7 @@
 import googleIdentityScopes from "./assets/account-guide/google-identity-scopes.png";
 import googleYoutubeScope from "./assets/account-guide/google-youtube-scope.png";
+import googleTestUsers from "./assets/account-guide/google-test-users.png";
+import googleClientCreated from "./assets/account-guide/google-client-created.png";
 
 // Replace remaining null entries with reviewed, redacted screenshots.
 const images: Record<string, { src: string | null; caption: string }> = {
@@ -33,14 +35,14 @@ const images: Record<string, { src: string | null; caption: string }> = {
       "Google Create OAuth client form — highlight Application type: Web application, Name, Authorized JavaScript origins and Authorized redirect URIs; hide all credentials.",
   },
   "google-audience": {
-    src: null,
+    src: googleTestUsers,
     caption:
-      "Google Auth Platform Audience — highlight External, Publishing status and Publish app; hide account details and test-user emails.",
+      "In Google Auth Platform → Audience, scroll down to Test users and click + Add users, highlighted in red. Keep User type External and status Testing.",
   },
   "google-client-created": {
-    src: null,
+    src: googleClientCreated,
     caption:
-      "Google OAuth client created dialog — highlight the Client ID and Client secret copy buttons, with both values fully hidden.",
+      "Use the copy icon on the right of Client ID, then Client secret. Paste each into its matching field in Setup. The highlighted example values are placeholders, not credentials to use.",
   },
   "google-identity-scopes": {
     src: googleIdentityScopes,

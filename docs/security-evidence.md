@@ -1,5 +1,17 @@
 # Security evidence and release qualification
 
+## Inline Testing guide and database connectivity — 2026-09-22
+
+The maintainer reported the generic database error at Prepare my database. That old message covered both connection failures and some SQL failures, so it does not establish the cause on their machine. The direct IPv6 default and missing Supabase root certificate were implementation gaps identified in source review.
+
+The default now reads the PRIMARY Session pooler host/user through authenticated `GET /v1/projects/{ref}/config/database/pooler`, after the existing resource-ownership/healthy check. The native engine fixes port 5432 and database postgres, validates the host and project-bound user, rejects missing/ambiguous/unrelated responses, and ignores any returned connection strings (which could contain credentials). It never guesses a cluster index or uses port 6543/transaction pooling. Explicit saved connection settings remain supported. No new write API or frontend networking/IPC command was added.
+
+The official public Supabase Root 2021 CA is embedded only in the database connector; its source, validity and DER fingerprint are recorded in `src-tauri/certs/README.md`. TLS remains required with hostname and chain verification and TLS 1.2 minimum. Windows system trust and Villow release-signing trust are unchanged. Typed error causes are mapped to fixed safe network/TLS/login/availability messages; SQL-operation failure no longer falsely claims a certificate failure. Raw server text is neither surfaced nor saved. Visible connection recovery guidance retains the saved password and blocks Prepare while edited settings are unsaved.
+
+Google Testing is the only new-setup walkthrough. Publishing instructions and collapsed Google guidance were removed. The supplied Audience/Add users and placeholder-client dialog screenshots are bundled without editing, alongside the two prior scope images. Saved non-Testing configurations retain their actual status with an explicit compatibility notice.
+
+Local validation: 30 UI tests and 42 native tests passed, including a loopback protocol check that refuses plaintext after SSL refusal, classification of a synthetic PostgreSQL authentication refusal without leaking its message, certificate fingerprint/parsing, strict pooler metadata selection, saved-setting preservation and UI retry behavior. Five opt-in integration tests remain ignored in the ordinary suite. TypeScript/build, all three frontend profiles, five packaging checks and security scan passed. The synthetic vault test passed on the normal-account rerun after sandbox denial. No computer-use or live Supabase connection was performed. Paired qualification and the actual provider retry remain unfinished; exact build/source/hash and cross-repository status belong in the build receipt.
+
 This describes tested properties of the development implementation, not proof that it has no vulnerabilities. All application data and credentials used in tests are synthetic. No real-provider deployment or Google sign-in was performed, and no production data was copied here.
 
 ## External Testing prototype path and scope references — 2026-09-22

@@ -29,19 +29,11 @@ pub fn validate_connection(reference: &str, connection: &DbConnection) -> Result
     }
     Ok(())
 }
-pub fn connect(s: &Installation, vault: &dyn Vault) -> Result<Client> {
+pub fn connect(s: &Installation, vault: &dyn Vault, c: &DbConnection) -> Result<Client> {
     let reference = &s.database()?.id;
-    let fallback = DbConnection {
-        host: format!("db.{reference}.supabase.co"),
-        user: "postgres".into(),
-    };
-    let c = s.db_connection.as_ref().unwrap_or(&fallback);
     validate_connection(reference, c)?;
     let password = vault.require(&s.id, "db_password")?;
-    let tls = native_tls::TlsConnector::builder()
-        .min_protocol_version(Some(native_tls::Protocol::Tlsv12))
-        .build()
-        .map_err(|_| Error::Database)?;
+    let tls = database_tls()?;
     let mut config = postgres::Config::new();
     config
         .host(&c.host)
@@ -54,7 +46,144 @@ pub fn connect(s: &Installation, vault: &dyn Vault) -> Result<Client> {
         .application_name("VillowSetup");
     config
         .connect(MakeTlsConnector::new(tls))
-        .map_err(|_| Error::Database)
+        .map_err(|e| connection_error(&e))
+}
+
+fn database_tls() -> Result<native_tls::TlsConnector> {
+    // Public CA used by Supabase's dashboard, scoped to this connector only.
+    // Native TLS still verifies both the chain and the requested hostname.
+    let root =
+        native_tls::Certificate::from_pem(include_bytes!("../certs/supabase-prod-ca-2021.crt"))
+            .map_err(|_| Error::DatabaseTls)?;
+    native_tls::TlsConnector::builder()
+        .min_protocol_version(Some(native_tls::Protocol::Tlsv12))
+        .add_root_certificate(root)
+        .build()
+        .map_err(|_| Error::DatabaseTls)
+}
+
+fn connection_error(error: &(dyn std::error::Error + 'static)) -> Error {
+    // Classify typed causes only. Provider messages can contain credentials,
+    // SQL and connection strings and must never reach the UI or checkpoint.
+    let mut current = Some(error);
+    while let Some(cause) = current {
+        if let Some(db) = cause.downcast_ref::<postgres::error::DbError>() {
+            return match db.code().code() {
+                "28P01" | "28000" => Error::DatabaseAccess,
+                "53300" | "57P03" => Error::DatabaseUnavailable,
+                _ => Error::DatabaseConnect,
+            };
+        }
+        if cause.is::<native_tls::Error>() {
+            return Error::DatabaseTls;
+        }
+        if cause.is::<std::io::Error>() {
+            return Error::DatabaseNetwork;
+        }
+        current = cause.source();
+    }
+    Error::DatabaseConnect
+}
+
+#[cfg(test)]
+mod connection_tests {
+    use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+    };
+
+    #[test]
+    fn tls_required_rejects_a_server_that_only_offers_plaintext() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut ssl_request = [0; 8];
+            socket.read_exact(&mut ssl_request).unwrap();
+            assert_eq!(ssl_request, [0, 0, 0, 8, 4, 210, 22, 47]);
+            socket.write_all(b"N").unwrap();
+            let mut next = [0; 1];
+            assert_eq!(
+                socket.read(&mut next).unwrap(),
+                0,
+                "must not send a plaintext login after TLS refusal"
+            );
+        });
+        let result = postgres::Config::new()
+            .host("127.0.0.1")
+            .port(port)
+            .user("synthetic")
+            .password("SENTINEL-NEVER-SEND")
+            .ssl_mode(SslMode::Require)
+            .connect(MakeTlsConnector::new(database_tls().unwrap()));
+        assert!(result.is_err());
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn database_authentication_errors_are_classified_without_server_text() {
+        // Local protocol fixture supplies an auth refusal, without TLS or real credentials.
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut length = [0; 4];
+            socket.read_exact(&mut length).unwrap();
+            let size = u32::from_be_bytes(length) as usize;
+            assert!((8..4096).contains(&size));
+            socket.read_exact(&mut vec![0; size - 4]).unwrap();
+            let fields = b"SFATAL\0C28P01\0MSENTINEL-private-provider-message\0\0";
+            socket.write_all(b"E").unwrap();
+            socket
+                .write_all(&((fields.len() + 4) as u32).to_be_bytes())
+                .unwrap();
+            socket.write_all(fields).unwrap();
+        });
+        let error = match postgres::Config::new()
+            .host("127.0.0.1")
+            .port(port)
+            .user("synthetic")
+            .ssl_mode(SslMode::Disable)
+            .connect(postgres::NoTls)
+        {
+            Ok(_) => panic!("fixture should reject login"),
+            Err(e) => e,
+        };
+        assert_eq!(connection_error(&error), Error::DatabaseAccess);
+        assert!(!connection_error(&error).to_string().contains("SENTINEL"));
+        server.join().unwrap();
+    }
+    #[test]
+    fn supabase_root_loads_and_connection_errors_never_echo_details() {
+        database_tls().unwrap();
+        let certificate =
+            native_tls::Certificate::from_pem(include_bytes!("../certs/supabase-prod-ca-2021.crt"))
+                .unwrap();
+        assert_eq!(
+            crate::release::hash(&certificate.to_der().unwrap()),
+            "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa"
+        );
+        let error = std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "SENTINEL-secret@private-host",
+        );
+        let classified = connection_error(&error);
+        assert_eq!(classified, Error::DatabaseNetwork);
+        assert!(!classified.to_string().contains("SENTINEL"));
+        let tls_error = match native_tls::Certificate::from_pem(b"not a certificate") {
+            Ok(_) => panic!("invalid certificate accepted"),
+            Err(e) => e,
+        };
+        assert_eq!(connection_error(&tls_error), Error::DatabaseTls);
+    }
 }
 
 // A single TLS session owns the lock. Each signed unit, its postcondition and
