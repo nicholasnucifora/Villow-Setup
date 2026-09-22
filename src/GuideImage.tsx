@@ -2,6 +2,7 @@ import googleIdentityScopes from "./assets/account-guide/google-identity-scopes.
 import googleYoutubeScope from "./assets/account-guide/google-youtube-scope.png";
 import googleTestUsers from "./assets/account-guide/google-test-users.png";
 import googleClientCreated from "./assets/account-guide/google-client-created.png";
+import supabaseConnect from "./assets/account-guide/supabase-connect.png";
 
 // Replace remaining null entries with reviewed, redacted screenshots.
 const images: Record<string, { src: string | null; caption: string }> = {
@@ -13,6 +14,11 @@ const images: Record<string, { src: string | null; caption: string }> = {
     src: null,
     caption:
       "Supabase organization — highlight the organization name and the route back from Create a new project.",
+  },
+  "supabase-connect": {
+    src: supabaseConnect,
+    caption:
+      "Open your own Supabase project, then click the green Connect button in the top bar, highlighted in red. The project name and address in this example will differ from yours.",
   },
   "google-project": {
     src: null,

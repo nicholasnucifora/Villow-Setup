@@ -1797,8 +1797,26 @@ function DatabaseStep({
               saved resources below. Wait for it to finish starting.
             </li>
             <li>
-              Click <b>Connect</b> at the top, select <b>Session pooler</b>,
-              then open <b>View parameters</b> if shown.
+              Click the green <b>Connect</b> button in the project’s top bar,
+              highlighted in the picture below.
+              <GuideImage name="supabase-connect" />
+            </li>
+            <li>
+              In <b>Connect to your project</b>, select <b>Direct</b> — the top
+              tab labeled <b>Connection string</b>, between Server and ORM. If
+              you see Framework, Next.js or Install packages, you are still on
+              the Framework tab. You do not need to run those commands.
+            </li>
+            <li>
+              Under <b>Connection Method</b>, choose <b>Session pooler</b>. The
+              Direct tab contains several connection methods; choosing that tab
+              does not mean you must use the Direct connection method. Leave{" "}
+              <b>Type</b> as <b>URI</b> if it is shown.
+            </li>
+            <li>
+              Below the connection string, find the individual connection
+              parameters. Click <b>View parameters</b> if they are hidden.
+              Confirm the port is <b>5432</b> before copying the values.
             </li>
             <li>
               Copy <b>Host</b> and <b>User</b> into the fields below. The host

@@ -48,7 +48,7 @@ The creation dialog supplies Client ID and Client secret. Save both through Setu
 
 The default asks Supabase for its actual PRIMARY pooler host/user via [Get pooler config](https://supabase.com/docs/reference/api/v1-get-pooler-config); the native connector always uses session mode on port 5432 with the saved database password. The API requires `database_pooling_config_read` for scoped tokens; this Alpha's working documented token path remains legacy. Explicit saved connection settings override discovery. The bundled public Supabase CA supplies certificate verification without changing Windows trust or requiring a certificate download from the user.
 
-If the step fails, use the always-visible **Supabase → project → Connect → Session pooler → View parameters** instructions. Copy host/user, keep the password blank unless changed, save, then retry. Do not paste a full connection string or choose transaction mode. The displayed error distinguishes recognized network, TLS, login and availability causes from unknown connection and later SQL-operation failures. The previous generic message does not prove which cause the user encountered. Sources: [connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [SSL verification](https://supabase.com/docs/guides/platform/ssl-enforcement).
+If the step fails, use the always-visible **Supabase → project → Connect → Direct (Connection string) → Connection Method → Session pooler** instructions. The supplied project screenshot highlights the green Connect button. The Connect dialog initially opens Framework; its package-install commands are not part of this walkthrough. The Direct tab contains multiple connection methods, so it does not mean selecting the Direct connection method. Leave Type as URI, expand View parameters if needed, and check port 5432. Copy host/user, keep the password blank unless changed, save, then retry. Do not paste a full connection string or choose transaction mode. The displayed error distinguishes recognized network, TLS, login and availability causes from unknown connection and later SQL-operation failures. The previous generic message does not prove which cause the user encountered. Sources: [connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [official dashboard labels](https://github.com/supabase/supabase/blob/2f1ad03640d23006d7ba8f4b6e60da936b800ae2/apps/studio/components/interfaces/ConnectSheet/connect.schema.ts), [SSL verification](https://supabase.com/docs/guides/platform/ssl-enforcement).
 
 ### Management tokens
 
@@ -56,12 +56,13 @@ Vercel and Supabase management tokens stay with the desktop manager and are not 
 
 ## Screenshot slots
 
-The reusable `src/GuideImage.tsx` registry contains ten named slots: six placeholders and four supplied screenshots (two scopes, Audience/Add users, and the client-created dialog with synthetic placeholder values). All four are shown inline. Capture clean future examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. Earlier screenshots containing credentials are not bundled.
+The reusable `src/GuideImage.tsx` registry contains eleven named slots: six placeholders and five supplied screenshots (two scopes, Audience/Add users, the client-created dialog with synthetic placeholder values, and the Supabase project Connect button). All five are shown inline. The maintainer explicitly supplied the Connect image for inclusion; its project identifier is an example, not a target to copy. The second Framework screenshot is reference material only. Capture clean future examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. Earlier screenshots containing credentials are not bundled.
 
 | Slot | Capture | Placement |
 | --- | --- | --- |
 | `vercel-account` | Dashboard account menu and stopping point before project creation | Vercel account/token page |
 | `supabase-organization` | Organization selector and route back from Create a new project | Supabase organization/token page |
+| `supabase-connect` | Supplied project screenshot highlighting the green Connect button | Database connection recovery, at the Connect instruction |
 | `google-project` | Project selector and Project ID in Project info | Google Cloud, alongside OAuth setup |
 | `vercel-token` | Personal token URL, team scope and expiry; hide value | Vercel → Screenshot guide |
 | `supabase-token` | Small Create legacy token link under Resource access, then name/expiry; hide value | Supabase → Screenshot guide |
