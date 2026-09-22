@@ -66,6 +66,34 @@ pub fn path(store: &Store, id: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
+fn staging(path: &Path) -> Result<PathBuf> {
+    let staging = backup_file::staging_path(path)?;
+    if let Some(m) = metadata(&staging)? {
+        if !m.is_file() {
+            return Err(Error::BackupStorage);
+        }
+    }
+    Ok(staging)
+}
+
+/// Local removal must not strand a key/file before intent or while successful
+/// repair still has pending cleanup. The caller already owns the store lock.
+pub fn require_removable(store: &Store, vault: &dyn Vault, s: &Installation) -> Result<()> {
+    let path = path(store, &s.id)?;
+    let staging = staging(&path)?;
+    if s.installed_repair
+        .as_ref()
+        .and_then(|p| p.backup.as_ref())
+        .is_some_and(|r| r.managed && r.removed_at.is_none())
+        || vault.get(&s.id, KEY)?.is_some()
+        || metadata(&path)?.is_some()
+        || metadata(&staging)?.is_some()
+    {
+        return Err(Error::BackupRetained);
+    }
+    Ok(())
+}
+
 fn package(path: &Path, vault: &dyn Vault, s: &Installation) -> Result<Package> {
     let key = vault.require(&s.id, KEY)?;
     let bytes = backup_file::read(path, &key)?;
@@ -99,6 +127,14 @@ pub fn prepare(
     let path = path(store, &s.id)?;
     fs::create_dir_all(path.parent().ok_or(Error::BackupStorage)?)
         .map_err(|_| Error::BackupStorage)?;
+    let staging = staging(&path)?;
+    if metadata(&staging)?.is_some() {
+        // The sole native staging name is always pre-SQL here. A killed write
+        // may be incomplete, so discard it and capture afresh instead of
+        // claiming it is a verified backup. Never regenerate a missing key.
+        vault.require(&s.id, KEY)?;
+        fs::remove_file(staging).map_err(|_| Error::BackupStorage)?;
+    }
     if metadata(&path)?.is_some() {
         let previous = package(&path, vault, s)?;
         let checkpoint: Installation =
@@ -205,6 +241,14 @@ pub fn cleanup(store: &Store, vault: &dyn Vault, s: &mut Installation) -> Result
     if metadata(&path)?.is_some() {
         check(store, vault, s, r)?;
         fs::remove_file(&path).map_err(|_| Error::BackupStorage)?;
+    }
+    let staging = staging(&path)?;
+    if metadata(&staging)?.is_some() {
+        // persist_noclobber may have linked the final file before unlinking
+        // staging when interrupted. Only the exact completed ciphertext may
+        // be removed by post-success cleanup.
+        backup_file::matches_saved(&staging, &r.sha256, r.bytes)?;
+        fs::remove_file(staging).map_err(|_| Error::BackupStorage)?;
     }
     // File first, key second: a failed file removal never destroys its key.
     vault.delete(&s.id, KEY)?;

@@ -79,6 +79,7 @@ pub fn save(
     manifest: &[u8],
     archive: &[u8],
     vault: &dyn Vault,
+    managed: bool,
     capture: impl FnOnce() -> Result<DatabaseSnapshot>,
 ) -> Result<BackupReceipt> {
     backup_file::validate_password(password)?;
@@ -167,11 +168,15 @@ pub fn save(
         archive_base64: STANDARD.encode(archive),
         database: capture()?,
     };
-    let saved = backup_file::write_verified(path, package.encode()?, password)?;
+    let saved = if managed {
+        backup_file::write_verified_managed(path, package.encode()?, password)?
+    } else {
+        backup_file::write_verified(path, package.encode()?, password)?
+    };
     // write_verified durably closes, reopens, decrypts and compares ALL plaintext
     // bytes, including COPY counts, columns, every row and the original vault.
     Ok(BackupReceipt {
-        managed: false,
+        managed,
         removed_at: None,
         path: saved.path,
         sha256: saved.sha256,

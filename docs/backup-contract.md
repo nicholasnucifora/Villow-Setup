@@ -17,6 +17,10 @@ This contract permits only one bounded installed repair per installation. The
 key's identity is fixed to that installation; the encrypted package and native
 receipt additionally bind the exact repair operation, source and destination.
 The key and predetermined path are discoverable even if capture is interrupted.
+Managed writes use the exact adjacent `.villowbackup.staging` filename with
+create-new semantics. A hard process exit can leave partial ciphertext there;
+the pre-intent retry checks the retained key and removes only that predetermined
+staging file before recapturing. It never scans/deletes unrelated backups.
 Before intent exists, a complete orphan file can be decrypted and matched to the
 original installation before being replaced with a fresh snapshot. A partial or
 unverifiable file stops for review. After intent exists, recapture/key generation
@@ -29,6 +33,9 @@ refuses redirected paths, symlinks/junctions, portable receipts and read-only
 imports. Missing-file retries after deletion are idempotent. Cleanup failures
 leave success intact with a visible pending-cleanup message; opening Setup again
 retries locally without contacting providers or repeating repair.
+Credential removal and forgetting also refuse while a managed key, final file,
+staging file or pending-cleanup receipt remains. This includes pre-intent
+interruption and Complete with failed cleanup, preventing loss of the sole key.
 
 This is temporary repair protection on this PC, not portable disaster recovery
 or guaranteed recovery from problems discovered after the checks pass. Existing

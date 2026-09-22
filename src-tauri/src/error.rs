@@ -81,6 +81,8 @@ pub enum Error {
     RepairPending,
     #[error("Setup could not verify the recovery copy for this repair. Keep your saved setup and use Repair my app to start, or Resume repair if already started. If this continues, report this message; do not reset the database.")]
     RepairBackupRequired,
+    #[error("Setup still holds temporary recovery protection for this app. Finish Repair my app or Resume repair before removing saved access. If the repair already passed, reopen Setup to finish its cleanup. Keep this PC's saved data if cleanup still needs attention.")]
+    BackupRetained,
     #[error("Choose a backup password of at least 12 characters and save it in your password manager. This protects your Villow data backup; it is separate from the developer's signing passphrase.")]
     BackupPassword,
     #[error("Setup could not read, save or verify its recovery copy. Check that this PC has free disk space and reopen Setup. Keep its saved files and database; no further repair work was performed.")]

@@ -276,6 +276,7 @@ pub fn remove_credentials(store: &Store, vault: &dyn Vault) -> Result<()> {
     if s.repair_pending() {
         return Err(Error::RepairPending);
     }
+    crate::managed_backup::require_removable(store, vault, &s)?;
     vault.remove_all(&s.id)?;
     s.credentials_removed = true;
     store.save(&s)
@@ -289,6 +290,7 @@ pub fn forget(store: &Store, vault: &dyn Vault, confirmation: &str) -> Result<()
     if confirmation != s.name {
         return Err(Error::Invalid);
     }
+    crate::managed_backup::require_removable(store, vault, &s)?;
     vault.remove_all(&s.id)?;
     store.forget()
 }

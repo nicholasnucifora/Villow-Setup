@@ -20,6 +20,14 @@ outside-path refusal. The exact release fixture additionally compares all
 Final execution evidence, paired source identities and installer hash are
 recorded in the build receipt.
 
+Independent web-side lifecycle review found two early candidate gaps: local
+credential removal/forgetting could strand pre-intent or pending-cleanup data,
+and hard termination could leave randomly named staging ciphertext. The follow-up
+guards all managed key/file/staging/receipt states and uses a predetermined
+staging path. Targeted tests cover both removal operations at key-only,
+file-before-intent, and completed-cleanup-failure boundaries, plus a subprocess
+that exits mid-write without running Drop. Portable behavior remains unchanged.
+
 This is local temporary repair protection, not an in-place restore, general
 updater or portable disaster-recovery system. Live provider repair/recovery and
 Windows signing remain unqualified. Earlier 0.1.4 GitHub run `35739648085`

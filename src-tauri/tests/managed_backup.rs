@@ -35,7 +35,8 @@ fn backup(store: &Store, vault: &MemoryVault, s: &Installation, to: &str) -> Bac
             tables: vec![],
         },
     };
-    let saved = backup_file::write_verified(&path, package.encode().unwrap(), &key).unwrap();
+    let saved =
+        backup_file::write_verified_managed(&path, package.encode().unwrap(), &key).unwrap();
     BackupReceipt {
         managed: true,
         removed_at: None,
@@ -198,6 +199,80 @@ impl Vault for DeleteFails<'_> {
     fn delete(&self, _: &str, _: &str) -> Result<()> {
         Err(Error::Vault)
     }
+}
+
+#[test]
+fn removing_credentials_or_forgetting_never_strands_pre_intent_or_pending_cleanup_protection() {
+    use villow_setup::engine;
+    for kind in 0..4 {
+        let (_, new, s) = repair_fixture();
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        store.save(&s).unwrap();
+        let vault = repair_vault(&s);
+        if kind == 0 {
+            managed::prepare(&store, &vault, &s, &new.digest).unwrap(); // Key-only crash.
+        } else {
+            let r = backup(&store, &vault, &s, &new.digest);
+            if kind >= 2 {
+                let mut done = complete_projection(&s, &new, r);
+                store.save(&done).unwrap();
+                if kind == 3 {
+                    assert!(managed::cleanup(&store, &DeleteFails(&vault), &mut done).is_err());
+                }
+            }
+        }
+        let retained = vault.values.borrow().clone();
+        assert_eq!(
+            engine::remove_credentials(&store, &vault),
+            Err(Error::BackupRetained)
+        );
+        assert_eq!(
+            engine::forget(&store, &vault, &s.name),
+            Err(Error::BackupRetained)
+        );
+        assert_eq!(*vault.values.borrow(), retained);
+        assert!(!store.load().unwrap().unwrap().credentials_removed);
+        if kind >= 2 {
+            let mut done = store.load().unwrap().unwrap();
+            managed::cleanup(&store, &vault, &mut done).unwrap();
+            engine::remove_credentials(&store, &vault).unwrap();
+            engine::forget(&store, &vault, &s.name).unwrap();
+            assert!(store.load().unwrap().is_none());
+        }
+    }
+}
+
+#[test]
+fn pre_intent_staging_is_discoverable_and_only_its_exact_name_is_discarded() {
+    let (_, new, s) = repair_fixture();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    store.save(&s).unwrap();
+    let vault = repair_vault(&s);
+    let (path, key) = managed::prepare(&store, &vault, &s, &new.digest).unwrap();
+    let staging = backup_file::staging_path(&path).unwrap();
+    let unrelated = path
+        .parent()
+        .unwrap()
+        .join("unrelated.villowbackup.staging");
+    std::fs::write(&unrelated, b"retain unrelated file").unwrap();
+    std::fs::write(&staging, b"partial encrypted write from hard termination").unwrap();
+    assert_eq!(
+        managed::require_removable(&store, &vault, &s),
+        Err(Error::BackupRetained)
+    );
+    let (_, same_key) = managed::prepare(&store, &vault, &s, &new.digest).unwrap();
+    assert_eq!(key.as_str(), same_key.as_str());
+    assert!(!staging.exists());
+    assert_eq!(std::fs::read(&unrelated).unwrap(), b"retain unrelated file");
+    let r = backup(&store, &vault, &s, &new.digest);
+    let mut done = complete_projection(&s, &new, r.clone());
+    store.save(&done).unwrap();
+    std::fs::copy(&r.path, &staging).unwrap(); // Interrupted final persist unlink.
+    managed::cleanup(&store, &vault, &mut done).unwrap();
+    assert!(!path.exists() && !staging.exists());
+    assert!(unrelated.exists());
 }
 
 #[test]

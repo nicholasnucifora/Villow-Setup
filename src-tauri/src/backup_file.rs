@@ -10,7 +10,7 @@ use std::{
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
     num::NonZeroU32,
-    path::Path,
+    path::{Path, PathBuf},
 };
 use zeroize::Zeroizing;
 
@@ -128,13 +128,32 @@ pub fn write_verified(
     payload: Zeroizing<Vec<u8>>,
     password: &str,
 ) -> Result<SavedBackup> {
-    write_with(path, payload, password, |file, bytes| file.write_all(bytes))
+    write_with(path, payload, password, false, |file, bytes| {
+        file.write_all(bytes)
+    })
+}
+
+pub fn staging_path(path: &Path) -> Result<PathBuf> {
+    let mut filename = path.file_name().ok_or(Error::BackupStorage)?.to_os_string();
+    filename.push(".staging");
+    Ok(path.with_file_name(filename))
+}
+
+pub fn write_verified_managed(
+    path: &Path,
+    payload: Zeroizing<Vec<u8>>,
+    password: &str,
+) -> Result<SavedBackup> {
+    write_with(path, payload, password, true, |file, bytes| {
+        file.write_all(bytes)
+    })
 }
 
 fn write_with(
     path: &Path,
     payload: Zeroizing<Vec<u8>>,
     password: &str,
+    managed: bool,
     write: impl FnOnce(&mut File, &[u8]) -> std::io::Result<()>,
 ) -> Result<SavedBackup> {
     if !path.is_absolute() || path.file_name().is_none() || path.exists() {
@@ -144,7 +163,18 @@ fn write_with(
     let parent = path.parent().ok_or(Error::BackupStorage)?;
     let expected = hash(&payload);
     let encrypted = seal(payload, password)?;
-    let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|_| Error::BackupStorage)?;
+    let mut temp = if managed {
+        let staging = staging_path(path)?;
+        // A hard process kill leaves this exact discoverable ciphertext name.
+        // create-new and persist_noclobber still refuse all overwrites.
+        tempfile::Builder::new()
+            .prefix(staging.file_name().ok_or(Error::BackupStorage)?)
+            .rand_bytes(0)
+            .tempfile_in(parent)
+    } else {
+        tempfile::NamedTempFile::new_in(parent)
+    }
+    .map_err(|_| Error::BackupStorage)?;
     write(temp.as_file_mut(), &encrypted).map_err(|_| Error::BackupStorage)?;
     temp.as_file()
         .sync_all()
@@ -189,6 +219,41 @@ mod tests {
     }
 
     #[test]
+    fn managed_hard_exit_preserves_discoverable_staging() {
+        const CHILD_DIR: &str = "VILLOW_SYNTHETIC_BACKUP_CRASH_DIR";
+        if let Some(root) = std::env::var_os(CHILD_DIR) {
+            let path = Path::new(&root).join("synthetic.villowbackup");
+            let _ = write_with(&path, payload(), PASSWORD, true, |file, bytes| {
+                file.write_all(&bytes[..bytes.len() / 2])?;
+                file.sync_all()?;
+                std::process::exit(73); // No Drop: models process termination.
+            });
+            panic!("child did not terminate while staging");
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+        child
+            .args([
+                "--exact",
+                "backup_file::tests::managed_hard_exit_preserves_discoverable_staging",
+            ])
+            .env(CHILD_DIR, directory.path())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            child.creation_flags(0x08000000);
+        }
+        assert_eq!(child.status().unwrap().code(), Some(73));
+        let path = directory.path().join("synthetic.villowbackup");
+        assert!(!path.exists());
+        assert!(staging_path(&path).unwrap().exists());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        assert!(read(&staging_path(&path).unwrap(), PASSWORD).is_err());
+    }
+
+    #[test]
     fn encrypted_backup_round_trip_is_randomized_and_rejects_wrong_password_or_tampering() {
         let first = seal(payload(), PASSWORD).unwrap();
         let second = seal(payload(), PASSWORD).unwrap();
@@ -227,11 +292,13 @@ mod tests {
         let path = directory.path().join("saved.villowbackup");
         assert!(write_verified(&path, payload(), "short").is_err());
         assert!(!path.exists());
-        assert!(write_with(&path, payload(), PASSWORD, |file, bytes| {
-            file.write_all(&bytes[..bytes.len() / 2])?;
-            Err(std::io::Error::from(std::io::ErrorKind::StorageFull))
-        })
-        .is_err());
+        assert!(
+            write_with(&path, payload(), PASSWORD, false, |file, bytes| {
+                file.write_all(&bytes[..bytes.len() / 2])?;
+                Err(std::io::Error::from(std::io::ErrorKind::StorageFull))
+            })
+            .is_err()
+        );
         assert!(!path.exists());
         assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
         assert!(

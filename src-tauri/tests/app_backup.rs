@@ -88,6 +88,7 @@ fn native_encrypted_backup_restores_exact_rows_and_refuses_existing_or_changed_t
         &manifest,
         &archive,
         &vault,
+        false,
         || backup_database::capture(&mut source, &s, &old),
     )
     .unwrap();
@@ -111,7 +112,7 @@ fn native_encrypted_backup_restores_exact_rows_and_refuses_existing_or_changed_t
     store.save(&s).unwrap();
     let (managed_path, managed_key) =
         villow_setup::managed_backup::prepare(&store, &vault, &s, &new.digest).unwrap();
-    let mut managed_receipt = repair_backup::save(
+    let managed_receipt = repair_backup::save(
         &managed_path,
         &managed_key,
         &s,
@@ -122,10 +123,10 @@ fn native_encrypted_backup_restores_exact_rows_and_refuses_existing_or_changed_t
         &manifest,
         &archive,
         &vault,
+        true,
         || backup_database::capture(&mut source, &s, &old),
     )
     .unwrap();
-    managed_receipt.managed = true;
     villow_setup::managed_backup::check(&store, &vault, &s, &managed_receipt).unwrap();
     let managed_plaintext = backup_file::read(&managed_path, &managed_key).unwrap();
     let managed_package: repair_backup::Package =

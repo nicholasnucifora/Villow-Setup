@@ -300,7 +300,7 @@ impl Manager {
             std::fs::read(cache.join(format!("{}.zip", old.digest))).map_err(|_| Error::Storage)?;
         let (path, password) =
             crate::managed_backup::prepare(&self.store, &OsVault, &s, &new.digest)?;
-        let mut backup = crate::repair_backup::save(
+        let backup = crate::repair_backup::save(
             &path,
             &password,
             &s,
@@ -311,13 +311,13 @@ impl Manager {
             &manifest,
             &archive,
             &OsVault,
+            true,
             || {
                 let connection = providers.database_connection(&s)?;
                 let mut client = crate::migration::connect(&s, &OsVault, &connection)?;
                 crate::backup_database::capture(&mut client, &s, &old)
             },
         )?;
-        backup.managed = true;
         crate::installed_repair::advance(
             &self.store,
             &OsVault,
