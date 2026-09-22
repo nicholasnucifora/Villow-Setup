@@ -2,6 +2,14 @@
 
 This describes tested properties of the development implementation, not proof that it has no vulnerabilities. All application data and credentials used in tests are synthetic. No real-provider deployment or Google sign-in was performed, and no production data was copied here.
 
+## Provider-by-provider token walkthrough — 2026-09-22
+
+The frontend now saves each management token through the existing vault-backed command before moving to the next provider. Input values are cleared after successful or failed saves; provider token values are never persisted by the renderer. Reopened setup can request discovery with already saved vault tokens. That action does not assert credential validity: native discovery still requires both credentials. Replacement of one expired token preserves the other; target/cost selection and native identity verification remain required before effects. Google project preparation is now alongside OAuth setup, after the website address is reserved.
+
+Current official Supabase documentation and OpenAPI FGA annotations were mapped to the six scoped-token permissions in [account-guide.md](account-guide.md). This is not a claim of live-provider success. No provider API, native engine, IPC schema, checkpoint format, trust configuration or hosted app contract changed. Qualification flags remain false where unfinished. Full web-owned paired qualification was not rerun for these frontend changes, and its earlier evidence remains pinned to the original pair.
+
+Passed: dependency install, TypeScript/build, 23 UI tests, all three frontend profiles, five packaging-profile tests, source/CSP/capability scan and 34 ordinary native tests. The native vault test required normal Windows-account access after sandbox denial, as before. UI tests cover sequential secret storage, storage failure, rejected discovery, saved-token reuse and replacement of just one token without cloud effects. No computer-use, installation/relaunch, visual or real-account test was performed; those remain the maintainer's manual checks. Updated package identity is recorded in the returned build receipt.
+
 ## Genuine published release configured for unsigned Alpha — 2026-09-21
 
 The maintainer supplied the genuine public Ed25519 key, publisher label `Fix The Web`, immutable release URLs/hashes and publication approval. All three public downloads returned HTTP 200 anonymously; independent Ed25519 verification passed, the channel was unexpired, and manifest/archive hashes exactly matched the handoff. [The Alpha release record](alpha-0.1.0.md) preserves exact public identity, channel expiry and user instructions.

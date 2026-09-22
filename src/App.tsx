@@ -12,7 +12,8 @@ import {
 } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { nativeBridge } from "./bridge";
-import { AccountGuide, providers } from "./AccountGuide";
+import { AccountGuide, ProviderAccountGuide, providers } from "./AccountGuide";
+import { TokenGuide, TokenExpiry } from "./TokenGuide";
 import { GuideImage } from "./GuideImage";
 import { ReconciliationForm } from "./ReconciliationForm";
 import type {
@@ -31,14 +32,14 @@ const TestingTools = __TESTING_TOOLS__
 const stages: { key: Step; title: string; detail: string }[] = [
   {
     key: "projects",
-    title: "Connect your accounts",
-    detail: "Choose where your app lives",
+    title: "Vercel & Supabase",
+    detail: "Account, token, then projects",
   },
   { key: "origin", title: "Your address", detail: "Reserve a permanent home" },
   {
     key: "google",
-    title: "Connect Google",
-    detail: "Allow your video subscriptions",
+    title: "Google Cloud",
+    detail: "Project and Google sign-in",
   },
   {
     key: "database",
@@ -244,8 +245,14 @@ export function App({
             >
               <span className="step-number">{s ? "✓" : "2"}</span>
               <div>
-                Prepare your accounts
-                <small>Vercel · Supabase · Google Cloud</small>
+                {data?.trust_configured
+                  ? "Choose your release"
+                  : "Account guide"}
+                <small>
+                  {data?.trust_configured
+                    ? "Verify the app and choose its owner"
+                    : "Vercel · Supabase · Google Cloud"}
+                </small>
               </div>
             </li>
             {stages.map((x, i) => (
@@ -338,7 +345,9 @@ export function App({
               <div className="eyebrow">
                 {guidePage === -1
                   ? "WELCOME TO VILLOW"
-                  : "STEP 2 OF 9 · PREPARE YOUR ACCOUNTS"}
+                  : data.trust_configured
+                    ? "STEP 2 OF 9 · CHOOSE YOUR RELEASE"
+                    : "ACCOUNT GUIDE PREVIEW"}
               </div>
               <h1
                 ref={headingRef}
@@ -354,7 +363,7 @@ export function App({
                 ) : guidePage < 3 ? (
                   providers[guidePage]
                 ) : data.trust_configured ? (
-                  "Your accounts are ready"
+                  "Choose your release"
                 ) : (
                   "Account guide complete"
                 )}
@@ -423,10 +432,10 @@ export function App({
                   <button
                     className="primary"
                     disabled={busy}
-                    onClick={() => setGuidePage(0)}
+                    onClick={() => setGuidePage(data.trust_configured ? 3 : 0)}
                   >
                     {data.trust_configured
-                      ? "Prepare my accounts"
+                      ? "Begin setup"
                       : "Read the account guide"}
                     <span>→</span>
                   </button>
@@ -458,13 +467,16 @@ export function App({
               {guidePage === 3 && (
                 <>
                   <p className="lead">
-                    Next, connect Vercel and Supabase so Setup can find your
-                    accounts and create your dedicated projects.
+                    First, verify the official app release and choose your
+                    instance name and Google owner email. No cloud projects are
+                    created here.
                   </p>
                   <p>
-                    You’ll paste an access token from each service into this
-                    app. Google’s client ID and secret come later, at Connect
-                    Google, once your website address is ready.
+                    Then work through Vercel’s account and token together,
+                    followed by Supabase’s organization and token. After Setup
+                    creates the projects and reserves your website address,
+                    complete Google Cloud’s project and OAuth configuration in
+                    one place.
                   </p>
                   {data.trust_configured ? (
                     <ReleaseForm
@@ -482,9 +494,9 @@ export function App({
                   <button
                     className="text-button"
                     disabled={busy}
-                    onClick={() => setGuidePage(0)}
+                    onClick={() => setGuidePage(-1)}
                   >
-                    Review account instructions
+                    Back to welcome
                   </button>
                 </>
               )}
@@ -749,7 +761,10 @@ export function App({
                       <p>
                         Replace only your management tokens. Saved app secrets,
                         encryption key and resource IDs are preserved. Use the
-                        same provider identities you selected originally.
+                        same provider identities you selected originally. Your
+                        hosted website does not use these management tokens and
+                        keeps running when they expire. Leave a token field
+                        blank to keep its saved value.
                       </p>
                       <AccountForm
                         reconnect
@@ -966,219 +981,330 @@ function AccountForm({
   open: (s: string) => Promise<void>;
   reconnect?: boolean;
 }) {
-  const [vercel, setVercel] = useState(""),
-    [supabase, setSupabase] = useState(""),
-    [team, setTeam] = useState(""),
-    [org, setOrg] = useState(""),
-    [costs, setCosts] = useState(false),
-    [region, setRegion] = useState("ap-southeast-2"),
-    [connected, setConnected] = useState(false);
-  const connect = () =>
+  const demo = __TESTING_TOOLS__ && bridge.demo;
+  const replacing = reconnect || s.credentials_removed;
+  const [page, setPage] = useState(0);
+  const [vercel, setVercel] = useState("");
+  const [supabase, setSupabase] = useState("");
+  const [savedVercel, setSavedVercel] = useState(false);
+  const [savedSupabase, setSavedSupabase] = useState(false);
+  const [team, setTeam] = useState("");
+  const [org, setOrg] = useState("");
+  const [costs, setCosts] = useState(false);
+  const [region, setRegion] = useState("ap-southeast-2");
+  const [connected, setConnected] = useState(false);
+  const pageHeading = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    pageHeading.current?.focus({ preventScroll: true });
+    pageHeading.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [page]);
+  const invalidate = () => {
+    setConnected(false);
+    setCosts(false);
+  };
+  const navigate = (next: number) => {
+    setVercel("");
+    setSupabase("");
+    setPage(next);
+  };
+  const saveVercel = () =>
     run(async () => {
-      setConnected(false);
-      setCosts(false);
+      invalidate();
       try {
         refresh(
           await bridge.call<Snapshot>("save_credentials", {
-            vercel: __TESTING_TOOLS__ && bridge.demo ? "demo" : vercel,
-            supabase: __TESTING_TOOLS__ && bridge.demo ? "demo" : supabase,
+            vercel: vercel.trim(),
+            supabase: "",
           }),
         );
+        setSavedVercel(true);
+        setPage(1);
+      } finally {
+        setVercel("");
+      }
+    });
+  const connect = (useSaved = false) =>
+    run(async () => {
+      invalidate();
+      try {
+        if (demo || (!useSaved && (vercel.trim() || supabase.trim()))) {
+          refresh(
+            await bridge.call<Snapshot>("save_credentials", {
+              vercel: demo ? "demo" : vercel.trim(),
+              supabase: demo ? "demo" : supabase.trim(),
+            }),
+          );
+          if (supabase.trim()) setSavedSupabase(true);
+        }
         const a = await bridge.call<Accounts>("discover_accounts");
         setAccounts(a);
         setTeam(a.vercel[0]?.id ?? "");
         setOrg(a.supabase[0]?.id ?? "");
         setConnected(true);
+        if (!replacing) setPage(2);
       } finally {
         setVercel("");
         setSupabase("");
       }
     });
+  const tokenField = (provider: "vercel" | "supabase") => (
+    <Field
+      label={
+        provider === "vercel"
+          ? "Vercel access token"
+          : "Supabase management token"
+      }
+      hint={
+        replacing
+          ? "Leave blank to keep the token already saved on this computer."
+          : "Saved in Windows Credential Manager. The field clears after saving."
+      }
+    >
+      <input
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        disabled={busy}
+        value={provider === "vercel" ? vercel : supabase}
+        onChange={(e) => {
+          (provider === "vercel" ? setVercel : setSupabase)(e.target.value);
+          invalidate();
+        }}
+      />
+    </Field>
+  );
+  if (s.selection && !replacing)
+    return (
+      <div className="alert">
+        <strong>Accounts confirmed</strong>
+        <p>
+          Each next action creates one dedicated project. Setup checks account
+          and resource ownership before continuing. After these projects and
+          your website address are ready, you’ll complete Google Cloud in one
+          step.
+        </p>
+        <TokenExpiry />
+      </div>
+    );
   return (
     <section>
-      <p className="lead">Give Setup access to Vercel and Supabase.</p>
-      {!s.selection || s.credentials_removed || reconnect ? (
+      {replacing ? (
         <>
           <p>
-            Paste the two access tokens below, then read your accounts. This
-            does not create projects. You’ll choose the accounts and confirm
-            before anything is created.
+            Replace the expired token for the same account and scope. Leave the
+            other field blank to keep it. This reads your accounts without
+            creating projects.
           </p>
-          <p>
-            Tokens let Setup act on your behalf; they are not your sign-in
-            passwords. Use short-lived management tokens. A Supabase personal
-            token can carry your account’s permissions; it is different from a
-            database password or app API key. Choose the smallest available
-            scope and revoke it when you finish.
-          </p>
-          {!(__TESTING_TOOLS__ && bridge.demo) && (
-            <div className="form-grid">
-              <Field
-                label="Vercel access token"
-                hint="In your personal account’s Settings → Tokens, name it Villow Setup, choose the account/team you’ll use and a short expiry. Copy the token while it is visible."
-              >
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={vercel}
-                  onChange={(e) => {
-                    setVercel(e.target.value);
-                    setConnected(false);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => open("vercel_token")}
-                >
-                  Create in Vercel ↗
-                </button>
-              </Field>
-              <Field
-                label="Supabase management token"
-                hint="In Account → Access Tokens, generate a personal access token named Villow Setup. Copy it here. It may reach all organizations you can manage; this is not a project API key."
-              >
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={supabase}
-                  onChange={(e) => {
-                    setSupabase(e.target.value);
-                    setConnected(false);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => open("supabase_token")}
-                >
-                  Create in Supabase ↗
-                </button>
-              </Field>
-            </div>
-          )}
-          {!(__TESTING_TOOLS__ && bridge.demo) && (
-            <details>
-              <summary>Show me where to create the tokens</summary>
-              <div className="form-grid">
-                <GuideImage name="vercel-token" />
-                <GuideImage name="supabase-token" />
-              </div>
-            </details>
-          )}
+          {!demo &&
+            (["vercel", "supabase"] as const).map((provider) => (
+              <section key={provider}>
+                {tokenField(provider)}
+                <details>
+                  <summary>
+                    {provider === "vercel" ? "Vercel" : "Supabase"} token
+                    instructions
+                  </summary>
+                  <TokenGuide provider={provider} busy={busy} open={open} />
+                </details>
+              </section>
+            ))}
           <button
             className="secondary"
-            disabled={
-              busy ||
-              (!(__TESTING_TOOLS__ && bridge.demo) &&
-                (reconnect || s.credentials_removed
-                  ? !vercel.trim() && !supabase.trim()
-                  : !vercel.trim() || !supabase.trim()))
-            }
-            onClick={connect}
+            disabled={busy || (!demo && !vercel.trim() && !supabase.trim())}
+            onClick={() => connect()}
           >
-            {__TESTING_TOOLS__ && bridge.demo
+            {demo
               ? "Load demo accounts"
-              : "Save tokens & read my accounts"}
+              : "Save replacement tokens & check access"}
           </button>
-          {connected && !s.credentials_removed && (
-            <p role="status">
-              {__TESTING_TOOLS__ && bridge.demo
-                ? "Demo accounts loaded."
-                : "Account access loaded."}
-              {s.selection &&
-                " Continue setup to check access against your saved accounts."}
-            </p>
-          )}
-          {accounts && connected && !s.selection && (
-            <div className="form-section">
-              <h2>Choose where Villow will live</h2>
-              <p>
-                These names come from your providers. Choose the accounts you
-                prepared earlier and the region closest to your users.
+        </>
+      ) : demo ? (
+        <button className="secondary" disabled={busy} onClick={() => connect()}>
+          Load demo accounts
+        </button>
+      ) : (
+        <>
+          <nav aria-label="Connect providers" className="provider-progress">
+            {["Vercel", "Supabase", "Confirm accounts"].map((label, index) => (
+              <button
+                key={label}
+                disabled={
+                  busy ||
+                  (index === 1 && !savedVercel) ||
+                  (index === 2 && !connected)
+                }
+                aria-current={page === index ? "step" : undefined}
+                onClick={() => navigate(index)}
+              >
+                <span aria-hidden="true">{index + 1}</span>
+                {label}
+              </button>
+            ))}
+          </nav>
+          <h2 ref={pageHeading} tabIndex={-1}>
+            {page === 0
+              ? "Connect Vercel"
+              : page === 1
+                ? "Connect Supabase"
+                : "Review your accounts"}
+          </h2>
+          {page < 2 && (
+            <>
+              <ProviderAccountGuide page={page} busy={busy} open={open} />
+              <TokenGuide
+                provider={page === 0 ? "vercel" : "supabase"}
+                busy={busy}
+                open={open}
+              />
+              {tokenField(page === 0 ? "vercel" : "supabase")}
+              <div className="action-row">
+                {page === 0 ? (
+                  <button
+                    className="primary"
+                    disabled={busy || !vercel.trim()}
+                    onClick={saveVercel}
+                  >
+                    Save Vercel token & continue →
+                  </button>
+                ) : (
+                  <button
+                    className="primary"
+                    disabled={busy || !supabase.trim()}
+                    onClick={() => connect()}
+                  >
+                    Save Supabase token & read accounts →
+                  </button>
+                )}
+              </div>
+              <p className="quiet">
+                {page === 0
+                  ? "Saving stores this token only. Setup checks both providers’ access after the Supabase step, before creating anything."
+                  : "Reading accounts does not create projects. You’ll choose the accounts and confirm their costs next."}
               </p>
-              {(!accounts.vercel.length || !accounts.supabase.length) && (
-                <p role="alert">
-                  No eligible account or organization was returned. Check the
-                  token permissions and that you have a Supabase organization,
-                  then reconnect.
+              <details>
+                <summary>
+                  {page === 0
+                    ? "Already saved a Vercel token on this computer?"
+                    : "Already saved a Supabase token on this computer?"}
+                </summary>
+                <p>
+                  Use the token from this installation’s saved progress. If it
+                  is missing, expired or refused when accounts are read, paste a
+                  replacement.
+                </p>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    if (page === 0) {
+                      setSavedVercel(true);
+                      navigate(1);
+                    } else {
+                      void connect(true);
+                    }
+                  }}
+                >
+                  {page === 0
+                    ? "Use my saved Vercel token"
+                    : "Read accounts with saved tokens"}
+                </button>
+              </details>
+              {page === 1 && savedSupabase && !connected && (
+                <p role="status">
+                  Supabase token saved; account checks still need to pass. You
+                  can retry with saved tokens.
                 </p>
               )}
-              <div className="form-grid">
-                <Field label="Vercel account">
-                  <select
-                    value={team}
-                    onChange={(e) => setTeam(e.target.value)}
-                  >
-                    {accounts.vercel.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {a.id}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Supabase organization">
-                  <select value={org} onChange={(e) => setOrg(e.target.value)}>
-                    {accounts.supabase.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {a.id}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Database region">
-                  <select
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
-                  >
-                    <option value="ap-southeast-2">Sydney</option>
-                    <option value="us-east-1">US East</option>
-                    <option value="eu-west-1">Ireland</option>
-                    <option value="ap-southeast-1">Singapore</option>
-                  </select>
-                </Field>
-              </div>
-              <CheckBox checked={costs} onChange={setCosts}>
-                These are my intended accounts. Creating projects can use my
-                plan’s resources and incur charges; I have reviewed my provider
-                plan.
-              </CheckBox>
-              <button
-                className="primary"
-                disabled={busy || !team || !org || !costs}
-                onClick={() =>
-                  action("select_accounts", {
-                    selection: {
-                      vercel_user: accounts.vercel_user,
-                      supabase_user: accounts.supabase_user,
-                      vercel_account: team,
-                      supabase_organization: org,
-                      supabase_slug: accounts.supabase.find((a) => a.id === org)
-                        ?.slug,
-                      region,
-                      costs_acknowledged: costs,
-                    },
-                  })
-                }
-              >
-                Confirm these accounts
-              </button>
-            </div>
+            </>
           )}
         </>
-      ) : (
-        <div className="alert">
-          <strong>Accounts confirmed</strong>
-          <p>
-            Each next action creates one dedicated project. Setup checks account
-            and resource ownership before continuing. Keep your provider
-            dashboards available for any billing or identity checks.
-          </p>
-        </div>
       )}
+      {connected && (
+        <p role="status">
+          {demo ? "Demo accounts loaded." : "Account access loaded."}
+          {s.selection &&
+            " Continue setup to check access against your saved accounts. No new projects were created."}
+        </p>
+      )}
+      {accounts &&
+        connected &&
+        !s.selection &&
+        (demo || replacing || page === 2) && (
+          <div className="form-section">
+            <h2>Choose where Villow will live</h2>
+            <p>
+              These names come from your providers. Choose the accounts you just
+              connected and the region closest to your users.
+            </p>
+            {(!accounts.vercel.length || !accounts.supabase.length) && (
+              <p role="alert">
+                No eligible account or organization was returned. Check the
+                token permissions and that you have a Supabase organization,
+                then reconnect.
+              </p>
+            )}
+            <div className="form-grid">
+              <Field label="Vercel account">
+                <select value={team} onChange={(e) => setTeam(e.target.value)}>
+                  {accounts.vercel.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {a.id}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Supabase organization">
+                <select value={org} onChange={(e) => setOrg(e.target.value)}>
+                  {accounts.supabase.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {a.id}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Database region">
+                <select
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                >
+                  <option value="ap-southeast-2">Sydney</option>
+                  <option value="us-east-1">US East</option>
+                  <option value="eu-west-1">Ireland</option>
+                  <option value="ap-southeast-1">Singapore</option>
+                </select>
+              </Field>
+            </div>
+            <CheckBox checked={costs} onChange={setCosts}>
+              These are my intended accounts. Creating projects can use my
+              plan’s resources and incur charges; I have reviewed my provider
+              plan.
+            </CheckBox>
+            <button
+              className="primary"
+              disabled={busy || !team || !org || !costs}
+              onClick={() =>
+                action("select_accounts", {
+                  selection: {
+                    vercel_user: accounts.vercel_user,
+                    supabase_user: accounts.supabase_user,
+                    vercel_account: team,
+                    supabase_organization: org,
+                    supabase_slug: accounts.supabase.find((a) => a.id === org)
+                      ?.slug,
+                    region,
+                    costs_acknowledged: costs,
+                  },
+                })
+              }
+            >
+              Confirm these accounts
+            </button>
+          </div>
+        )}
     </section>
   );
 }
+
 function GoogleForm({
   s,
   busy,
@@ -1251,23 +1377,12 @@ function GoogleForm({
   return (
     <section>
       <p className="lead">
-        Allow your instance to connect to your Google account.
+        Create or select your Google Cloud project, then configure sign-in and
+        YouTube access here. Your website address is now ready.
       </p>
+      <ProviderAccountGuide page={2} busy={busy} open={open} />
+      <h2>Connect this Google project</h2>
       <ol className="instructions">
-        <li>
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => open("google_dashboard")}
-          >
-            Open your prepared Google Cloud project ↗
-          </button>
-          <p>
-            Select the project you prepared earlier from the top bar. You can
-            find its Project ID in Project info; there is no need to create a
-            second project.
-          </p>
-        </li>
         <li>
           <button
             className="text-button"

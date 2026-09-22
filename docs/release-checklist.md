@@ -93,6 +93,16 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 
 ## Progress and coordination record
 
+### 2026-09-22 — account/token sequence and scoped-token guidance
+
+**Owner:** Setup agent, following the maintainer's real Alpha feedback. Configured setup now authenticates the release first, combines Vercel account/token on one page and Supabase organization/token on the next, and combines Google project/OAuth at the stage where the reserved callback is available. Each provider token is saved separately through existing native IPC and cleared from its input; saved tokens can be reused after reopening. Account discovery and explicit target/cost confirmation still precede project creation. Recovery can replace only an expired token without altering saved resources or app secrets.
+
+Vercel guidance now links directly to personal tokens and distinguishes team settings. Supabase guidance maps the current scoped-token form to six documented permissions and Organization resource access; Database and Infrastructure permissions stay None. Expiry guidance distinguishes desktop management access from hosted runtime credentials. See [account-guide.md](account-guide.md) for the endpoint mapping and sources.
+
+**Passed:** `npm ci`, TypeScript check, 23 UI tests, production frontend build, normal/testing/alpha build checks, five packaging-profile tests, source/CSP/capability scan, and 34 ordinary native tests (the sandbox blocked the vault test; the normal Windows-account rerun passed). New UI coverage includes vault save failure, rejected discovery after replacement, reuse of saved tokens after reopening, single-provider token replacement and no project creation before confirmation. The native engine, provider requests, trust, hosted-app contracts and qualification flags are unchanged; full web-owned paired qualification was not rerun for this frontend revision. The frozen native/web evidence remains associated with its original pair.
+
+**Still to test:** the maintainer's live scoped-token account/project/key journey and revised desktop layout. No computer-use skill, real credentials, real cloud writes, installer launch or live provider test was used for this revision. The returned build receipt records the updated unsigned Alpha installer and source identity. Windows signing and unfinished public qualification stay deferred.
+
 ### 2026-09-20 — account walkthrough revision
 
 **Owner:** Setup agent. Implemented separate Vercel, Supabase and Google Cloud preparation pages with progress, back navigation, concise stopping points and six screenshot placeholders. Clarified that Setup creates Vercel/Supabase projects, generates the database password and later configures the database; Google project ID and OAuth details are requested at their respective steps. Improved real token-entry instructions, require both tokens for initial connection, clear inputs on success/failure and require successful discovery plus explicit account confirmation before creation. These UI checks supplement the existing Rust authorization boundary.

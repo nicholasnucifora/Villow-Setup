@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { App } from "../src/App";
 import { DemoBridge } from "../src/demo";
-import type { Bridge, Snapshot } from "../src/types";
+import type { Accounts, Bridge, Snapshot } from "../src/types";
 
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -68,37 +68,31 @@ it("lets a user read all provider pages without credentials or installation auth
   );
 });
 
-it("keeps provider progress when going back and requires all three readiness confirmations", async () => {
+it("checks the release before asking a configured user to visit any provider", async () => {
   const user = userEvent.setup();
-  render(<App initialBridge={new DemoBridge()} />);
-  await user.click(
-    await screen.findByRole("button", { name: /Prepare my accounts/ }),
-  );
-  const progress = () =>
-    within(screen.getByRole("navigation", { name: "Account preparation" }));
-  await user.click(progress().getByRole("button", { name: /Google Cloud/ }));
-  await user.click(
-    screen.getByRole("button", { name: /Google Cloud is ready/ }),
-  );
+  const call = vi.fn().mockResolvedValue({
+    manager_version: "test",
+    trust_configured: true,
+    installation: null,
+    release: null,
+    release_checked_at: null,
+    message: "",
+  } satisfies Snapshot);
+  render(<App initialBridge={{ demo: false, call }} />);
+  await user.click(await screen.findByRole("button", { name: /Begin setup/ }));
   expect(
-    screen.getByRole("heading", { name: "Vercel", level: 1 }),
+    screen.getByRole("heading", { name: "Choose your release", level: 1 }),
   ).toHaveFocus();
   expect(
-    screen.queryByRole("button", { name: /Start my setup/ }),
+    screen.getByRole("button", { name: "Check the official release" }),
+  ).toBeEnabled();
+  expect(document.querySelector("input[type=password]")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Open Vercel/ }),
   ).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /Vercel is ready/ }));
-  await user.click(screen.getByRole("button", { name: "Back to Vercel" }));
-  expect(
-    progress().getByRole("button", { name: /Vercel Ready/ }),
-  ).toHaveAttribute("aria-current", "step");
-  await user.click(progress().getByRole("button", { name: /Supabase/ }));
-  await user.click(screen.getByRole("button", { name: /Supabase is ready/ }));
-  await user.click(
-    screen.getByRole("button", { name: /Google Cloud is ready/ }),
+  expect(call.mock.calls.every(([command]) => command === "snapshot")).toBe(
+    true,
   );
-  expect(
-    await screen.findByRole("button", { name: /Start my setup/ }),
-  ).toBeInTheDocument();
 });
 
 async function accountFixture() {
@@ -120,34 +114,72 @@ async function accountFixture() {
   return { bridge, call, fixture };
 }
 
-it("collects both real-mode tokens, clears them and requires account confirmation before creation", async () => {
+async function saveVercel(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    await screen.findByLabelText("Vercel access token"),
+    "synthetic-vercel",
+  );
+  await user.click(screen.getByRole("button", { name: /Save Vercel token/ }));
+  await screen.findByLabelText("Supabase management token");
+}
+
+it("groups account and token steps by provider, saves each secret separately and confirms before creation", async () => {
   const user = userEvent.setup();
   const { bridge, call } = await accountFixture();
   render(<App initialBridge={bridge} />);
-  const save = await screen.findByRole("button", {
-    name: "Save tokens & read my accounts",
-  });
-  const vercel = screen.getByLabelText("Vercel access token");
-  const supabase = screen.getByLabelText("Supabase management token");
+  const vercel = await screen.findByLabelText("Vercel access token");
+  expect(
+    screen.getByRole("button", { name: /Open Vercel personal tokens/ }),
+  ).toBeEnabled();
+  expect(
+    screen.queryByLabelText("Supabase management token"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /Open Google Cloud/ }),
+  ).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Load demo accounts" }),
   ).not.toBeInTheDocument();
-  expect(save).toBeDisabled();
-  await user.type(vercel, "synthetic-vercel");
-  expect(save).toBeDisabled();
-  await user.type(supabase, "synthetic-supabase");
-  await user.click(save);
+  expect(
+    screen.getByRole("button", { name: /Save Vercel token/ }),
+  ).toBeDisabled();
+  await saveVercel(user);
   expect(call).toHaveBeenCalledWith("save_credentials", {
     vercel: "synthetic-vercel",
-    supabase: "synthetic-supabase",
+    supabase: "",
   });
   expect(vercel).toHaveValue("");
-  expect(supabase).toHaveValue("");
+  expect(
+    screen.queryByLabelText("Vercel access token"),
+  ).not.toBeInTheDocument();
+  expect(
+    call.mock.calls.some(([command]) => command === "discover_accounts"),
+  ).toBe(false);
+  expect(
+    screen.getByRole("heading", { name: "Connect Supabase" }),
+  ).toHaveFocus();
+  expect(
+    screen.getByText(/Stop before creating a database project/),
+  ).toBeInTheDocument();
+  const table = screen.getByRole("table", { name: /Supabase permissions/ });
+  expect(within(table).getByText("Organization Projects")).toBeInTheDocument();
+  expect(within(table).getByText("API Key Secrets")).toBeInTheDocument();
+  expect(within(table).getAllByRole("row")).toHaveLength(7);
+  const supabase = screen.getByLabelText("Supabase management token");
+  await user.type(supabase, "synthetic-supabase");
+  await user.click(screen.getByRole("button", { name: /Save Supabase token/ }));
+  expect(call).toHaveBeenCalledWith("save_credentials", {
+    vercel: "",
+    supabase: "synthetic-supabase",
+  });
+  expect(
+    screen.getByRole("heading", { name: "Review your accounts" }),
+  ).toHaveFocus();
   expect(
     screen.getByRole("button", { name: "Confirm these accounts" }),
   ).toBeDisabled();
   expect(
-    screen.queryByRole("button", { name: "Create Vercel project" }),
+    screen.queryByRole("button", { name: /Create Vercel project/ }),
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: /intended accounts/ }));
   await user.click(
@@ -163,41 +195,145 @@ it("collects both real-mode tokens, clears them and requires account confirmatio
   expect(JSON.stringify(localStorage)).not.toContain("synthetic-supabase");
 });
 
-it("clears failed credentials and hides stale discovered accounts until a successful retry", async () => {
+it("stays on Vercel and clears the input if native credential storage fails", async () => {
+  const user = userEvent.setup();
+  const { bridge, call, fixture } = await accountFixture();
+  call.mockImplementation(async (command, args) => {
+    if (command === "save_credentials")
+      throw new Error("Windows Credential Manager unavailable");
+    return fixture.call(command, args);
+  });
+  render(<App initialBridge={bridge} />);
+  await user.type(
+    await screen.findByLabelText("Vercel access token"),
+    "synthetic-vercel",
+  );
+  await user.click(screen.getByRole("button", { name: /Save Vercel token/ }));
+  expect(await screen.findByRole("alert")).toHaveFocus();
+  expect(screen.getByLabelText("Vercel access token")).toHaveValue("");
+  expect(
+    screen.queryByLabelText("Supabase management token"),
+  ).not.toBeInTheDocument();
+  expect(
+    call.mock.calls.some(([command]) => command === "discover_accounts"),
+  ).toBe(false);
+});
+
+it("hides stale accounts after a rejected replacement and retries discovery without resending saved tokens", async () => {
   const user = userEvent.setup();
   const { bridge, call, fixture } = await accountFixture();
   render(<App initialBridge={bridge} />);
-  const save = await screen.findByRole("button", {
-    name: "Save tokens & read my accounts",
-  });
-  const enter = async () => {
-    await user.type(
-      screen.getByLabelText("Vercel access token"),
-      "synthetic-vercel",
-    );
-    await user.type(
-      screen.getByLabelText("Supabase management token"),
-      "synthetic-supabase",
-    );
-  };
-  await enter();
-  await user.click(save);
+  await saveVercel(user);
+  await user.type(
+    screen.getByLabelText("Supabase management token"),
+    "synthetic-supabase",
+  );
+  await user.click(screen.getByRole("button", { name: /Save Supabase token/ }));
   expect(
     screen.getByRole("button", { name: "Confirm these accounts" }),
   ).toBeInTheDocument();
+  await user.click(
+    within(
+      screen.getByRole("navigation", { name: "Connect providers" }),
+    ).getByRole("button", { name: /Supabase/ }),
+  );
   call.mockImplementation(async (command, args) => {
     if (command === "discover_accounts")
       throw new Error("Synthetic token rejection");
     return fixture.call(command, args);
   });
-  await enter();
-  await user.click(save);
+  await user.type(
+    screen.getByLabelText("Supabase management token"),
+    "replacement-supabase",
+  );
+  await user.click(screen.getByRole("button", { name: /Save Supabase token/ }));
   expect(await screen.findByRole("alert")).toHaveFocus();
   expect(
     screen.queryByRole("button", { name: "Confirm these accounts" }),
   ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Supabase management token")).toHaveValue("");
+  call.mockImplementation((command, args) => fixture.call(command, args));
+  const savesBeforeRetry = call.mock.calls.filter(
+    ([command]) => command === "save_credentials",
+  ).length;
+  await user.click(screen.getByText(/Already saved a Supabase token/));
+  await user.click(
+    screen.getByRole("button", { name: "Read accounts with saved tokens" }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Confirm these accounts" }),
+  ).toBeDisabled();
+  expect(
+    call.mock.calls.filter(([command]) => command === "save_credentials"),
+  ).toHaveLength(savesBeforeRetry);
+});
+
+it("resumes account discovery after reopening using vault tokens without entering or exposing them", async () => {
+  const user = userEvent.setup();
+  const { bridge, call } = await accountFixture();
+  render(<App initialBridge={bridge} />);
+  await user.click(await screen.findByText(/Already saved a Vercel token/));
+  await user.click(
+    screen.getByRole("button", { name: "Use my saved Vercel token" }),
+  );
+  await user.click(screen.getByText(/Already saved a Supabase token/));
+  await user.click(
+    screen.getByRole("button", { name: "Read accounts with saved tokens" }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Confirm these accounts" }),
+  ).toBeDisabled();
+  expect(
+    call.mock.calls.some(
+      ([command]) => command === "save_credentials" || command === "advance",
+    ),
+  ).toBe(false);
+  expect(document.querySelector("input[type=password]")).toBeNull();
+});
+
+it("replaces only an expired provider token and preserves the current installation step", async () => {
+  const user = userEvent.setup();
+  const { bridge, call, fixture } = await accountFixture();
+  const accounts = await fixture.call<Accounts>("discover_accounts");
+  await fixture.call("select_accounts", {
+    selection: {
+      vercel_user: accounts.vercel_user,
+      supabase_user: accounts.supabase_user,
+      vercel_account: accounts.vercel[0].id,
+      supabase_organization: accounts.supabase[0].id,
+      supabase_slug: accounts.supabase[0].slug,
+      region: "ap-southeast-2",
+      costs_acknowledged: true,
+    },
+  });
+  render(<App initialBridge={bridge} />);
+  await user.click(
+    await screen.findByRole("button", { name: "Recovery & settings" }),
+  );
+  await user.click(screen.getByText("Reconnect expired provider access"));
+  await user.type(
+    screen.getByLabelText("Vercel access token"),
+    "replacement-vercel",
+  );
+  await user.click(
+    screen.getByRole("button", {
+      name: "Save replacement tokens & check access",
+    }),
+  );
+  expect(call).toHaveBeenCalledWith("save_credentials", {
+    vercel: "replacement-vercel",
+    supabase: "",
+  });
   expect(screen.getByLabelText("Vercel access token")).toHaveValue("");
   expect(screen.getByLabelText("Supabase management token")).toHaveValue("");
+  expect(
+    call.mock.calls.some(([command]) =>
+      ["start_installation", "select_accounts", "advance"].includes(command),
+    ),
+  ).toBe(false);
+  expect(
+    screen.getByRole("button", { name: /Create Vercel project/ }),
+  ).toBeEnabled();
 });
 
 it("requires opting in to testing and leaves demo when the tools are switched off", async () => {
@@ -213,7 +349,7 @@ it("requires opting in to testing and leaves demo when the tools are switched of
   await user.click(toggle);
   await user.click(screen.getByRole("button", { name: "Explore demo" }));
   expect(
-    await screen.findByRole("button", { name: /Prepare my accounts/ }),
+    await screen.findByRole("button", { name: /Begin setup/ }),
   ).toBeInTheDocument();
   await user.click(toggle);
   await waitFor(() =>

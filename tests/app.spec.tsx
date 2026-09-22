@@ -171,7 +171,7 @@ describe("owner-facing setup", () => {
       const user = userEvent.setup();
       const demo = await selectedDemo();
       render(<App initialBridge={demo} />);
-      await screen.findByRole("heading", { name: "Connect your accounts" });
+      await screen.findByRole("heading", { name: "Vercel & Supabase" });
       await user.selectOptions(screen.getByLabelText("Demo failure"), failure);
       await user.click(
         screen.getByRole("button", {
@@ -224,7 +224,7 @@ describe("owner-facing setup", () => {
     await demo.call("advance");
     await demo.call("advance");
     render(<App initialBridge={demo} />);
-    await screen.findByRole("heading", { name: "Connect Google" });
+    await screen.findByRole("heading", { name: "Google Cloud", level: 1 });
     await user.click(
       screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
     );
@@ -397,7 +397,7 @@ describe("owner-facing setup", () => {
     );
     await user.click(forget);
     expect(
-      await screen.findByRole("button", { name: /Prepare my accounts/ }),
+      await screen.findByRole("button", { name: /Begin setup/ }),
     ).toBeInTheDocument();
     expect((await demo.call<Snapshot>("snapshot")).installation).toBeNull();
   });
@@ -468,12 +468,5 @@ async function selectedDemo() {
 }
 
 async function prepareAccounts(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(
-    await screen.findByRole("button", { name: /Prepare my accounts/ }),
-  );
-  for (const provider of ["Vercel", "Supabase", "Google Cloud"]) {
-    await user.click(
-      screen.getByRole("button", { name: new RegExp(provider + " is ready") }),
-    );
-  }
+  await user.click(await screen.findByRole("button", { name: /Begin setup/ }));
 }

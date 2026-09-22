@@ -753,6 +753,30 @@ details ul {
   border-radius: 6px;
   background: #edf0e5;
 }
+.permission-table-wrap {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.permission-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.permission-table caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.permission-table th,
+.permission-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.permission-table th {
+  background: #edf0e5;
+}
 .testing-tools .text-button {
   display: block;
   margin-top: 12px;

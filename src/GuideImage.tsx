@@ -17,12 +17,12 @@ const images: Record<string, { src: string | null; caption: string }> = {
   "vercel-token": {
     src: null,
     caption:
-      "Vercel token form — highlight name, scope and expiry; hide the token.",
+      "Vercel personal account token page — highlight the direct URL, team scope and expiry; hide the token.",
   },
   "supabase-token": {
     src: null,
     caption:
-      "Supabase personal access token form — highlight token creation; hide the token.",
+      "Supabase scoped token form — highlight Organization resource access and the six permissions listed above; hide the token.",
   },
   "google-oauth": {
     src: null,

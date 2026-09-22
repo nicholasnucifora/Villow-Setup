@@ -41,6 +41,44 @@ export function AccountGuide({
           </button>
         ))}
       </nav>
+      <ProviderAccountGuide page={page} busy={busy} open={open} />
+      <div className="action-row guide-actions">
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={() => navigate(page - 1)}
+        >
+          {page === 0 ? "Back to welcome" : `Back to ${providers[page - 1]}`}
+        </button>
+        <button className="primary" disabled={busy} onClick={confirm}>
+          {previewOnly
+            ? page < 2
+              ? `Next: ${providers[page + 1]}`
+              : "Finish reading the guide"
+            : `${providers[page]} is ready`}{" "}
+          <span>→</span>
+        </button>
+      </div>
+      <p className="quiet">
+        {previewOnly
+          ? "Reading these instructions does not connect accounts or save any credentials."
+          : "Already have this account? Check the stopping point above, then mark it ready. You will authorize access in a later step."}
+      </p>
+    </>
+  );
+}
+
+export function ProviderAccountGuide({
+  page,
+  busy,
+  open,
+}: {
+  page: number;
+  busy: boolean;
+  open: (step: string) => Promise<void>;
+}) {
+  return (
+    <>
       {page === 0 && (
         <section>
           <p className="lead">
@@ -77,9 +115,9 @@ export function AccountGuide({
           <div className="guide-takeaway">
             <strong>What to keep</strong>
             <p>
-              Keep your normal account sign-in details. You do not need to copy
-              account IDs or create an access token yet. The Connect your
-              accounts step will show you how.
+              Keep your normal account sign-in details. In the setup
+              walkthrough, create and paste your access token on this same
+              Vercel page.
             </p>
           </div>
         </section>
@@ -193,10 +231,10 @@ export function AccountGuide({
           <div className="guide-takeaway">
             <strong>What to keep from Project info</strong>
             <p>
-              Bookmark your project dashboard. You will need its{" "}
-              <b>Project ID</b> at Connect Google, and can copy it there later.
-              Setup does not ask for the project number. The project name is
-              just a label to help you find it.
+              Bookmark your project dashboard. Copy its <b>Project ID</b> into
+              the Google configuration form during setup. Setup does not ask for
+              the project number. The project name is just a label to help you
+              find it.
             </p>
           </div>
           <details>
@@ -207,36 +245,13 @@ export function AccountGuide({
               promotional trial banner.
             </p>
             <p>
-              At Connect Google, after Setup has reserved your website address,
-              you will enable YouTube Data API v3 and create an OAuth Web
-              client. That step explains exactly where to paste its client ID
-              and secret. You do not need them yet.
+              Continue with YouTube Data API v3 and an OAuth Web application
+              client during Connect Google. Setup reserves your website address
+              before that step so you can enter the exact origin and callback.
             </p>
           </details>
         </section>
       )}
-      <div className="action-row guide-actions">
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => navigate(page - 1)}
-        >
-          {page === 0 ? "Back to welcome" : `Back to ${providers[page - 1]}`}
-        </button>
-        <button className="primary" disabled={busy} onClick={confirm}>
-          {previewOnly
-            ? page < 2
-              ? `Next: ${providers[page + 1]}`
-              : "Finish reading the guide"
-            : `${providers[page]} is ready`}{" "}
-          <span>→</span>
-        </button>
-      </div>
-      <p className="quiet">
-        {previewOnly
-          ? "Reading these instructions does not connect accounts or save any credentials."
-          : "Already have this account? Check the stopping point above, then mark it ready. You will authorize access in a later step."}
-      </p>
     </>
   );
 }
