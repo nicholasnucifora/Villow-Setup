@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "sequence": 5,
+  "expires_at": "2026-09-30T07:11:25.714Z",
+  "channel_sha256": "16926d179553a4503d721a1aeb98ddcb1a69e94a4b377381b4eda0f1b3907e24",
+  "channel": {
+    "key_id": "villow-app-2026-01",
+    "payload": "eyJmb3JtYXQiOjEsImNoYW5uZWwiOiJzdGFibGUiLCJzZXF1ZW5jZSI6NSwiZ2VuZXJhdGVkX2F0IjoiMjAyNi0wOS0yNFQwNzoxMToyNS43MTRaIiwiZXhwaXJlc19hdCI6IjIwMjYtMDktMzBUMDc6MTE6MjUuNzE0WiIsInJlbGVhc2VzIjpbeyJ2ZXJzaW9uIjoiMC4xLjIiLCJzaGEyNTYiOiI0NmRhMTE3YmNlOTRhNWFmMjBmNjY4MGExMTg4YTgwNDg2NmFlYzRjYTMwMmY5ODYyNjg2YzJlODY5ZTVjNzhhIiwidXJsIjoiaHR0cHM6Ly9naXRodWIuY29tL25pY2hvbGFzbnVjaWZvcmEvVmlsbG93LVNldHVwL3JlbGVhc2VzL2Rvd25sb2FkL3ZpbGxvdy1hcHAtdjAuMS4yL21hbmlmZXN0Lmpzb24ifSx7InZlcnNpb24iOiIwLjEuMSIsInNoYTI1NiI6IjM3MDcyZjNlZjRlZmMzODdiNTdmNmVkY2NjZGZkMGU3MWIwOWZjNjFhYmNhZWU0NjQ5ZjlhYmE3NmZhMzMyYWMiLCJ1cmwiOiJodHRwczovL2dpdGh1Yi5jb20vbmljaG9sYXNudWNpZm9yYS9WaWxsb3ctU2V0dXAvcmVsZWFzZXMvZG93bmxvYWQvdmlsbG93LWFwcC12MC4xLjEvbWFuaWZlc3QuanNvbiJ9LHsidmVyc2lvbiI6IjAuMS4wIiwic2hhMjU2IjoiNWVhNGE5NWY3ODRjMDAzOGY3ZTdjYzg0ODNiOGVmMzRkMjMwODRmMDg2MjgwZmMyNmJiMWE0ODZlYjY5MjkwYyIsInVybCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9uaWNob2xhc251Y2lmb3JhL1ZpbGxvdy1TZXR1cC9yZWxlYXNlcy9kb3dubG9hZC92aWxsb3ctYXBwLXYwLjEuMC9tYW5pZmVzdC5qc29uIn1dLCJyZXZva2VkIjpbXX0=",
+    "signature": "KCBqDn6dBYGPkLw+zSc+yjTgSLM1YMyOkQzeLy5cXMaojyVnzTB/D9x4ffiXZgWO2i0KzloBXbfoQa19DmQHAg=="
+  },
+  "verified_at": "2026-09-24T07:12:07.362Z",
+  "workflow_commit": "ab295187fbef900c040893d1bdd486dcde0f4ab7",
+  "run_url": "https://github.com/nicholasnucifora/Villow-Setup/actions/runs/35968255120"
+}
