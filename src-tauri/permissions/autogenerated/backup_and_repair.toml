@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-backup-and-repair"
+description = "Enables the backup_and_repair command without any pre-configured scope."
+commands.allow = ["backup_and_repair"]
+
+[[permission]]
+identifier = "deny-backup-and-repair"
+description = "Denies the backup_and_repair command without any pre-configured scope."
+commands.deny = ["backup_and_repair"]

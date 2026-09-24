@@ -1,0 +1,98 @@
+[
+  {
+    "name": "trg_sync_attention_duration_profile",
+    "table": "attention_outcomes",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER trg_sync_attention_duration_profile AFTER INSERT OR DELETE OR UPDATE ON public.attention_outcomes FOR EACH ROW EXECUTE FUNCTION sync_attention_duration_profile_from_outcome()"
+  },
+  {
+    "name": "trg_delete_attention_duration_profile_on_reset",
+    "table": "attention_profiles",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER trg_delete_attention_duration_profile_on_reset AFTER DELETE ON public.attention_profiles FOR EACH ROW EXECUTE FUNCTION delete_attention_duration_profile_on_reset()"
+  },
+  {
+    "name": "group_ban_members_single_weekday_limit",
+    "table": "group_ban_members",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER group_ban_members_single_weekday_limit BEFORE INSERT OR UPDATE OF group_ban_id, user_id ON public.group_ban_members FOR EACH ROW EXECUTE FUNCTION enforce_single_weekday_group_limit_membership()"
+  },
+  {
+    "name": "group_bans_set_updated_at",
+    "table": "group_bans",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER group_bans_set_updated_at BEFORE UPDATE ON public.group_bans FOR EACH ROW EXECUTE FUNCTION set_group_ban_updated_at()"
+  },
+  {
+    "name": "group_bans_single_weekday_limit_conversion",
+    "table": "group_bans",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER group_bans_single_weekday_limit_conversion BEFORE UPDATE OF default_daily_limit_seconds ON public.group_bans FOR EACH ROW EXECUTE FUNCTION enforce_weekday_limit_group_conversion()"
+  },
+  {
+    "name": "group_playlist_identity_immutable",
+    "table": "group_playlists",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER group_playlist_identity_immutable BEFORE UPDATE ON public.group_playlists FOR EACH ROW EXECUTE FUNCTION prevent_group_playlist_identity_update()"
+  },
+  {
+    "name": "group_streak_skip_redundant_limit_extension",
+    "table": "group_streak_events",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER group_streak_skip_redundant_limit_extension BEFORE INSERT ON public.group_streak_events FOR EACH ROW EXECUTE FUNCTION skip_redundant_group_streak_limit_extension()"
+  },
+  {
+    "name": "update_task_integrations_updated_at",
+    "table": "task_integrations",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER update_task_integrations_updated_at BEFORE UPDATE ON public.task_integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+  },
+  {
+    "name": "update_things_to_do_updated_at",
+    "table": "things_to_do",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER update_things_to_do_updated_at BEFORE UPDATE ON public.things_to_do FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+  },
+  {
+    "name": "update_user_settings_updated_at",
+    "table": "user_settings",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+  },
+  {
+    "name": "user_settings_record_group_streak_event",
+    "table": "user_settings",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER user_settings_record_group_streak_event AFTER UPDATE OF social_share_streak, daily_watch_limit_seconds, daily_open_limit ON public.user_settings FOR EACH ROW EXECUTE FUNCTION record_group_streak_settings_event()"
+  },
+  {
+    "name": "user_settings_record_usage_limit_streak_event",
+    "table": "user_settings",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER user_settings_record_usage_limit_streak_event AFTER INSERT OR UPDATE OF daily_watch_limit_seconds, daily_open_limit ON public.user_settings FOR EACH ROW EXECUTE FUNCTION record_usage_limit_streak_settings_event()"
+  },
+  {
+    "name": "enforce_subscription_feed_limit_trigger",
+    "table": "videos",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER enforce_subscription_feed_limit_trigger BEFORE INSERT OR UPDATE OF type, user_id ON public.videos FOR EACH ROW EXECUTE FUNCTION enforce_subscription_feed_limit()"
+  },
+  {
+    "name": "remember_extension_queue_save",
+    "table": "videos",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER remember_extension_queue_save AFTER INSERT OR UPDATE OF type, watch_later_added_at, queued_by_token_id ON public.videos FOR EACH ROW EXECUTE FUNCTION remember_extension_queue_save()"
+  },
+  {
+    "name": "trg_record_attention_profile_upload",
+    "table": "videos",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER trg_record_attention_profile_upload AFTER INSERT ON public.videos FOR EACH ROW EXECUTE FUNCTION record_attention_profile_upload_from_video()"
+  },
+  {
+    "name": "watch_schedules_updated_at",
+    "table": "watch_schedules",
+    "enabled": "O",
+    "definition": "CREATE TRIGGER watch_schedules_updated_at BEFORE UPDATE ON public.watch_schedules FOR EACH ROW EXECUTE FUNCTION update_watch_schedule_updated_at()"
+  }
+]

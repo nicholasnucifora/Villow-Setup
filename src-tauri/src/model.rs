@@ -19,6 +19,17 @@ pub enum Step {
     Health,
     Complete,
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentStatus {
+    Queued,
+    Building,
+    AssigningAddress,
+    Ready,
+    Failed,
+    Canceled,
+    AddressFailed,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum EffectStatus {
@@ -77,6 +88,20 @@ pub struct Google {
     pub api_enabled_confirmed: bool,
     pub audience: String,
     pub consent_published_confirmed: bool,
+    #[serde(default)]
+    pub testing_access_confirmed: bool,
+}
+impl Google {
+    pub fn ready_for_setup(&self) -> bool {
+        self.api_enabled_confirmed
+            && match self.audience.as_str() {
+                "external_testing" => {
+                    self.testing_access_confirmed && !self.consent_published_confirmed
+                }
+                "external_production" | "internal" => self.consent_published_confirmed,
+                _ => false,
+            }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -90,6 +115,53 @@ pub struct Check {
     pub kind: String,
     pub title: String,
     pub at: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FreshRetryIntent {
+    pub from: String,
+    pub to: String,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairPhase {
+    Database,
+    Upload,
+    Deploy,
+    Verify,
+    Complete,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RepairIntent {
+    pub from: String,
+    pub to: String,
+    pub repair_id: String,
+    pub operation_id: String,
+    pub backup_confirmed_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backup: Option<BackupReceipt>,
+    pub previous_operation_id: String,
+    pub previous_deployment_id: String,
+    pub phase: RepairPhase,
+    pub deployment_id: Option<String>,
+    pub deployment_status: Option<DeploymentStatus>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BackupReceipt {
+    #[serde(default)]
+    pub managed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at: Option<String>,
+    pub path: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub captured_at: String,
+    pub installation_id: String,
+    pub operation_id: String,
+    pub from: String,
+    pub to: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -115,10 +187,20 @@ pub struct Installation {
     pub google: Option<Google>,
     pub db_connection: Option<DbConnection>,
     pub deployment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_status: Option<DeploymentStatus>,
     pub effects: BTreeMap<String, Effect>,
     pub checks: Vec<Check>,
     pub read_only: bool,
     pub credentials_removed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_retry: Option<FreshRetryIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub installed_repair: Option<RepairIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_update: Option<RepairIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update_lineage: Option<crate::update_database::Lineage>,
 }
 impl Installation {
     pub fn new(
@@ -159,10 +241,15 @@ impl Installation {
             google: None,
             db_connection: None,
             deployment_id: None,
+            deployment_status: None,
             effects: BTreeMap::new(),
             checks: vec![],
             read_only: false,
             credentials_removed: false,
+            fresh_retry: None,
+            installed_repair: None,
+            app_update: None,
+            update_lineage: None,
         })
     }
     pub fn selection(&self) -> Result<&Selection> {
@@ -193,6 +280,16 @@ impl Installation {
             return Err(Error::MissingCredential);
         }
         Ok(())
+    }
+    pub fn repair_pending(&self) -> bool {
+        self.installed_repair
+            .as_ref()
+            .is_some_and(|r| r.phase != RepairPhase::Complete)
+    }
+    pub fn update_pending(&self) -> bool {
+        self.app_update
+            .as_ref()
+            .is_some_and(|p| p.phase != RepairPhase::Complete)
     }
 }
 pub fn valid_email(s: &str) -> bool {

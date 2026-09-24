@@ -1,6 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$taskInstaller = Join-Path $taskRoot 'src-tauri\target\release\bundle\nsis\Villow Setup_0.1.0_x64-setup.exe'
+$taskVersion = (Get-Content -LiteralPath (Join-Path $taskRoot 'package.json') -Raw | ConvertFrom-Json).version
+if ($taskVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Unexpected package version' }
+$taskInstaller = Join-Path $taskRoot ("src-tauri\target\release\bundle\nsis\Villow Setup_" + $taskVersion + '_x64-setup.exe')
 $taskArtifactRoot = (Resolve-Path (Join-Path $taskRoot 'artifacts')).Path
 $taskDestination = [IO.Path]::GetFullPath((Join-Path $taskArtifactRoot ('installed-integration-' + [guid]::NewGuid().ToString('N'))))
 if (-not $taskDestination.StartsWith($taskArtifactRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Test destination escaped artifact root' }

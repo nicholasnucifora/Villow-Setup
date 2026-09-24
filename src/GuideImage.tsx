@@ -1,4 +1,11 @@
-// Replace each null src with an imported, redacted screenshot when available.
+import googleIdentityScopes from "./assets/account-guide/google-identity-scopes.png";
+import googleYoutubeScope from "./assets/account-guide/google-youtube-scope.png";
+import googleTestUsers from "./assets/account-guide/google-test-users.png";
+import googleClientCreated from "./assets/account-guide/google-client-created.png";
+import supabaseConnect from "./assets/account-guide/supabase-connect.png";
+import supabaseSessionPooler from "./assets/account-guide/supabase-session-pooler.png";
+
+// Replace remaining null entries with reviewed, redacted screenshots.
 const images: Record<string, { src: string | null; caption: string }> = {
   "vercel-account": {
     src: null,
@@ -8,6 +15,16 @@ const images: Record<string, { src: string | null; caption: string }> = {
     src: null,
     caption:
       "Supabase organization — highlight the organization name and the route back from Create a new project.",
+  },
+  "supabase-connect": {
+    src: supabaseConnect,
+    caption:
+      "Open your own Supabase project, then click the green Connect button in the top bar, highlighted in red. The project name and address in this example will differ from yours.",
+  },
+  "supabase-session-pooler": {
+    src: supabaseSessionPooler,
+    caption:
+      "Choose Direct, then Session pooler. Under Connection parameters, copy your own host and user and check port 5432. The underlined host and user in this picture are placeholders. You do not need Reset database password or Install Agent Skills.",
   },
   "google-project": {
     src: null,
@@ -22,12 +39,32 @@ const images: Record<string, { src: string | null; caption: string }> = {
   "supabase-token": {
     src: null,
     caption:
-      "Supabase scoped token form — highlight Organization resource access and the six permissions listed above; hide the token.",
+      "Supabase Generate token page — highlight the small Create legacy token link directly under Resource access, then the name and expiry fields; hide the token.",
   },
   "google-oauth": {
     src: null,
     caption:
-      "Google OAuth Web application form — highlight the origin, redirect URI and client ID; hide the secret.",
+      "Google Create OAuth client form — highlight Application type: Web application, Name, Authorized JavaScript origins and Authorized redirect URIs; hide all credentials.",
+  },
+  "google-audience": {
+    src: googleTestUsers,
+    caption:
+      "In Google Auth Platform → Audience, scroll down to Test users and click + Add users, highlighted in red. Keep User type External and status Testing.",
+  },
+  "google-client-created": {
+    src: googleClientCreated,
+    caption:
+      "Use the copy icon on the right of Client ID, then Client secret. Paste each into its matching field in Setup. The highlighted example values are placeholders, not credentials to use.",
+  },
+  "google-identity-scopes": {
+    src: googleIdentityScopes,
+    caption:
+      "Select userinfo.email and userinfo.profile. The full permission URLs above are the source of truth for your release; this example leaves openid unchecked.",
+  },
+  "google-youtube-scope": {
+    src: googleYoutubeScope,
+    caption:
+      "Select youtube.force-ssl under YouTube Data API v3. In this example it is on the last page (31–38 of 38). Use Manually add scopes below the table to avoid paging through the list, then click Update.",
   },
 };
 

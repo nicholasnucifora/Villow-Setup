@@ -13,6 +13,23 @@ import { spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import { buildEnv } from "./build-env.mjs";
 const root = resolve(import.meta.dirname, "..");
+const updateFixture =
+  process.argv[2] === "--app-update-fixture"
+    ? resolve(process.argv[3] ?? "")
+    : null;
+if (
+  process.argv.length > 2 &&
+  (!updateFixture || !process.argv[3] || process.argv.length !== 4)
+)
+  throw new Error(
+    "Use --app-update-fixture <explicit synthetic fixture directory>.",
+  );
+if (
+  updateFixture &&
+  JSON.parse(readFileSync(resolve(updateFixture, "fixture.json"), "utf8"))
+    .test_only !== true
+)
+  throw new Error("Only an explicitly synthetic update fixture is allowed.");
 const bin =
   process.env.VILLOW_POSTGRES_BIN ?? "C:/Program Files/PostgreSQL/17/bin";
 if (!existsSync(resolve(bin, "initdb.exe")))
@@ -37,6 +54,7 @@ const env = {
   VILLOW_LOCAL_DB_TESTS: "disposable-local-cluster",
   VILLOW_LOCAL_DB_PORT: String(port),
   VILLOW_LOCAL_DB_PASSWORD: password,
+  ...(updateFixture ? { VILLOW_APP_UPDATE_TEST_DIR: updateFixture } : {}),
 };
 const evidence = [];
 function run(exe, args, required = true) {
@@ -91,9 +109,10 @@ try {
     "--locked",
     "--no-default-features",
     "--test",
-    "postgres_protocol",
+    updateFixture ? "app_update_protocol" : "postgres_protocol",
     "--",
     "--ignored",
+    "--show-output",
     "--test-threads=1",
   ]);
 } finally {
@@ -104,7 +123,12 @@ try {
       false,
     );
   writeFileSync(
-    resolve(root, "artifacts/postgres-tests.json"),
+    resolve(
+      root,
+      updateFixture
+        ? "artifacts/app-update-postgres-tests.json"
+        : "artifacts/postgres-tests.json",
+    ),
     JSON.stringify(
       { disposable_loopback_only: true, directory: dir, checks: evidence },
       null,

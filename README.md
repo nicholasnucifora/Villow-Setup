@@ -2,7 +2,7 @@
 
 A local Windows application for creating an owner-operated Villow instance in Vercel, Supabase and Google Cloud. The manager is separate from the hosted video app: closing or uninstalling it does not stop that app or cancel cloud billing.
 
-**Status: unsigned Alpha for fresh-account testing, not a qualified public installer.** Genuine app-release public trust is configured for Villow 0.1.0. The Alpha can authenticate that release and proceed to the real-account workflow. Real provider installation, owner sign-in and recovery still need qualification; Windows Authenticode signing remains deferred. No existing cloud resources were used as tests.
+**Status: unsigned Alpha for fresh-account testing, not a qualified public installer.** Genuine app-release public trust is configured for Villow 0.1.2, with 0.1.0 and 0.1.1 retained for authenticated unfinished-installation correction. The maintainer reports the corrected database preparation passed on their fresh Supabase project. Full provider installation, owner sign-in and recovery still need qualification; Windows Authenticode signing remains deferred.
 
 ## Try the development application
 
@@ -13,7 +13,7 @@ npm ci
 npm run desktop:dev
 ```
 
-Normal development and installer builds exclude testing controls. After verifying the release, work through Vercel's account and token together, then Supabase's organization and token. Setup creates dedicated projects and reserves the website address before guiding Google Cloud's project and OAuth setup in one place. The current build explains its release prerequisite before asking users to create accounts or tokens. [Account and token instructions](docs/account-guide.md) include scoped Supabase permissions and how to replace expired access without stopping the hosted app.
+Normal development and installer builds exclude testing controls. After verifying the release, work through Vercel's account and token together, then Supabase's organization and token. Setup creates dedicated projects and reserves the website address before guiding Google Cloud's project and OAuth setup in one place. The current build explains its release prerequisite before asking users to create accounts or tokens. [Account and token instructions](docs/account-guide.md) explain this Alpha’s legacy Supabase token path, database regions, Google client creation and how to replace expired access without stopping the hosted app.
 
 To opt in to the isolated demo and interruption scenarios, run `npm run desktop:dev:testing` or build `npm run desktop:build:testing`. Enable **Show testing tools**, then choose **Explore demo**. The testing application has a separate name and data identifier. The demo stores only fictional state in its own browser storage, makes no provider requests and never accepts management tokens. Ordinary builds exclude its engine and controls entirely.
 
@@ -21,11 +21,21 @@ To opt in to the isolated demo and interruption scenarios, run `npm run desktop:
 npm run desktop:build
 ```
 
-The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.0_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
+The development installer is generated at `src-tauri/target/release/bundle/nsis/Villow Setup_0.1.5_x64-setup.exe`. Its development identifier is `app.villow.setup.dev`. It is unsigned and must not be distributed as a trusted public release. See [development](docs/development.md) for prerequisites and [signing and distribution](docs/signing-and-distribution.md) for the protected release path.
 
 For the maintainer's real-account prototype, `npm run desktop:build:alpha` selects a separate **Villow Setup Alpha** installer with testing tools excluded. The maintainer-supplied public trust is configured and the published downloads have been verified without GitHub authentication. Windows signing and public qualification remain separate. See [this Alpha's release and test instructions](docs/alpha-0.1.0.md) and the [unsigned-alpha procedure](docs/unsigned-alpha.md).
 
+Manager 0.1.5 creates and verifies a temporary encrypted recovery copy automatically before the bounded repair of the known unfinished installed Alpha. Choose **Repair my app**; no backup password or file selection is needed. Setup preserves the original app key, applies the authenticated repair and rebuilds the same Vercel project. The copy stays if anything fails and is removed after the repaired app passes authenticated checks. Later-stage recovery remains assisted and cannot overwrite an existing database. The genuine 0.1.2 repair is published. See [backup and recovery](docs/backup-contract.md) and [the installed repair contract](docs/villow-integration-contract.md). General upgrades and adoption remain deferred.
+
 ## Implemented
+
+Setup Alpha 0.2.0 adds completed-installation **Check for updates**, **Update my
+app** and **Resume update**, with signed source-to-target plans, temporary
+encrypted protection and preserved migration history. No genuine future app
+release is published yet; 0.1.2 still reports up to date. See [the updater
+contract and qualification limits](docs/app-updater.md). Earlier references to
+deferred general upgrades describe v1. Automatic EXE updates and writable
+adoption remain deferred.
 
 - Native Rust orchestration, React interface and per-user Tauri/NSIS packaging.
 - Guided provider tokens stored in Windows Credential Manager; selected provider identities, organizations and resource IDs checked before operations.
@@ -38,7 +48,7 @@ For the maintainer's real-account prototype, `npm run desktop:build:alpha` selec
 
 Actual cloud creation, no-GitHub deployment behavior, real Google sign-in and real-provider interrupted resume have **not** been qualified. The app-side release, schema, owner, authentication and health contracts are implemented and locally tested. [App integration status](docs/app-contract-required.md) records what changed. Setup develops independently from this repository root. The web maintainer reports the frozen app/Setup pair passed its full qualification; exact commits and the separately verified genuine published artifacts are recorded in [the Alpha release record](docs/alpha-0.1.0.md).
 
-Automated upgrades, writable adoption after loss of local state, repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
+General automated upgrades, writable adoption after loss of local state, general repair, cloud teardown, custom protocol links and automatic manager updates are deferred. Imported resource IDs are hints, never permission to mutate resources. Unknown outcomes stop for review; setup does not guess that repeating a creation is safe.
 
 ## Evidence and handoff
 

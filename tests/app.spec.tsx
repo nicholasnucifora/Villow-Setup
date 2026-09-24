@@ -1,16 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  fireEvent,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { App } from "../src/App";
 import { DemoBridge } from "../src/demo";
 import type { Bridge, Snapshot } from "../src/types";
+import villowMark from "../src/assets/brand/villow-mark-on-dark.svg";
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   Element.prototype.scrollIntoView = vi.fn();
@@ -70,7 +65,9 @@ describe("owner-facing setup", () => {
     const { container } = render(<App initialBridge={bridge} />);
     await prepareAccounts(userEvent.setup());
     expect(await screen.findByText(attack)).toBeInTheDocument();
-    expect(container.querySelector("img")).toBeNull();
+    const images = container.querySelectorAll("img");
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute("src", villowMark);
     expect(container.querySelector("script")).toBeNull();
   });
   it("walks through the demo and exposes the exact callback", async () => {
@@ -122,12 +119,15 @@ describe("owner-facing setup", () => {
     expect(
       await screen.findByText("https://your-villow-demo.vercel.app/api/auth"),
     ).toBeInTheDocument();
-    const select = screen.getByLabelText("Audience");
-    fireEvent.change(select, { target: { value: "external_testing" } });
+    expect(
+      screen.queryByRole("combobox", { name: "Audience" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Save my Google configuration" }),
     ).toBeDisabled();
-    expect(screen.getByText(/seven days/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Google access expires after seven days from consent/),
+    ).toBeInTheDocument();
   });
   it("persists a lost-response demo across a new application instance", async () => {
     const demo = new DemoBridge();
@@ -225,11 +225,14 @@ describe("owner-facing setup", () => {
     await demo.call("advance");
     render(<App initialBridge={demo} />);
     await screen.findByRole("heading", { name: "Google Cloud", level: 1 });
+    await chooseTesting(user);
     await user.click(
       screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
     );
     await user.click(
-      screen.getByRole("checkbox", { name: /I configured the audience/ }),
+      screen.getByRole("checkbox", {
+        name: /I configured the required Google permissions/,
+      }),
     );
     await user.click(
       screen.getByRole("button", { name: "Save my Google configuration" }),
@@ -268,6 +271,93 @@ describe("owner-facing setup", () => {
       "demo-secret",
     );
   });
+  it("keeps Google values entered along the guide and saves once through the native boundary", async () => {
+    const user = userEvent.setup();
+    const fixture = await selectedDemo();
+    for (let i = 0; i < 3; i++) await fixture.call("advance");
+    const call = vi.fn(fixture.call.bind(fixture));
+    const bridge: Bridge = {
+      demo: false,
+      call: <T,>(command: string, args?: Record<string, unknown>) =>
+        call(command, args) as Promise<T>,
+    };
+    render(<App initialBridge={bridge} />);
+    const project = await screen.findByLabelText("Google Cloud project ID");
+    const audienceImage = screen.getByRole("img", {
+      name: /scroll down to Test users/,
+    });
+    const clientImage = screen.getByRole("img", {
+      name: /Use the copy icon on the right of Client ID/,
+    });
+    expect(audienceImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("google-test-users.png"),
+    );
+    expect(clientImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("google-client-created.png"),
+    );
+    expect(audienceImage.closest("details")).toBeNull();
+    expect(clientImage.closest("details")).toBeNull();
+    expect(
+      screen.queryByText("Already switched Google to In production?"),
+    ).not.toBeInTheDocument();
+    await user.type(project, "example-villow-123456");
+    expect(
+      screen.getByText("Testing is enough to continue"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Open Branding/ }));
+    expect(project).toHaveValue("example-villow-123456");
+    await user.click(
+      screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
+    );
+    await user.type(
+      screen.getByLabelText("OAuth Web client ID"),
+      "example.apps.googleusercontent.com",
+    );
+    await user.type(
+      screen.getByLabelText("OAuth client secret"),
+      "synthetic-client-secret",
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I configured the required Google permissions/,
+      }),
+    );
+    const save = screen.getByRole("button", {
+      name: "Save my Google configuration",
+    });
+    expect(save).toBeDisabled();
+    expect(call.mock.calls.some(([command]) => command === "set_google")).toBe(
+      false,
+    );
+    await chooseTesting(user);
+    await user.click(save);
+    expect(call).toHaveBeenCalledWith("set_google", {
+      google: {
+        project_id: "example-villow-123456",
+        client_id: "example.apps.googleusercontent.com",
+        api_enabled_confirmed: true,
+        audience: "external_testing",
+        consent_published_confirmed: false,
+        testing_access_confirmed: true,
+      },
+      secret: "synthetic-client-secret",
+    });
+    expect(screen.getByLabelText("OAuth client secret")).toHaveValue("");
+    expect(JSON.stringify(localStorage)).not.toContain(
+      "synthetic-client-secret",
+    );
+    expect(
+      screen.getByRole("button", { name: /Continue to my database/ }),
+    ).toBeEnabled();
+    expect(
+      screen.getByText(/You can close Google’s client dialog/),
+    ).toBeInTheDocument();
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
+    );
+  });
   it("restores saved Google choices and blocks continuation while edits are unsaved", async () => {
     const user = userEvent.setup();
     await googleDemo();
@@ -275,21 +365,23 @@ describe("owner-facing setup", () => {
     const next = await screen.findByRole("button", {
       name: /Continue to my database/,
     });
-    const audience = screen.getByLabelText("Audience");
+    const audience = screen.getByRole("checkbox", {
+      name: /I added owner@example.test as a Google test user/,
+    });
     const enabled = screen.getByRole("checkbox", { name: /I enabled YouTube/ });
     const published = screen.getByRole("checkbox", {
-      name: /I configured the audience/,
+      name: /I configured the required Google permissions/,
     });
-    expect(audience).toHaveValue("internal");
+    expect(audience).toBeChecked();
     expect(enabled).toBeChecked();
     expect(published).toBeChecked();
     expect(next).toBeEnabled();
-    await user.selectOptions(audience, "external_testing");
+    await user.click(audience);
     expect(next).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Save my Google configuration" }),
     ).toBeDisabled();
-    await user.selectOptions(audience, "internal");
+    await user.click(audience);
     for (const checkbox of [enabled, published]) {
       await user.click(checkbox);
       expect(next).toBeDisabled();
@@ -308,6 +400,363 @@ describe("owner-facing setup", () => {
     expect(
       await screen.findByRole("heading", { name: "Prepare the database" }),
     ).toHaveFocus();
+  });
+  it("continues in External Testing only with test-user acknowledgment and retains the reminder after reopening", async () => {
+    const user = userEvent.setup();
+    const demo = await selectedDemo();
+    for (let i = 0; i < 3; i++) await demo.call("advance");
+    const view = render(<App initialBridge={demo} />);
+    await screen.findByRole("heading", { name: "Google Cloud", level: 1 });
+    await user.click(
+      screen.getByRole("checkbox", { name: /I enabled YouTube/ }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I configured the required Google permissions/,
+      }),
+    );
+    const save = screen.getByRole("button", {
+      name: "Save my Google configuration",
+    });
+    expect(save).toBeDisabled();
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I added owner@example.test as a Google test user/,
+      }),
+    );
+    expect(save).toBeEnabled();
+    await user.click(save);
+    const google = (await demo.call<Snapshot>("snapshot")).installation?.google;
+    expect(google?.audience).toBe("external_testing");
+    expect(google?.consent_published_confirmed).toBe(false);
+    expect(google?.testing_access_confirmed).toBe(true);
+    await user.click(
+      screen.getByRole("button", { name: /Continue to my database/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Prepare the database" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "Google testing reminder" }),
+    ).toHaveTextContent("seven days");
+    view.unmount();
+    render(<App initialBridge={new DemoBridge()} />);
+    expect(
+      await screen.findByRole("complementary", {
+        name: "Google testing reminder",
+      }),
+    ).toHaveTextContent("You chose Google’s External Testing mode");
+  });
+  it("preserves an existing internal setup without offering Internal to new users", async () => {
+    const user = userEvent.setup();
+    await googleDemo("internal");
+    render(<App initialBridge={new DemoBridge()} />);
+    const next = await screen.findByRole("button", {
+      name: /Continue to my database/,
+    });
+    expect(next).toBeEnabled();
+    expect(
+      screen.queryByRole("combobox", { name: "Audience" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Previously saved Google configuration"),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", {
+        name: "I changed Google to External / Testing",
+      }),
+    );
+    expect(next).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", {
+        name: /I added owner@example.test as a Google test user/,
+      }),
+    ).not.toBeChecked();
+  });
+  it("shows database recovery settings and requires saving edits before retrying with the retained password", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    const call = vi.fn(
+      async <T,>(
+        command: string,
+        args?: Record<string, unknown>,
+      ): Promise<T> => {
+        if (command === "advance")
+          throw new Error("The database connection could not finish.");
+        return demo.call<T>(command, args);
+      },
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string, args?: Record<string, unknown>) =>
+            call(command, args) as Promise<T>,
+        }}
+      />,
+    );
+    const host = await screen.findByLabelText("Database host");
+    expect(host.closest("details")).toBeNull();
+    const prepare = screen.getByRole("button", { name: /Prepare my database/ });
+    expect(prepare).toBeEnabled();
+    await user.type(host, "aws-1-ap-southeast-2.pooler.supabase.com");
+    expect(prepare).toBeDisabled();
+    const password = screen.getByLabelText(
+      "Replacement database password (usually leave blank)",
+    );
+    expect(password).not.toBeRequired();
+    expect(password).toHaveValue("");
+    await user.click(
+      screen.getByRole("button", { name: "Save connection settings" }),
+    );
+    expect(call).toHaveBeenCalledWith("set_database_connection", {
+      connection: {
+        host: "aws-1-ap-southeast-2.pooler.supabase.com",
+        user: expect.stringMatching(/^postgres\./),
+      },
+      password: "",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Connection settings saved",
+    );
+    expect(prepare).toBeEnabled();
+    await user.click(prepare);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The database connection could not finish.",
+    );
+    expect(host).toHaveValue("aws-1-ap-southeast-2.pooler.supabase.com");
+  });
+  it("requires an explicit choice for a corrected release and blocks preparation during an unfinished switch", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.effects.migrate = {
+      status: "needs_review",
+      started_at: "2026-09-22",
+      verified_at: null,
+    };
+    const digest = "a".repeat(64);
+    const call = vi.fn(
+      async (command: string, args?: Record<string, unknown>) => {
+        if (command === "check_fresh_retry")
+          snapshot = {
+            ...snapshot,
+            fresh_retry: { digest, app_version: "0.1.1" },
+          };
+        if (command === "use_fresh_retry") {
+          expect(args).toEqual({ digest });
+          snapshot = {
+            ...snapshot,
+            fresh_retry: null,
+            installation: {
+              ...snapshot.installation!,
+              fresh_retry: {
+                from: snapshot.installation!.release_digest,
+                to: digest,
+              },
+            },
+          };
+          throw new Error("A remote effect may have completed.");
+        }
+        return snapshot;
+      },
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string, args?: Record<string, unknown>) =>
+            call(command, args) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Check for a corrected release",
+      }),
+    );
+    expect(
+      call.mock.calls.some(([command]) => command === "use_fresh_retry"),
+    ).toBe(false);
+    expect(
+      screen.queryByRole("button", { name: /Prepare my database/ }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Apply fix and prepare database" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A remote effect may have completed.",
+    );
+    expect(
+      screen.queryByRole("button", { name: /Prepare my database/ }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Resume fix and prepare database" }),
+    );
+    expect(
+      call.mock.calls.filter(([command]) => command === "use_fresh_retry"),
+    ).toHaveLength(2);
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
+    );
+  });
+  it("applies a verified fix and prepares the database with one explicit action", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.effects.migrate = {
+      status: "needs_review",
+      started_at: "today",
+      verified_at: null,
+    };
+    snapshot.fresh_retry = { digest: "a".repeat(64), app_version: "0.1.1" };
+    const call = vi.fn(async (command: string) => {
+      if (command === "use_fresh_retry")
+        snapshot = {
+          ...snapshot,
+          fresh_retry: null,
+          installation: {
+            ...snapshot.installation!,
+            release_digest: "a".repeat(64),
+            fresh_retry: null,
+          },
+        };
+      if (command === "advance")
+        snapshot = {
+          ...snapshot,
+          installation: { ...snapshot.installation!, step: "configuration" },
+        };
+      return snapshot;
+    });
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Apply fix and prepare database",
+      }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Configure your app" }),
+    ).toBeInTheDocument();
+    expect(
+      call.mock.calls
+        .map(([command]) => command)
+        .filter((command) => command !== "snapshot"),
+    ).toEqual(["use_fresh_retry", "advance"]);
+  });
+  it("shows a prominent working panel and the remaining steps during configuration", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    await demo.call("advance");
+    await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    let finish!: (value: Snapshot) => void;
+    const pending = new Promise<Snapshot>((resolve) => {
+      finish = resolve;
+    });
+    const call = vi.fn((command: string) =>
+      command === "advance" ? pending : Promise.resolve(snapshot),
+    );
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Connect my services/ }),
+    );
+    expect(screen.getByText("Connecting your services securely")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Remaining setup steps" }),
+    ).toHaveTextContent("Wait for Vercel to finish building");
+    expect(
+      screen.getByRole("button", { name: /Connect my services/ }),
+    ).toBeDisabled();
+    snapshot = {
+      ...snapshot,
+      installation: { ...snapshot.installation!, step: "deployment" },
+    };
+    finish(snapshot);
+    expect(
+      await screen.findByRole("button", { name: /Build my app on Vercel/ }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByText("Connecting your services securely"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Your services are connected",
+    );
+  });
+  it("rechecks an older accepted deployment and withholds sign-in for a failed build", async () => {
+    const user = userEvent.setup();
+    const demo = await googleDemo();
+    for (let i = 0; i < 4; i++) await demo.call("advance");
+    let snapshot = await demo.call<Snapshot>("snapshot");
+    snapshot.installation!.step = "health";
+    snapshot.installation!.deployment_status = undefined;
+    let failed = true;
+    const call = vi.fn(async (command: string) => {
+      if (command === "check_deployment")
+        snapshot = {
+          ...snapshot,
+          installation: {
+            ...snapshot.installation!,
+            step: failed ? "deployment" : "health",
+            deployment_status: failed ? "failed" : "ready",
+          },
+        };
+      return snapshot;
+    });
+    render(
+      <App
+        initialBridge={{
+          demo: false,
+          call: <T,>(command: string) => call(command) as Promise<T>,
+        }}
+      />,
+    );
+    await screen.findByRole("heading", {
+      name: "Checking your existing Vercel build",
+    });
+    expect(
+      screen.queryByRole("button", { name: /Open my app to sign in/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Vercel could not build your app" },
+        { timeout: 2500 },
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Open my app to sign in/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Vercel build status" }),
+    ).toHaveTextContent("Build Logs");
+    expect(
+      screen.getByRole("region", { name: "Vercel build status" }),
+    ).toHaveFocus();
+    failed = false;
+    await user.click(screen.getByRole("button", { name: "Check build again" }));
+    expect(
+      await screen.findByRole("button", { name: /Open my app to sign in/ }),
+    ).toBeEnabled();
+    expect(call.mock.calls.some(([command]) => command === "advance")).toBe(
+      false,
+    );
   });
   it("keeps a failed secret replacement unsaved even after clearing its input", async () => {
     const user = userEvent.setup();
@@ -433,7 +882,7 @@ describe("owner-facing setup", () => {
   });
 });
 
-async function googleDemo() {
+async function googleDemo(audience = "external_testing") {
   const demo = await selectedDemo();
   for (let i = 0; i < 3; i++) await demo.call("advance");
   await demo.call("set_google", {
@@ -441,11 +890,20 @@ async function googleDemo() {
       project_id: "demo-google-project",
       client_id: "demo.apps.googleusercontent.com",
       api_enabled_confirmed: true,
-      consent_published_confirmed: true,
-      audience: "internal",
+      consent_published_confirmed: audience !== "external_testing",
+      testing_access_confirmed: audience === "external_testing",
+      audience,
     },
   });
   return demo;
+}
+
+async function chooseTesting(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("checkbox", {
+      name: /I added owner@example.test as a Google test user/,
+    }),
+  );
 }
 
 async function selectedDemo() {

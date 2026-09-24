@@ -13,7 +13,7 @@ use villow_setup::{
 };
 
 struct Recorder {
-    responses: RefCell<VecDeque<Value>>,
+    responses: RefCell<VecDeque<Result<Value>>>,
     calls: RefCell<
         Vec<(
             Provider,
@@ -27,7 +27,7 @@ struct Recorder {
 impl Recorder {
     fn new(responses: Vec<Value>) -> Self {
         Self {
-            responses: RefCell::new(responses.into()),
+            responses: RefCell::new(responses.into_iter().map(Ok).collect()),
             calls: RefCell::new(vec![]),
         }
     }
@@ -55,7 +55,7 @@ impl Api for Recorder {
         self.responses
             .borrow_mut()
             .pop_front()
-            .ok_or(Error::Provider)
+            .ok_or(Error::Provider)?
     }
     fn upload(&self, _t: &str, _a: &str, _b: &[u8]) -> Result<String> {
         Ok("a".repeat(40))
@@ -78,6 +78,240 @@ fn credentials(s: &Installation) -> MemoryVault {
     v.put(&s.id, "supabase_token", "SENTINEL-SUPABASE").unwrap();
     v.put(&s.id, "db_password", "SENTINEL-DATABASE").unwrap();
     v
+}
+
+#[test]
+fn deployment_status_requires_owned_ready_build_and_exact_saved_address() {
+    let r = verified();
+    let mut s = installation(&r);
+    s.vercel = Some(Resource {
+        id: "prj_1".into(),
+        account_id: "team_1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "created".into(),
+    });
+    s.deployment_id = Some("dpl_1".into());
+    s.origin = Some(format!("https://{}.vercel.app", s.name));
+    let vault = credentials(&s);
+    let response = json!({"id":"dpl_1", "projectId":"prj_1", "target":"production",
+        "meta":{"villowOperation":s.operation_id,"villowRelease":r.digest},
+        "readyState":"READY", "aliasError":null,
+        "errorMessage":"SENTINEL-PRIVATE-PROVIDER-TEXT"});
+    for (remote, expected) in [
+        ("QUEUED", DeploymentStatus::Queued),
+        ("INITIALIZING", DeploymentStatus::Queued),
+        ("NOT_BUILT", DeploymentStatus::Queued),
+        ("BUILDING", DeploymentStatus::Building),
+        ("ERROR", DeploymentStatus::Failed),
+        ("CANCELED", DeploymentStatus::Canceled),
+    ] {
+        let mut value = response.clone();
+        value["readyState"] = remote.into();
+        let api = Recorder::new(vec![value]);
+        let p = LiveProviders {
+            http: &api,
+            vault: &vault,
+        };
+        let result = p.deployment_status(&s, &r).unwrap();
+        assert_eq!(result, expected);
+        assert!(!serde_json::to_string(&result).unwrap().contains("SENTINEL"));
+        assert_eq!(api.calls.borrow().len(), 1);
+    }
+    for (aliases, expected) in [
+        (json!({"aliases":[]}), DeploymentStatus::AssigningAddress),
+        (
+            json!({"aliases":[{"alias":"other.vercel.app"}]}),
+            DeploymentStatus::AssigningAddress,
+        ),
+        (
+            json!({"aliases":[{"alias":format!("{}.vercel.app",s.name)}]}),
+            DeploymentStatus::Ready,
+        ),
+    ] {
+        let api = Recorder::new(vec![response.clone(), aliases]);
+        let p = LiveProviders {
+            http: &api,
+            vault: &vault,
+        };
+        assert_eq!(p.deployment_status(&s, &r).unwrap(), expected);
+        assert!(api
+            .calls
+            .borrow()
+            .iter()
+            .all(|call| call.1 == Method::GET
+                && call.3.contains(&("teamId".into(), "team_1".into()))));
+        assert_eq!(api.calls.borrow()[1].2, "/v2/deployments/dpl_1/aliases");
+    }
+    for field in ["id", "projectId", "target"] {
+        let mut wrong = response.clone();
+        wrong[field] = "wrong".into();
+        let api = Recorder::new(vec![wrong]);
+        assert_eq!(
+            LiveProviders {
+                http: &api,
+                vault: &vault
+            }
+            .deployment_status(&s, &r),
+            Err(Error::WrongTarget)
+        );
+    }
+    for field in ["villowOperation", "villowRelease"] {
+        let mut wrong = response.clone();
+        wrong["meta"][field] = "wrong".into();
+        let api = Recorder::new(vec![wrong]);
+        assert_eq!(
+            LiveProviders {
+                http: &api,
+                vault: &vault
+            }
+            .deployment_status(&s, &r),
+            Err(Error::WrongTarget)
+        );
+    }
+    let mut failed = response;
+    failed["aliasError"] = json!({"message":"SENTINEL"});
+    let api = Recorder::new(vec![failed]);
+    assert_eq!(
+        LiveProviders {
+            http: &api,
+            vault: &vault
+        }
+        .deployment_status(&s, &r)
+        .unwrap(),
+        DeploymentStatus::AddressFailed
+    );
+}
+
+#[test]
+fn session_pooler_is_discovered_from_the_selected_project_without_exposing_connection_strings() {
+    let mut s = installation(&verified());
+    s.database = Some(Resource {
+        id: "abcdefghijklmnopqrst".into(),
+        account_id: "org1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "created".into(),
+    });
+    let vault = credentials(&s);
+    let response = json!([{
+        "database_type": "PRIMARY", "db_name": "postgres",
+        "db_host": "aws-1-ap-southeast-2.pooler.supabase.com",
+        "db_user": "postgres.abcdefghijklmnopqrst",
+        "db_port": 6543, "pool_mode": "transaction",
+        "connection_string": "SENTINEL-DO-NOT-USE"
+    }]);
+    let api = Recorder::new(vec![response.clone()]);
+    let provider = LiveProviders {
+        http: &api,
+        vault: &vault,
+    };
+    let connection = provider.database_connection(&s).unwrap();
+    assert_eq!(connection.host, "aws-1-ap-southeast-2.pooler.supabase.com");
+    assert_eq!(connection.user, "postgres.abcdefghijklmnopqrst");
+    assert_eq!(api.calls.borrow()[0].1, Method::GET);
+    assert_eq!(
+        api.calls.borrow()[0].2,
+        "/v1/projects/abcdefghijklmnopqrst/config/database/pooler"
+    );
+    s.db_connection = Some(connection);
+    provider.database_connection(&s).unwrap();
+    assert_eq!(
+        api.calls.borrow().len(),
+        1,
+        "explicit saved settings must be preserved"
+    );
+    for (field, bad) in [
+        ("db_user", "postgres.otherproject"),
+        (
+            "db_host",
+            "aws-1-ap-southeast-2.pooler.supabase.com.evil.test",
+        ),
+        ("db_host", "db.abcdefghijklmnopqrst.supabase.co"),
+        ("db_name", "other_database"),
+        ("database_type", "READ_REPLICA"),
+    ] {
+        let mut tampered = response.clone();
+        tampered[0][field] = json!(bad);
+        assert_eq!(
+            villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &tampered)
+                .unwrap_err(),
+            Error::DatabasePooler
+        );
+    }
+    let ambiguous = json!([response[0].clone(), response[0].clone()]);
+    assert!(
+        villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &ambiguous)
+            .is_err()
+    );
+    assert!(
+        villow_setup::providers::session_pooler_connection("abcdefghijklmnopqrst", &json!([]))
+            .is_err()
+    );
+}
+
+#[test]
+fn account_access_refusals_identify_the_exact_check_without_exposing_secrets() {
+    let s = installation(&verified());
+    let v = credentials(&s);
+    for (index, expected, provider, path) in [
+        (0, Error::VercelIdentityAccess, "Vercel", "/v2/user"),
+        (1, Error::VercelTeamsAccess, "Vercel", "/v2/teams"),
+        (2, Error::SupabaseIdentityAccess, "Supabase", "/v1/profile"),
+        (
+            3,
+            Error::SupabaseOrganizationsAccess,
+            "Supabase",
+            "/v1/organizations",
+        ),
+    ] {
+        let api = Recorder::new(account_responses());
+        api.responses.borrow_mut()[index] = Err(Error::Authentication);
+        let error = LiveProviders {
+            http: &api,
+            vault: &v,
+        }
+        .accounts(&s)
+        .unwrap_err();
+        assert_eq!(error, expected);
+        let message = error.to_string();
+        assert!(message.starts_with(provider));
+        assert!(message.contains(path));
+        assert!(!message.contains("SENTINEL"));
+        assert!(!serde_json::to_string(&error).unwrap().contains("SENTINEL"));
+        let calls = api.calls.borrow();
+        assert_eq!(calls.len(), index + 1);
+        assert!(calls
+            .iter()
+            .all(|call| call.1 == Method::GET && call.4.is_none()));
+    }
+}
+
+#[test]
+fn account_access_context_does_not_mislabel_other_errors_as_bad_tokens() {
+    let s = installation(&verified());
+    let v = credentials(&s);
+    for failure in [
+        Error::Offline,
+        Error::RateLimited,
+        Error::WrongTarget,
+        Error::Provider,
+        Error::Uncertain,
+    ] {
+        for index in 0..4 {
+            let api = Recorder::new(account_responses());
+            api.responses.borrow_mut()[index] = Err(failure.clone());
+            assert_eq!(
+                LiveProviders {
+                    http: &api,
+                    vault: &v
+                }
+                .accounts(&s)
+                .unwrap_err(),
+                failure
+            );
+        }
+    }
 }
 #[test]
 fn wrong_principal_is_rejected_using_real_adapter_response_shapes() {

@@ -112,6 +112,12 @@ pub struct Manifest {
     pub channel: String,
     pub minimum_manager: String,
     pub upgrade_from: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fresh_retry_from: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub installed_repairs: Vec<InstalledRepair>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub app_updates: Vec<crate::update_contract::Plan>,
     pub archive_url: String,
     pub archive_sha256: String,
     pub archive_size: u64,
@@ -151,6 +157,17 @@ pub struct Migration {
     pub postcondition: String,
     pub prerequisite: Option<String>,
     pub transactional: bool,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InstalledRepair {
+    pub id: String,
+    pub from_manifest_sha256: String,
+    pub from_schema_revision: String,
+    pub file: String,
+    pub postcondition: String,
+    pub transactional: bool,
+    pub backup_required: bool,
 }
 // Only release authentication constructs this capability in production code.
 #[derive(Clone)]
@@ -233,6 +250,12 @@ pub fn verify_bundle(
     let manifest: Manifest = serde_json::from_slice(manifest_bytes).map_err(|_| Error::Release)?;
     validate_manifest(&manifest, trust)?;
     if manifest.app_version != pointer.version
+        || manifest.fresh_retry_from.contains(&digest)
+        || manifest.upgrade_from.contains(&digest)
+        || manifest
+            .installed_repairs
+            .iter()
+            .any(|r| r.from_manifest_sha256 == digest)
         || manifest.channel != channel.channel
         || archive.len() as u64 != manifest.archive_size
         || hash(archive) != manifest.archive_sha256
@@ -246,6 +269,13 @@ pub fn verify_bundle(
                 .map_err(|_| Error::Release)?,
         )?;
     }
+    for repair in &manifest.installed_repairs {
+        crate::sql_guard::validate_transactional(
+            std::str::from_utf8(files.get(&repair.file).ok_or(Error::Release)?)
+                .map_err(|_| Error::Release)?,
+        )?;
+    }
+    crate::update_contract::validate_files(&manifest, &files)?;
     Ok(VerifiedRelease {
         manifest,
         digest,
@@ -253,6 +283,47 @@ pub fn verify_bundle(
     })
 }
 pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
+    crate::update_contract::validate_manifest(m)?;
+    if m.installed_repairs.len() > 1 {
+        return Err(Error::Release);
+    }
+    for repair in &m.installed_repairs {
+        if repair.id != "villow-installed-159"
+            || !is_hash(&repair.from_manifest_sha256)
+            || repair.from_schema_revision != "villow-fresh-158"
+            || m.schema.revision != "villow-fresh-159"
+            || repair.file != "migrations/repair-159.sql"
+            || repair.postcondition != "migrations/postcondition.sql"
+            || !repair.transactional
+            || !repair.backup_required
+            || !m.fresh_retry_from.is_empty()
+            || !m.upgrade_from.is_empty()
+            || semver::Version::parse(&m.minimum_manager).map_err(|_| Error::Release)?
+                < semver::Version::new(0, 1, 3)
+            || m.files.get(&repair.file).is_none_or(|f| f.role != "repair")
+            || m.files
+                .get(&repair.postcondition)
+                .is_none_or(|f| f.role != "postcondition")
+            || m.schema
+                .migrations
+                .last()
+                .is_none_or(|unit| unit.postcondition != repair.postcondition)
+        {
+            return Err(Error::Release);
+        }
+    }
+    let retry_sources: BTreeSet<_> = m.fresh_retry_from.iter().collect();
+    if retry_sources.len() != m.fresh_retry_from.len()
+        || retry_sources.len() > 8
+        || retry_sources.iter().any(|digest| !is_hash(digest))
+        || (!retry_sources.is_empty()
+            && (m.schema.kind != "fresh_baseline" || !m.upgrade_from.is_empty()))
+        || (!retry_sources.is_empty()
+            && semver::Version::parse(&m.minimum_manager).map_err(|_| Error::Release)?
+                < semver::Version::new(0, 1, 1))
+    {
+        return Err(Error::Release);
+    }
     trust.artifact_url(&m.archive_url)?;
     if m.format != 1
         || m.bootstrap_contract != 1
@@ -269,7 +340,6 @@ pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
         || m.files.len() > 15000
         || m.schema.kind != "fresh_baseline"
         || m.schema.migrations.is_empty()
-        || !m.upgrade_from.is_empty()
         || m.backup_required
         || m.install_command != "npm ci"
         || m.build_command != "npm run build"
@@ -337,21 +407,43 @@ pub fn validate_manifest(m: &Manifest, trust: &Trust) -> Result<()> {
         validate_path(path)?;
         if f.size > MAX_FILE
             || !is_hash(&f.sha256)
-            || !["deploy", "migration", "postcondition"].contains(&f.role.as_str())
+            || ![
+                "deploy",
+                "migration",
+                "postcondition",
+                "repair",
+                "update",
+                "update_precondition",
+                "backup_descriptor",
+            ]
+            .contains(&f.role.as_str())
+            || (f.role == "repair" && !m.installed_repairs.iter().any(|r| &r.file == path))
         {
             return Err(Error::Release);
         }
         if f.role == "deploy" {
-            if path.starts_with("migrations/") || path.ends_with(".sql") {
+            if path.starts_with("migrations/")
+                || path.starts_with("updates/")
+                || path.ends_with(".sql")
+            {
                 return Err(Error::Release);
             }
-        } else if !path.starts_with("migrations/") || !path.ends_with(".sql") {
+        } else if ["update", "update_precondition", "backup_descriptor"].contains(&f.role.as_str())
+        {
+            if !crate::update_contract::referenced_file(m, path, &f.role) {
+                return Err(Error::Release);
+            }
+        } else if !(path.starts_with("migrations/")
+            || (f.role == "postcondition"
+                && crate::update_contract::referenced_file(m, path, &f.role)))
+            || !path.ends_with(".sql")
+        {
             return Err(Error::Release);
         }
     }
     Ok(())
 }
-fn is_hash(s: &str) -> bool {
+pub(crate) fn is_hash(s: &str) -> bool {
     s.len() == 64
         && s.bytes()
             .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))

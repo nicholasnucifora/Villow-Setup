@@ -176,6 +176,7 @@ fn credentials_cannot_follow_redirects_or_change_hosts() {
         assert_eq!(check_status(status), Err(Error::WrongTarget))
     }
     assert_eq!(check_status(401), Err(Error::Authentication));
+    assert_eq!(check_status(403), Err(Error::Authentication));
     assert_eq!(check_status(429), Err(Error::RateLimited));
     assert!(
         validate_release_destination(&"https://github.com.evil.test/steal".parse().unwrap())

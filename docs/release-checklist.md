@@ -1,10 +1,46 @@
 # Villow Setup: maintainer release checklist
 
+## Completed-installation updater — Alpha 0.2.0 candidate
+
+The maintainer authorized compatible app updates and web-task coordination.
+The new [updater contract](app-updater.md) supersedes v1's no-upgrade boundary
+only for exact signed plans. Preserve genuine trust and unfinished qualification.
+Before releasing this candidate, require UI/build/profile/security checks, full
+native tests (including Windows-vault tests), `managed_update_backup`, and the
+web-owned paired updater runner on clean exact commits. The paired runner must
+observe the named protocol test, lifecycle marker and stopped disposable cluster.
+No new genuine app release, live update/restore, Windows signing or publication
+is authorized by passing synthetic tests. Record the actual installer hash and
+source separately; the existing app remains on its published version.
+
+## Temporary repair protection — manager 0.1.5, 2026-09-23
+
+The maintainer requested automatic temporary protection instead of a password
+and portable file on every repair. The new native lifecycle retains the copy
+after failure/interruption and removes only its own managed copy/key after
+durable authenticated success. Old portable backups remain retained. Genuine
+app 0.1.2, SQL and trust remain unchanged; no signing/publication is needed.
+Exact source/paired-check results and installer identity belong in the generated
+0.1.5 build receipt. Real-account repair is the maintainer's next manual test;
+no reset, new resources or developer signing passphrase is part of it.
+
 Started 2026-09-20. This is the ongoing backlog for the developer and both repository agents. It is separate from the machine-enforced [qualification record](qualification.json). Leave items open until there is dated evidence for the relevant candidate; local mocks, historical passes and moving repositories do not complete a real release gate.
 
 **Owners:** “You” means the maintainer; “Setup agent” works in `nicholasnucifora/Villow-Setup`; “web agent” works in `nicholasnucifora/Villow` (the local `disconnect` project). Both agents can continue implementation in separate repos. You need not keep the projects nested or translate this checklist into code yourself.
 
 ## Published app / configured Alpha follow-up — 2026-09-21
+
+**2026-09-22 installed Alpha repair candidate:** Manager 0.1.3 implements the agreed separate repair flow and app-owned fixture verifier. Local tests pass for native ownership/history/SQL atomicity, saved intent, uncertain deployment resume and existing data preservation; the actual old release to early corrected app fixture also passed. The counterpart is fixing the JSON import, two absent watch-time fields and an obsolete schedule write in app 0.1.2. Final paired qualification, signed corrected release/publication, owner backup and live execution remain pending. See [repair evidence](security-evidence.md) and [the contract](villow-integration-contract.md).
+
+**2026-09-22 hosted onboarding failure:** The maintainer confirms the Vercel site became available and adding their Google account to Test users allowed them to reach `/setup`. Their Vercel logs then show a settings-function JSON import failure and a watch-time query for a missing database column. Inspection of the exact published 0.1.1 archive confirms the invalid bare JSON import and the baseline's omission of `daily_watch_time_seconds` and `daily_watch_reset_at`. A local isolated Node 22 import probe reproduces the import error. These require app-owned fixes and a reviewed continuation plan for an already installed database; the pre-installation correction flow cannot apply. See [the concrete web-app handoff](hosted-setup-failure-handoff.md). No runtime, cloud, database or published release was changed, and full onboarding/health qualification remains open.
+
+**2026-09-22 published correction and deployment follow-up:** The genuine 0.1.1 release and channel sequence 2 were published with owner approval; anonymous canonical downloads and Setup native authentication passed. The original 0.1.0 pointer/assets remain supported. The maintainer subsequently reports database preparation succeeded. Full installation remains unfinished: the next reported failure is Vercel DEPLOYMENT_NOT_FOUND. Setup 0.1.2 now gates sign-in on actual build readiness and exact address assignment, polls the saved deployment without recreating it, and exposes clear progress/failure states. See [current evidence](security-evidence.md). The actual build log and real sign-in/health results remain required. Channel renewal is due **28 September 2026 at 8:20 pm Brisbane**; automatic renewal remains unconfigured. Older dated records below describe earlier candidates.
+
+**2026-09-22 postcondition investigation:** The maintainer's latest retry reports release unit 1's false result check. Exact published SQL was reproduced in disposable local PostgreSQL: automatic API-role grants alone change the access fingerprints and fail both the signed check and hosted probe; the same SQL passes with plain defaults. The web-app agent is preparing the app-owned fix after its pending read-only comparison was approved. A new release alone cannot repin the existing unfinished installation; authenticated continuation remains joint work. See [the investigation and evidence](database-release-investigation.md). No user database or published artifact was changed.
+
+**2026-09-22 database-review follow-up:** The maintainer's later SchemaDrift message occurred after connection and could also mean release SQL failed. This candidate adds bounded phase/unit/SQLSTATE diagnostics and distinguishes pre-installation object counts and incomplete history without weakening any write gate. The supplied Session pooler screenshot and explanation of Setup's generated/saved database password are inline. Thirty UI tests, 43 ordinary native tests and five disposable local PostgreSQL tests passed. The actual provider failure is not yet diagnosed; maintainer retry and new paired qualification remain open. Exact candidate/build identity belongs in the build receipt.
+
+**2026-09-22 follow-up:** Testing-only Google instructions now show all four supplied guide images inline. Database preparation now discovers the session pooler through the authenticated project API and trusts the official Supabase root certificate only in its native TLS connector, with safe diagnostic categories and visible manual recovery. Local UI/native/profile/packaging checks passed; this does not establish that the reported real database failure is resolved. A new paired rerun is required for this candidate; the web task's earlier rerun is still waiting on approval. See the new build receipt for the exact candidate and current status. Public qualification flags remain unchanged.
 
 - [x] **Web-release maintainer:** Supply the genuine public key/key ID and publisher label, publish the immutable Villow 0.1.0 archive/manifest and signed channel, and report frozen-pair qualification (`1c6f949a3c0bc1b33f289b9684fa6ae84be766f4` web / `d01c07d012a961e008a733b9b22058e4421360b3` Setup). Publication and public repository visibility were owner-approved.
 - [x] **Setup agent:** Independently download all three assets without authentication, verify the signature/expiry and expected hashes, embed exactly the supplied public trust, and authenticate the release using the existing native manager twice across reopened local stores. Preserve false public-qualification flags.
@@ -92,6 +128,24 @@ If deploying the new auth/session code to an existing web instance, the **web ag
 - [ ] **You + both agents:** Maintain signing/account access, dependencies/security findings, provider API/OAuth changes, supported Windows/WebView2 behavior, compatibility pins and release evidence. Coordinate changes to manifest/schema/health/auth/environment contracts before shipping either side. Treat automatic updates/upgrades as future design work, not existing functionality.
 
 ## Progress and coordination record
+
+### 2026-09-22 — continue prototype setup in actual Google External Testing
+
+The maintainer confirmed External Testing is their existing prototype workflow after Google blocked publication on production Branding configuration. Setup now records explicit test-user/seven-day acknowledgment and accepts actual Testing at the native Google gate without claiming publication. Older checkpoints default the new acknowledgment to false. New-user UI follows External; saved Internal configurations remain compatible. The two supplied scope screenshots and exact-scope clipboard shortcut are included. Production branding needs real instance pages and remains a later, separate action.
+
+Passed: dependency install/check/build, 29 UI tests, 38 native tests, all frontend profiles, five packaging tests and security scan. Paired qualification is being coordinated with the web-release task; record exact source pairing/results in the receipt. Real Google sign-in, refresh behavior and full provider/recovery/public qualification remain pending. No provider tokens, real database or computer-use tools were used for automated checks.
+
+### 2026-09-22 — legacy token confirmed and Google walkthrough clarified
+
+**Owner:** Setup agent. The maintainer reported Supabase profile refusal with the scoped token, then successful account connection using a legacy replacement. Token guidance now documents that exact path and its broad account scope. Database-region meaning, five Google steps, Web application/client name, audience/status distinctions, one-time credential capture and adjacent copy feedback are implemented. Source/runtime schemas, cloud requests, trust and app contracts are unchanged; the native refusal message was updated to match the guidance.
+
+**Passed:** dependency install/check/build, 26 UI tests, 36 ordinary native tests with normal Windows vault access, three frontend profiles, five packaging tests and security scan. **Pending:** manual review of the rebuilt Alpha and the remaining real installation/Google sign-in/recovery checks. No computer use was performed. This UI revision does not inherit full paired qualification from the original candidate; public flags stay unchanged. The returned receipt identifies the new source and unsigned installer.
+
+### 2026-09-22 — diagnose account refusal without guessing token scope
+
+**Owner:** Setup agent. The maintainer encountered the generic authentication error while entering the Supabase token. The actual rejected provider/check remains unknown. Account discovery now reports one of four fixed Vercel/Supabase identity/list checks, preserving rejection and omitting raw provider bodies. No permission was broadened and no identity check was bypassed. The pre-creation error footer now describes the read-only account connection stage. See [security evidence](security-evidence.md#account-access-refusal-diagnostics--2026-09-22).
+
+**Passed:** dependency install/check/build, 23 UI and 36 native tests, all frontend profiles, five packaging tests and security scan. **Pending:** maintainer retry with saved tokens in the rebuilt Alpha and the exact provider/check from the resulting message, followed by any evidence-based adapter or token-guidance correction. Full paired qualification was not rerun; signing/public qualification flags remain unchanged. No computer use or real account access was performed. New installer identity is in the returned diagnostic build receipt.
 
 ### 2026-09-22 — account/token sequence and scoped-token guidance
 

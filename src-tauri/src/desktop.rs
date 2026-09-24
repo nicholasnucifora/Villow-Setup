@@ -40,6 +40,42 @@ async fn check_release(
     work(app, &gate, |m| m.check_release()).await
 }
 #[tauri::command]
+async fn check_fresh_retry(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, |m| m.check_fresh_retry()).await
+}
+#[tauri::command]
+async fn check_app_update(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, |m| m.check_app_update()).await
+}
+#[tauri::command]
+async fn update_app(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, move |m| m.update_app(digest)).await
+}
+#[tauri::command]
+async fn use_fresh_retry(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, move |m| m.use_fresh_retry(digest)).await
+}
+#[tauri::command]
 async fn start_installation(
     app: AppHandle,
     gate: State<'_, Gate>,
@@ -48,6 +84,38 @@ async fn start_installation(
     digest: String,
 ) -> std::result::Result<Snapshot, String> {
     work(app, &gate, move |m| m.start(name, email, digest)).await
+}
+#[tauri::command]
+async fn check_installed_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, |m| m.check_installed_repair()).await
+}
+#[tauri::command]
+async fn apply_installed_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, move |m| m.apply_installed_repair(digest)).await
+}
+#[tauri::command]
+async fn backup_and_repair(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, move |m| m.backup_and_repair(digest)).await
 }
 #[tauri::command]
 async fn save_credentials(
@@ -93,6 +161,13 @@ async fn set_database_connection(
         m.database_connection(connection, password)
     })
     .await
+}
+#[tauri::command]
+async fn check_deployment(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    work(app, &gate, |m| m.check_deployment()).await
 }
 #[tauri::command]
 async fn advance(app: AppHandle, gate: State<'_, Gate>) -> std::result::Result<Snapshot, String> {
@@ -200,6 +275,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             snapshot,
             check_release,
+            check_fresh_retry,
+            use_fresh_retry,
+            check_installed_repair,
+            check_app_update,
+            update_app,
+            apply_installed_repair,
+            backup_and_repair,
             start_installation,
             save_credentials,
             discover_accounts,
@@ -207,6 +289,7 @@ pub fn run() {
             set_google,
             set_database_connection,
             advance,
+            check_deployment,
             reconcile_created,
             open_step,
             export_recovery,

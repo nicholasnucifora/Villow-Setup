@@ -72,5 +72,6 @@ fn failed_upload_is_retryable_without_an_uncertain_deployment() {
     let saved = store.load().unwrap().unwrap();
     assert!(!saved.effects.contains_key("deploy"));
     assert!(fake.read().deployment.is_none());
-    assert_eq!(e.advance(&r).unwrap().step, Step::Health);
+    assert_eq!(e.advance(&r).unwrap().step, Step::Deployment);
+    assert_eq!(e.check_deployment(&r).unwrap().step, Step::Health);
 }

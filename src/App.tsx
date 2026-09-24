@@ -15,7 +15,12 @@ import { nativeBridge } from "./bridge";
 import { AccountGuide, ProviderAccountGuide, providers } from "./AccountGuide";
 import { TokenGuide, TokenExpiry } from "./TokenGuide";
 import { GuideImage } from "./GuideImage";
+import { CopyAddress } from "./CopyAddress";
+import { GoogleScopes } from "./GoogleScopes";
 import { ReconciliationForm } from "./ReconciliationForm";
+import { DeploymentStep, LaunchProgress } from "./LaunchProgress";
+import { InstalledRepair } from "./InstalledRepair";
+import { AppUpdates } from "./AppUpdates";
 import type {
   Accounts,
   Bridge,
@@ -24,6 +29,7 @@ import type {
   Snapshot,
   Step,
 } from "./types";
+import villowMark from "./assets/brand/villow-mark-on-dark.svg";
 
 const TestingTools = __TESTING_TOOLS__
   ? lazy(() => import("./TestingTools"))
@@ -122,6 +128,8 @@ export function App({
   const [bridge, setBridge] = useState<Bridge>(initialBridge);
   const [data, setData] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [activity, setActivity] = useState("Working on your setup");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [accounts, setAccounts] = useState<Accounts | null>(null);
@@ -134,7 +142,13 @@ export function App({
   const errorRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const recoveryRef = useRef<HTMLElement>(null);
-  const s = data?.installation;
+  const savedInstallation = data?.installation;
+  // Older Alphas reached Health when a build was merely accepted. Recheck it.
+  const s =
+    savedInstallation?.step === "health" &&
+    savedInstallation.deployment_status !== "ready"
+      ? { ...savedInstallation, step: "deployment" as const }
+      : savedInstallation;
   const screen = data
     ? `${s?.id ?? "welcome"}:${s?.read_only ? "recovered" : (s?.step ?? `guide-${guidePage}`)}`
     : null;
@@ -178,12 +192,15 @@ export function App({
     };
   }, [bridge]);
   const run = async (fn: () => Promise<void>) => {
-    if (busy) return;
+    if (busyRef.current) return false;
+    busyRef.current = true;
+    setActivity("Working on your setup");
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await fn();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       try {
@@ -191,23 +208,53 @@ export function App({
       } catch {
         /* Keep the last visible checkpoint. */
       }
+      return false;
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
   const action: Action = (command, args, onSuccess) =>
     run(async () => {
-      setData(await bridge.call<Snapshot>(command, args));
+      setActivity(operationTitle(command, s));
+      const next = await bridge.call<Snapshot>(command, args);
+      if (
+        command === "backup_and_repair" &&
+        !next.installation?.installed_repair
+      ) {
+        setData((previous) => ({
+          ...next,
+          installed_repair: previous?.installed_repair,
+        }));
+        setNotice(next.message);
+      } else setData(next);
+      if (
+        command === "advance" &&
+        s?.step === "configuration" &&
+        next.installation?.step === "deployment"
+      )
+        setNotice(
+          "Your services are connected. Next, build your app on Vercel below.",
+        );
       onSuccess?.();
     });
-  const open = (step: string) =>
+  const correctAndPrepare = (digest: string) =>
     run(async () => {
+      setActivity("Applying the verified database fix");
+      setData(await bridge.call<Snapshot>("use_fresh_retry", { digest }));
+      setActivity("Preparing and checking your database");
+      setData(await bridge.call<Snapshot>("advance"));
+    });
+  const open = async (step: string) => {
+    await run(async () => {
+      setActivity("Opening your browser");
       await bridge.call("open_step", { step });
       if (__TESTING_TOOLS__ && bridge.demo)
         setNotice(
           "Demo: this button opens the official service in your system browser in the desktop app.",
         );
     });
+  };
   const advance = () => action("advance");
   const stage =
     s?.step === "complete"
@@ -217,9 +264,7 @@ export function App({
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            v
-          </span>
+          <img src={villowMark} alt="" width={39} height={44} />
           <div>
             villow<span>SETUP</span>
           </div>
@@ -322,8 +367,9 @@ export function App({
               <strong>This step needs attention</strong>
               <p>{error}</p>
               <small>
-                Saved resources remain in your account. Closing this window does
-                not remove them.
+                {s?.step === "projects" && !s.selection
+                  ? "Connecting accounts does not create cloud projects. Your saved setup is still here; correct the access and try again."
+                  : "Saved resources remain in your account. Closing this window does not remove them."}
               </small>
             </div>
           )}
@@ -333,10 +379,15 @@ export function App({
             </div>
           )}
           {busy && (
-            <div role="status" className="working">
-              <span className="spinner" />
-              Working on this step. Please leave the window open until it
-              returns.
+            <div role="status" className="operation-panel">
+              <span className="spinner" aria-hidden="true" />
+              <div>
+                <strong>{activity}</strong>
+                <p>
+                  Please keep Setup open. This panel disappears when the
+                  operation finishes.
+                </p>
+              </div>
             </div>
           )}
           {!data && !error && <p role="status">Opening your saved setup…</p>}
@@ -557,6 +608,33 @@ export function App({
                       </p>
                     </div>
                   )}
+                  {s.google?.audience === "external_testing" &&
+                    s.step !== "google" && (
+                      <aside
+                        className="guide-takeaway"
+                        aria-label="Google testing reminder"
+                      >
+                        <strong>
+                          You chose Google’s External Testing mode
+                        </strong>
+                        <p>
+                          If Google still shows Testing, only listed test users
+                          can sign in and Google access expires after seven
+                          days. Reconnect Google in Villow when needed. You can
+                          complete installation now and finish production
+                          branding later, once your website and policy pages are
+                          available.
+                        </p>
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => open("google_audience")}
+                        >
+                          Open Google Audience ↗
+                        </button>
+                      </aside>
+                    )}
                   {(s.step === "projects" || s.credentials_removed) && (
                     <AccountForm
                       bridge={bridge}
@@ -588,12 +666,23 @@ export function App({
                   )}
                   {s.step === "database" && (
                     <DatabaseStep
+                      offer={data?.fresh_retry}
+                      correctAndPrepare={correctAndPrepare}
+                      releaseMessage={data?.message ?? ""}
                       s={s}
                       busy={busy}
                       demo={__TESTING_TOOLS__ && bridge.demo}
                       action={action}
+                      open={open}
                     />
                   )}
+                  {[
+                    "configuration",
+                    "deployment",
+                    "health",
+                    "complete",
+                  ].includes(s.step) &&
+                    !s.installed_repair && <LaunchProgress s={s} />}
                   {s.step === "configuration" && (
                     <>
                       <p className="lead">Connect the services securely.</p>
@@ -615,50 +704,70 @@ export function App({
                     </>
                   )}
                   {s.step === "deployment" && (
-                    <>
-                      <p className="lead">
-                        Vercel will build the verified release in your account.
-                      </p>
-                      <p>
-                        This uses the pinned source archive, without linking a
-                        GitHub account. The app opens in a protected bootstrap
-                        state until the intended owner signs in.
-                      </p>
-                    </>
+                    <DeploymentStep
+                      s={s}
+                      busy={busy}
+                      action={action}
+                      open={open}
+                    />
                   )}
-                  {s.step === "health" && (
-                    <>
-                      <p className="lead">
-                        Sign in as {s.owner_email} to make this instance yours.
-                      </p>
-                      <p>
-                        Open your app in the system browser, complete Google
-                        sign-in, then return here. Setup checks the actual
-                        owner, schema, configuration and a bounded authenticated
-                        app operation.
-                      </p>
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => open("app")}
-                      >
-                        Open my app to sign in ↗
-                      </button>
-                      <p className="quiet">
-                        A successful build alone does not complete setup. Google
-                        publishing is your confirmation; provider and app checks
-                        are recorded separately.
-                      </p>
-                    </>
-                  )}
+                  {s.step === "health" &&
+                    !s.installed_repair &&
+                    !data?.installed_repair && (
+                      <>
+                        <p className="lead">
+                          Sign in as {s.owner_email} to make this instance
+                          yours.
+                        </p>
+                        <p>
+                          Open your app in the system browser, complete Google
+                          sign-in, then return here. Setup checks the actual
+                          owner, schema, configuration and a bounded
+                          authenticated app operation.
+                        </p>
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => open("app")}
+                        >
+                          Open my app to sign in ↗
+                        </button>
+                        <p className="quiet">
+                          Your build and website address are ready. Use the
+                          Google account you added as a test user, then return
+                          here to finish.
+                        </p>
+                      </>
+                    )}
+                  {__UNSIGNED_ALPHA__ &&
+                    ["health", "complete"].includes(s.step) && (
+                      <InstalledRepair
+                        s={s}
+                        offer={data?.installed_repair}
+                        message={data?.message ?? ""}
+                        busy={busy}
+                        action={action}
+                        open={open}
+                      />
+                    )}
                   {s.step === "complete" && (
                     <>
                       <p className="lead">
                         {__TESTING_TOOLS__ && bridge.demo
                           ? "The simulated checks passed. A real installation must pass them against your provider accounts and hosted app."
-                          : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
+                          : s.app_update && s.app_update.phase !== "complete"
+                            ? "An app update is in progress. Follow its progress below."
+                            : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
                       </p>
                       <div className="address">{s.origin}</div>
+                      {__UNSIGNED_ALPHA__ && (
+                        <AppUpdates
+                          s={s}
+                          result={data?.app_update}
+                          busy={busy}
+                          action={action}
+                        />
+                      )}
                       <p>
                         Only the owner needs Villow Setup. Your friends use your
                         hosted web address. Optional Google Tasks and Todoist
@@ -666,7 +775,13 @@ export function App({
                       </p>
                     </>
                   )}
-                  {s.step !== "google" &&
+                  {(!s.app_update || s.app_update.phase === "complete") &&
+                    s.step !== "google" &&
+                    (!s.installed_repair ||
+                      s.installed_repair.phase === "complete") &&
+                    !data?.installed_repair &&
+                    s.step !== "database" &&
+                    !(s.step === "deployment" && !!s.deployment_id) &&
                     (s.step !== "projects" || !!s.selection) &&
                     (!s.credentials_removed || s.step === "complete") && (
                       <div className="action-row">
@@ -827,10 +942,13 @@ export function App({
                   </button>
                   <h3>Maintenance</h3>
                   <p>
-                    Automated upgrades, repair and cloud removal are not
-                    available in this version. Use your provider dashboards to
-                    inspect resources, bills and backups. Uninstalling Setup
-                    does not close those accounts.
+                    {__UNSIGNED_ALPHA__
+                      ? "Supported app updates appear on the completed installation page. "
+                      : "App updates are available in the separate Alpha build. "}
+                    Cloud removal and restoring onto another computer require
+                    separate support. Use your provider dashboards to inspect
+                    resources, bills and backups. Uninstalling Setup does not
+                    close those accounts.
                   </p>
                   <div className="link-row">
                     {["vercel", "supabase", "google"].map((p) => (
@@ -864,7 +982,39 @@ type Action = (
   command: string,
   args?: Record<string, unknown>,
   onSuccess?: () => void,
-) => Promise<void>;
+) => Promise<boolean>;
+function operationTitle(command: string, s?: Installation | null): string {
+  if (command === "update_app")
+    return s?.app_update
+      ? "Updating and checking your app"
+      : "Saving and verifying your recovery copy";
+  if (command === "check_app_update")
+    return "Checking for a newer approved Villow release";
+  if (command === "backup_and_repair")
+    return "Protecting your data automatically, then starting the repair";
+  if (command === "check_installed_repair")
+    return "Checking the signed repair against your installed database";
+  if (command === "apply_installed_repair")
+    return s?.installed_repair?.phase === "verify"
+      ? "Checking the repaired website"
+      : "Repairing your installed app";
+  if (command === "check_deployment") return "Checking your Vercel build";
+  if (command === "check_fresh_retry")
+    return "Looking for a verified database fix";
+  if (command !== "advance") return "Saving and checking this step";
+  switch (s?.step) {
+    case "database":
+      return "Preparing and checking your database";
+    case "configuration":
+      return "Connecting your services securely";
+    case "deployment":
+      return "Uploading your app and requesting its Vercel build";
+    case "health":
+      return "Checking your sign-in and installation";
+    default:
+      return "Setting up your cloud project";
+  }
+}
 function ReleaseForm({
   bridge,
   data,
@@ -977,7 +1127,7 @@ function AccountForm({
   setAccounts: (v: Accounts) => void;
   refresh: (v: Snapshot) => void;
   action: Action;
-  run: (fn: () => Promise<void>) => Promise<void>;
+  run: (fn: () => Promise<void>) => Promise<boolean>;
   open: (s: string) => Promise<void>;
   reconnect?: boolean;
 }) {
@@ -1262,18 +1412,29 @@ function AccountForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Database region">
+              <Field
+                label="Database region"
+                hint="Where Supabase stores your Villow data. Choose the location nearest you and most of your friends; for Australia or New Zealand, choose Sydney. People elsewhere can still use your app."
+              >
                 <select
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
                 >
-                  <option value="ap-southeast-2">Sydney</option>
-                  <option value="us-east-1">US East</option>
-                  <option value="eu-west-1">Ireland</option>
-                  <option value="ap-southeast-1">Singapore</option>
+                  <option value="ap-southeast-2">Sydney · Australia</option>
+                  <option value="us-east-1">US East · Northern Virginia</option>
+                  <option value="eu-west-1">Ireland · Europe</option>
+                  <option value="ap-southeast-1">
+                    Singapore · Southeast Asia
+                  </option>
                 </select>
               </Field>
             </div>
+            <p className="quiet">
+              This Alpha supports these four database locations. Supabase has
+              other regions, but Setup does not offer them yet. This choice sets
+              the database location; it does not set the Vercel hosting region.
+              Setup cannot move the database after you confirm.
+            </p>
             <CheckBox checked={costs} onChange={setCosts}>
               These are my intended accounts. Creating projects can use my
               plan’s resources and incur charges; I have reviewed my provider
@@ -1328,30 +1489,30 @@ function GoogleForm({
   const [enabled, setEnabled] = useState(
       s.google?.api_enabled_confirmed ?? false,
     ),
-    [published, setPublished] = useState(
-      s.google?.consent_published_confirmed ?? false,
+    [configured, setConfigured] = useState(
+      s.google?.audience === "external_testing"
+        ? (s.google?.testing_access_confirmed ?? false)
+        : (s.google?.consent_published_confirmed ?? false),
     ),
     [audience, setAudience] = useState(
-      s.google?.audience ?? "external_production",
+      s.google?.audience ?? "external_testing",
     ),
-    [secretPending, setSecretPending] = useState(false),
-    [copied, setCopied] = useState("");
+    [testingConfirmed, setTestingConfirmed] = useState(
+      s.google?.testing_access_confirmed ?? false,
+    ),
+    [secretPending, setSecretPending] = useState(false);
+  const testing = audience === "external_testing";
+  const published = !testing && configured;
+  const testingAccess = testing && configured && testingConfirmed;
   const matchesSaved =
     !!s.google &&
     project === s.google.project_id &&
     client === s.google.client_id &&
     enabled === s.google.api_enabled_confirmed &&
     published === s.google.consent_published_confirmed &&
+    testingAccess === (s.google.testing_access_confirmed ?? false) &&
     audience === s.google.audience &&
     !secretPending;
-  const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied("Copied.");
-    } catch {
-      setCopied("Select and copy the address above.");
-    }
-  };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const google: Google = {
@@ -1360,6 +1521,7 @@ function GoogleForm({
       api_enabled_confirmed: enabled,
       audience,
       consent_published_confirmed: published,
+      testing_access_confirmed: testingAccess,
     };
     try {
       await action(
@@ -1377,203 +1539,361 @@ function GoogleForm({
   return (
     <section>
       <p className="lead">
-        Create or select your Google Cloud project, then configure sign-in and
-        YouTube access here. Your website address is now ready.
+        Follow these steps in the same Google Cloud project. You are setting up
+        Google sign-in for your hosted Villow website.
       </p>
+      <h2>1. Choose your Google Cloud project</h2>
       <ProviderAccountGuide page={2} busy={busy} open={open} />
-      <h2>Connect this Google project</h2>
-      <ol className="instructions">
-        <li>
+      <form onSubmit={submit}>
+        <Field
+          label="Google Cloud project ID"
+          hint="In Google Cloud, open the project selector at the top, or Cloud overview → Dashboard → Project info. Copy Project ID (for example my-villow-123456). The project name and numeric project number are different."
+        >
+          <input
+            required
+            autoComplete="off"
+            spellCheck={false}
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+          />
+        </Field>
+        <p className="quiet">
+          Enter this once here. These fields stay in this open form; click Save
+          my Google configuration in step 5 to save them before closing Setup.
+        </p>
+        <section className="google-step" aria-labelledby="google-api-title">
+          <h2 id="google-api-title">2. Enable YouTube access</h2>
           <button
-            className="text-button"
+            type="button"
+            className="secondary"
             disabled={busy}
             onClick={() => open("google_api")}
           >
             Enable YouTube Data API v3 ↗
           </button>
-          <p>An API key alone cannot authorize your private subscriptions.</p>
-        </li>
-        <li>
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => open("google_audience")}
-          >
-            Configure branding, audience and data access ↗
-          </button>
           <p>
-            Include the YouTube permission and identity scopes listed below. For
-            a personal external project, publish the audience when ready.
-            Publishing and Google verification are different processes.
+            Check the project selector still shows your Villow project, then
+            enable this API. An API key is not needed for this walkthrough.
           </p>
-        </li>
-        <li>
+          <CheckBox checked={enabled} onChange={setEnabled}>
+            I enabled YouTube Data API v3 in this Google project.
+          </CheckBox>
+        </section>
+        <section
+          className="google-step"
+          aria-labelledby="google-audience-title"
+        >
+          <h2 id="google-audience-title">
+            3. Set up External access for your prototype
+          </h2>
+          <p>
+            <b>External</b> means you can use personal Google accounts and
+            invite friends. <b>Testing</b> is its publishing status: only people
+            you add as test users can sign in. They are two settings, not
+            competing account types. You can finish this setup in Testing.
+          </p>
+          <ol className="instructions">
+            <li>
+              Open <b>Branding</b>. Use <b>My Villow</b> as the app name and
+              your own email for support and developer contact. Save changes.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_branding")}
+              >
+                Open Branding ↗
+              </button>
+            </li>
+            <li>
+              Open <b>Audience</b>. Check <b>User type</b> is <b>External</b>
+              and <b>Publishing status</b> is <b>Testing</b>.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_audience")}
+              >
+                Open Audience and test users ↗
+              </button>
+            </li>
+          </ol>
+          <h3>Add yourself as a test user</h3>
+          <ol className="instructions">
+            <li>
+              On Audience, scroll down past <b>OAuth user cap</b> to{" "}
+              <b>Test users</b>.
+            </li>
+            <li>
+              Click <b>+ Add users</b>, highlighted in the picture below.
+            </li>
+            <li>
+              In the panel that opens, enter <b>{s.owner_email}</b> — the Google
+              account you will use to sign in to Villow — and click <b>Save</b>.
+            </li>
+            <li>
+              Check that your email now appears in the <b>Test users</b> table.
+              You can add friends’ Google email addresses the same way before
+              they sign in.
+            </li>
+          </ol>
+          <GuideImage name="google-audience" />
+          <p className="quiet">
+            Leave status as Testing. A disabled Publish app button or a message
+            about completing Branding does not block this walkthrough.
+          </p>
+          <ol className="instructions">
+            <li>
+              Open <b>Data Access</b> in the same project and follow the scope
+              instructions below.
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => open("google_scopes")}
+              >
+                Open Data Access ↗
+              </button>
+            </li>
+          </ol>
+          <GoogleScopes scopes={s.google_scopes} busy={busy} />
+          {testing && (
+            <div className="guide-takeaway">
+              <strong>Testing is enough to continue</strong>
+              <p>
+                Google allows up to 100 listed test users. With Villow’s YouTube
+                permissions, Google access expires after seven days from
+                consent, so you will need to reconnect Google in Villow. This
+                does not mean recreating cloud projects or generating a new
+                OAuth client.
+              </p>
+              <CheckBox
+                checked={testingConfirmed}
+                onChange={setTestingConfirmed}
+              >
+                I added {s.owner_email} as a Google test user and understand
+                that I may need to reconnect Google after seven days.
+              </CheckBox>
+            </div>
+          )}
+          {!testing && (
+            <div className="guide-takeaway">
+              <strong>Previously saved Google configuration</strong>
+              <p>
+                Your saved audience is{" "}
+                {audience === "internal"
+                  ? "Internal"
+                  : "External / In production"}
+                . Setup has kept it unchanged. This walkthrough uses External /
+                Testing. If you have changed those settings in Google, confirm
+                that below.
+              </p>
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setAudience("external_testing");
+                  setConfigured(false);
+                  setTestingConfirmed(false);
+                }}
+              >
+                I changed Google to External / Testing
+              </button>
+            </div>
+          )}
+        </section>
+        <section className="google-step" aria-labelledby="google-client-title">
+          <h2 id="google-client-title">
+            4. Create the website’s Google sign-in client
+          </h2>
           <button
-            className="text-button"
+            type="button"
+            className="secondary"
             disabled={busy}
             onClick={() => open("google_client")}
           >
             Create a Web application OAuth client ↗
           </button>
-          <p>
-            Use these exact hosted addresses, then return with the client ID and
-            secret.
-          </p>
-        </li>
-      </ol>
-      <GuideImage name="google-oauth" />
-      <div className="copy-row">
-        <div>
-          <small>Authorized JavaScript origin</small>
-          <code>{s.origin}</code>
-        </div>
-        <button className="secondary" onClick={() => copy(s.origin ?? "")}>
-          Copy origin
-        </button>
-      </div>
-      <div className="copy-row">
-        <div>
-          <small>Authorized redirect URI</small>
-          <code>{s.origin}/api/auth</code>
-        </div>
-        <button
-          className="secondary"
-          onClick={() => copy(`${s.origin}/api/auth`)}
-        >
-          Copy callback
-        </button>
-      </div>
-      {copied && <p role="status">{copied}</p>}
-      <details>
-        <summary>Required Google permissions</summary>
-        <ul>
-          {s.google_scopes.map((scope) => (
-            <li key={scope}>
-              <code>{scope}</code>
+          <ol className="instructions">
+            <li>
+              In <b>Google Auth Platform → Clients</b>, select{" "}
+              <b>Create client</b>. For <b>Application type</b>, choose{" "}
+              <b>Web application</b>. Google sign-in runs on your Villow
+              website, so Web application is the right type even though you are
+              using this Windows installer.
             </li>
-          ))}
-        </ul>
-        <p>
-          The YouTube permission includes account write access used by Villow.
-          Google Tasks and Todoist are optional later. Gemini is not required.
-        </p>
-      </details>
-      <div className="alert">
-        <strong>Testing mode expires</strong>
-        <p>
-          With Villow’s YouTube permission, an external app left in Google’s
-          Testing mode typically loses refresh access after seven days.
-          Personal-use exceptions may apply to verification, but warning-free
-          access is not guaranteed.
-        </p>
-      </div>
-      <form onSubmit={submit}>
-        <div className="form-grid">
-          <Field
-            label="Google Cloud project ID"
-            hint="Copy Project ID from Project info in your Google Cloud dashboard. Use the ID, not the project name or number."
-          >
-            <input
-              required
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-            />
-          </Field>
-          <Field label="OAuth Web client ID">
-            <input
-              required
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-            />
-          </Field>
-          {!demo && (
-            <Field label="OAuth client secret">
+            <li>
+              For <b>Name</b>, enter <b>Villow Web</b>. This is a label to help
+              you find the client later.
+            </li>
+            <li>
+              Under <b>Authorized JavaScript origins</b>, choose <b>Add URI</b>.
+              Copy and paste this exact address:
+              <CopyAddress
+                label="Authorized JavaScript origin"
+                value={s.origin ?? ""}
+                buttonLabel="Copy origin"
+                disabled={busy}
+              />
+            </li>
+            <li>
+              Under <b>Authorized redirect URIs</b>, choose <b>Add URI</b>.
+              Paste this complete address, including <b>/api/auth</b>:
+              <CopyAddress
+                label="Authorized redirect URI"
+                value={s.origin ? s.origin + "/api/auth" : ""}
+                buttonLabel="Copy callback"
+                disabled={busy}
+              />
+            </li>
+            <li>
+              Select <b>Create</b>. Keep the “OAuth client created” dialog open
+              while you complete step 5 below.
+            </li>
+          </ol>
+          <GuideImage name="google-oauth" />
+        </section>
+        <section className="google-step" aria-labelledby="google-save-title">
+          <h2 id="google-save-title">5. Copy the two client values and save</h2>
+          <p>
+            In Google’s “OAuth client created” dialog, copy <b>Client ID</b> and
+            <b> Client secret</b> into their matching fields below. The client
+            ID ends in <b>.apps.googleusercontent.com</b>.
+          </p>
+          <GuideImage name="google-client-created" />
+          <div className="form-grid">
+            <Field
+              label="OAuth Web client ID"
+              hint="Copy Client ID from the dialog. Later you can find it under Google Auth Platform → Clients → Villow Web."
+            >
               <input
                 required
-                type="password"
                 autoComplete="off"
-                value={secret}
-                onChange={(e) => {
-                  setSecret(e.target.value);
-                  setSecretPending(true);
-                }}
+                spellCheck={false}
+                value={client}
+                onChange={(e) => setClient(e.target.value)}
               />
             </Field>
-          )}
-          <Field label="Audience">
-            <select
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-            >
-              <option value="external_production">
-                External · In production
-              </option>
-              <option value="internal">
-                Internal · my Workspace organization only
-              </option>
-              <option value="external_testing">External · still Testing</option>
-            </select>
-          </Field>
-        </div>
-        <CheckBox checked={enabled} onChange={setEnabled}>
-          I enabled YouTube Data API v3 in this Google project.
-        </CheckBox>
-        <CheckBox checked={published} onChange={setPublished}>
-          I configured the audience, required scopes and exact callback. My
-          external app is published, or this is an eligible internal Workspace
-          app.
-        </CheckBox>
-        {s.google && (
-          <p role="status">
-            {matchesSaved
-              ? "Google configuration saved."
-              : "Save your Google changes before continuing."}
+            {!demo && (
+              <Field
+                label="OAuth client secret"
+                hint="Copy Client secret before closing Google’s dialog. Keep it private: paste it here, never into a chat or screenshot."
+              >
+                <input
+                  required
+                  type="password"
+                  autoComplete="off"
+                  value={secret}
+                  onChange={(e) => {
+                    setSecret(e.target.value);
+                    setSecretPending(true);
+                  }}
+                />
+              </Field>
+            )}
+          </div>
+          <p>
+            Wait for Setup to confirm the save before closing Google’s dialog.
+            Setup stores the secret in Windows Credential Manager and supplies
+            it to your hosted app during configuration. You do not need to
+            memorize it or download Google’s JSON file for this setup. Keep a
+            private backup in your password manager if you want your own copy.
+            Creation date and Enabled status do not need to be copied.
           </p>
-        )}
-        <div className="action-row">
-          <button
-            className={s.google ? "secondary" : "primary"}
-            disabled={
-              busy ||
-              matchesSaved ||
-              !enabled ||
-              !published ||
-              audience === "external_testing"
-            }
-          >
-            Save my Google configuration
-          </button>
-          {s.google && !s.credentials_removed && (
-            <button
-              type="button"
-              className="primary"
-              disabled={busy || !matchesSaved}
-              onClick={() => action("advance")}
-            >
-              Continue to my database →
-            </button>
+          <div className="guide-takeaway">
+            <h3>If you already closed Google’s dialog</h3>
+            <p>
+              A message restricting access to test users is expected while your
+              External app is in Testing. Check that your email is in Audience →
+              Test users, as shown in step 3. You can continue without
+              publishing.
+            </p>
+            <p>
+              If you lost an unsaved secret, open Google Auth Platform →
+              Clients, select your client and choose Add Secret. Paste that new
+              value here; Google no longer shows the old secret in full. A
+              failed save clears this input, so copy it again before retrying.
+            </p>
+          </div>
+          <CheckBox checked={configured} onChange={setConfigured}>
+            I configured the required Google permissions and exact callback in
+            this Google project.
+          </CheckBox>
+          {s.google && (
+            <p role="status">
+              {matchesSaved
+                ? "Google configuration saved. You can close Google’s client dialog."
+                : "Save your Google changes before continuing."}
+            </p>
           )}
-        </div>
+          <div className="action-row">
+            <button
+              type="submit"
+              className={s.google ? "secondary" : "primary"}
+              disabled={
+                busy ||
+                matchesSaved ||
+                !enabled ||
+                !configured ||
+                (testing && !testingConfirmed)
+              }
+            >
+              Save my Google configuration
+            </button>
+            {s.google && !s.credentials_removed && (
+              <button
+                type="button"
+                className="primary"
+                disabled={busy || !matchesSaved}
+                onClick={() => action("advance")}
+              >
+                Continue to my database →
+              </button>
+            )}
+          </div>
+        </section>
       </form>
     </section>
   );
 }
 function DatabaseStep({
+  correctAndPrepare,
+  offer,
+  releaseMessage,
   s,
   busy,
   demo,
   action,
+  open,
 }: {
+  correctAndPrepare: (digest: string) => Promise<boolean>;
+  offer?: Snapshot["fresh_retry"];
+  releaseMessage: string;
   s: Installation;
   busy: boolean;
   demo: boolean;
   action: Action;
+  open: (step: string) => void;
 }) {
-  const [host, setHost] = useState(
-      s.db_connection?.host ?? `db.${s.database?.id}.supabase.co`,
+  const [host, setHost] = useState(s.db_connection?.host ?? ""),
+    [user, setUser] = useState(
+      s.db_connection?.user ?? `postgres.${s.database?.id}`,
     ),
-    [user, setUser] = useState(s.db_connection?.user ?? "postgres"),
-    [password, setPassword] = useState("");
+    [password, setPassword] = useState(""),
+    [saved, setSaved] = useState(false);
+  const [retryChecked, setRetryChecked] = useState(false);
+  useEffect(() => setRetryChecked(false), [s.release_digest]);
+  useEffect(() => {
+    if (offer) setRetryChecked(false);
+  }, [offer?.digest]);
+  const needsCorrectionCheck =
+    !demo && s.effects.migrate?.status === "needs_review" && !retryChecked;
+  const connectionMatches = s.db_connection
+    ? host.trim() === s.db_connection.host &&
+      user.trim() === s.db_connection.user
+    : !host.trim() && user === `postgres.${s.database?.id}`;
+  const unsaved = !demo && (!connectionMatches || !!password);
   return (
     <section>
       <p className="lead">
@@ -1581,10 +1901,12 @@ function DatabaseStep({
         rules.
       </p>
       <p>
-        Setup already saved the generated database password; you do not need to
-        enter it again. Setup checks for existing app data, applies the signed
-        migration plan under a database lock, and verifies its postconditions.
-        If the schema differs, it stops for review.
+        Setup created a strong database password automatically when it created
+        your Supabase project, and saved it in Windows Credential Manager on
+        this PC. You did not need to choose, copy or remember it. Setup checks
+        for existing app data, applies the signed migration plan under a
+        database lock, and verifies its postconditions. If the schema differs,
+        it stops for review.
       </p>
       {demo ? (
         <p className="quiet">
@@ -1592,39 +1914,126 @@ function DatabaseStep({
           are needed.
         </p>
       ) : (
-        <details>
-          <summary>Connection settings for IPv4-only networks</summary>
+        <section aria-label="Database connection">
+          <h2>Connect to your database</h2>
           <p>
-            The direct connection uses IPv6. In Supabase’s Connect dialog,
-            choose Session pooler (port 5432) if your network needs IPv4. Copy
-            only the host and username here. The generated database password is
-            already saved.
+            {s.db_connection
+              ? "Setup will use your saved connection settings below."
+              : "Click Prepare my database to continue. Setup automatically asks Supabase for your Session pooler connection, which works on IPv4 networks."}{" "}
+            Setup includes Supabase’s public database certificate and verifies
+            the secure connection.
           </p>
+          <h3>If the connection needs attention</h3>
+          <ol className="instructions">
+            <li>
+              Open Supabase and select the database project shown under Your
+              saved resources below. Wait for it to finish starting.
+            </li>
+            <li>
+              Click the green <b>Connect</b> button in the project’s top bar,
+              highlighted in the picture below.
+              <GuideImage name="supabase-connect" />
+            </li>
+            <li>
+              In <b>Connect to your project</b>, select <b>Direct</b> — the top
+              tab labeled <b>Connection string</b>, between Server and ORM. If
+              you see Framework, Next.js or Install packages, you are still on
+              the Framework tab. You do not need to run those commands.
+            </li>
+            <li>
+              Under <b>Connection Method</b>, choose <b>Session pooler</b>. The
+              Direct tab contains several connection methods; choosing that tab
+              does not mean you must use the Direct connection method. Leave{" "}
+              <b>Type</b> as <b>URI</b> if it is shown.
+            </li>
+            <li>
+              Below the connection string, find the individual connection
+              parameters. Click <b>View parameters</b> if they are hidden.
+              Confirm the port is <b>5432</b> before copying the values.
+              <GuideImage name="supabase-session-pooler" />
+            </li>
+            <li>
+              Copy <b>Host</b> and <b>User</b> into the fields below. The host
+              ends in <b>.pooler.supabase.com</b>; the user is{" "}
+              <b>postgres.{s.database?.id}</b>. Use the exact host Supabase
+              shows.
+            </li>
+            <li>
+              Leave <b>Replacement database password</b> blank. Setup uses the
+              password it already saved. Only fill this in if you personally
+              used <b>Reset database password</b> in Supabase and chose a new
+              password. You do not need to reset it for these steps. Click{" "}
+              <b>Save connection settings</b>, then <b>Prepare my database</b>.
+            </li>
+          </ol>
+          <p>
+            Setup uses port <b>5432</b> and database <b>postgres</b>. Do not
+            choose Transaction pooler (6543): preparing the database needs one
+            continuous session. A Direct connection is also supported if your
+            network can reach it.
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() => open("supabase_dashboard")}
+          >
+            Open Supabase projects ↗
+          </button>
           <div className="form-grid">
-            <Field label="Database host">
-              <input value={host} onChange={(e) => setHost(e.target.value)} />
+            <Field
+              label="Database host"
+              hint="Copy only Host from View parameters, without a URL, password or port."
+            >
+              <input
+                autoComplete="off"
+                spellCheck={false}
+                value={host}
+                onChange={(e) => {
+                  setHost(e.target.value);
+                  setSaved(false);
+                }}
+              />
             </Field>
             <Field label="Database user">
-              <input value={user} onChange={(e) => setUser(e.target.value)} />
+              <input
+                autoComplete="off"
+                spellCheck={false}
+                value={user}
+                onChange={(e) => {
+                  setUser(e.target.value);
+                  setSaved(false);
+                }}
+              />
             </Field>
-            <Field label="Database password, only if changed">
+            <Field
+              label="Replacement database password (usually leave blank)"
+              hint="Setup generated and saved your database password for you. Leave this empty to keep using it. Only enter a new password if you reset it yourself in Supabase; this is not your Supabase login password or access token."
+            >
               <input
                 type="password"
                 autoComplete="off"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setSaved(false);
+                }}
               />
             </Field>
           </div>
           <button
             className="secondary"
-            disabled={busy}
+            disabled={busy || !host.trim() || !user.trim()}
             onClick={async () => {
               try {
-                await action("set_database_connection", {
-                  connection: { host, user },
-                  password,
-                });
+                await action(
+                  "set_database_connection",
+                  {
+                    connection: { host: host.trim(), user: user.trim() },
+                    password,
+                  },
+                  () => setSaved(true),
+                );
               } finally {
                 setPassword("");
               }
@@ -1632,8 +2041,92 @@ function DatabaseStep({
           >
             Save connection settings
           </button>
-        </details>
+          {saved && (
+            <p role="status">
+              Connection settings saved. Now click Prepare my database.
+            </p>
+          )}
+          {unsaved && (
+            <p>Save your connection settings before preparing the database.</p>
+          )}
+        </section>
       )}
+      {!demo &&
+        !s.credentials_removed &&
+        (needsCorrectionCheck || s.fresh_retry || offer || retryChecked) && (
+          <section className="database-fix" aria-label="Corrected app release">
+            <h2>
+              {offer
+                ? "A verified database fix is ready"
+                : s.fresh_retry
+                  ? "Finish applying your database fix"
+                  : "Database preparation needs attention"}
+            </h2>
+            <p>
+              Your accounts, credentials and projects stay in place. Setup
+              checks that this database is still unfinished before applying a
+              fix.
+            </p>
+            {s.fresh_retry ? (
+              <button
+                className="primary"
+                disabled={busy || unsaved}
+                onClick={() => correctAndPrepare(s.fresh_retry!.to)}
+              >
+                Resume fix and prepare database
+              </button>
+            ) : (
+              <>
+                {!offer && (
+                  <button
+                    className={needsCorrectionCheck ? "primary" : "secondary"}
+                    disabled={busy || unsaved}
+                    onClick={() => {
+                      setRetryChecked(false);
+                      return action("check_fresh_retry", undefined, () =>
+                        setRetryChecked(true),
+                      );
+                    }}
+                  >
+                    Check for a corrected release
+                  </button>
+                )}
+                {offer && (
+                  <p>
+                    Villow {offer.app_version} contains a fix for this
+                    unfinished setup. The button below applies it and then
+                    prepares your database.
+                    <button
+                      className="primary"
+                      disabled={busy || unsaved}
+                      onClick={() => correctAndPrepare(offer.digest)}
+                    >
+                      Apply fix and prepare database
+                    </button>
+                  </p>
+                )}
+                {retryChecked && !offer && (
+                  <p role="status">{releaseMessage}</p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+      {!s.credentials_removed &&
+        !needsCorrectionCheck &&
+        !s.fresh_retry &&
+        !offer && (
+          <div className="action-row">
+            <button
+              className="primary"
+              disabled={busy || !s.selection || unsaved || !!s.fresh_retry}
+              onClick={() => action("advance")}
+            >
+              Prepare my database →
+            </button>
+            <span className="quiet">Progress saves after every operation.</span>
+          </div>
+        )}
     </section>
   );
 }

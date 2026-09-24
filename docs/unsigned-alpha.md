@@ -4,6 +4,29 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 
 **2026-09-21:** Genuine public trust has been supplied and the published channel/manifest/archive verified anonymously. See [the 0.1.0 Alpha record](alpha-0.1.0.md) for the exact release and instructions. The field requirements below remain the maintainer contract for subsequent releases.
 
+## Installed Alpha repair candidate
+
+Version 0.1.5 keeps the same Alpha identifier, checkpoint and vault namespace.
+At the unfinished final sign-in/check step, use **Check for an app repair**.
+If the genuine 0.1.2 repair matches your installed app, choose **Repair my app**.
+Setup creates an encrypted temporary recovery copy automatically. No backup
+password or file selection is needed. It includes the existing app key.
+
+Setup verifies the file before SQL, then applies the authenticated correction,
+rebuilds the same Vercel project and waits for the website and authenticated
+health. After closing, use **Resume repair**. The recovery copy stays if anything
+fails; after verified success Setup removes it and its temporary vault key.
+Continue with 0.1.5 or newer once this workflow starts. Portable backups already
+created in 0.1.4 are retained. A manual-backup repair already started in 0.1.3 remains
+resumable, but is visibly recorded as a user confirmation, not a verified backup.
+
+This preserves existing resources and data through the tested additive repair.
+It does not promise zero possible data loss. The backup captures a point in
+time; later changes and external provider data are outside it. Restore is
+assisted, into an independently authorized empty target, and cannot overwrite a
+populated app. See [the backup contract](backup-contract.md). Windows signing
+and real-provider recovery qualification remain deferred.
+
 ## What the build does
 
 - Uses `Villow Setup Alpha`, identifier `app.villow.setup.alpha`, a window titled “Villow Setup — unsigned alpha”, and a persistent unsigned-alpha notice. Its local checkpoint directory is separate from development, testing and eventual production. Credentials remain in Windows Credential Manager under each installation's UUID; this does not change existing vault entries.
@@ -14,7 +37,7 @@ The maintainer has explicitly deferred Windows Authenticode/SignPath while testi
 The expected installer after a successful configured build is:
 
 ```text
-src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.0_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Villow Setup Alpha_0.1.5_x64-setup.exe
 ```
 
 That path is an expected output, not evidence an alpha has been built. The ordinary `Villow Setup_0.1.0_x64-setup.exe` and optional `Villow Setup Testing_0.1.0_x64-setup.exe` are different files. Rebuilding source does not change an already installed EXE. Do not use the shared build-directory `villow-setup.exe` to distinguish profiles; install the exact recorded installer and verify its hash. Keep alpha as a separate test installation; recovery import cannot migrate it into production or adopt its database.
@@ -23,15 +46,15 @@ That path is an expected output, not evidence an alpha has been built. The ordin
 
 Return the following through the reviewed handoff. Never send the private key, provider tokens or account passwords.
 
-| Trust field | Required value |
-| --- | --- |
-| `format` | `1` |
-| `repository` | `nicholasnucifora/Villow-Setup` |
-| `channel` | `stable` (the existing signed protocol name, not a statement of qualification) |
-| `manifest_url` | `https://github.com/nicholasnucifora/Villow-Setup/releases/download/villow-channel/channel.json` |
-| `publisher` | Maintainer-approved nonempty publisher label. For alpha this is release ownership/installer metadata, not proof of Windows certificate verification. |
-| `public_keys` | Mapping from the exact channel envelope `key_id` to canonical base64 of **32 raw Ed25519 public-key bytes**. Not PEM, a certificate or a private key. Use the genuine durable release key, never a test fixture key. |
-| `minimum_sequence` | `1` for the first channel initialized at sequence 1; agree a reviewed minimum if the published channel is already further along. |
+| Trust field        | Required value                                                                                                                                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`           | `1`                                                                                                                                                                                                                  |
+| `repository`       | `nicholasnucifora/Villow-Setup`                                                                                                                                                                                      |
+| `channel`          | `stable` (the existing signed protocol name, not a statement of qualification)                                                                                                                                       |
+| `manifest_url`     | `https://github.com/nicholasnucifora/Villow-Setup/releases/download/villow-channel/channel.json`                                                                                                                     |
+| `publisher`        | Maintainer-approved nonempty publisher label. For alpha this is release ownership/installer metadata, not proof of Windows certificate verification.                                                                 |
+| `public_keys`      | Mapping from the exact channel envelope `key_id` to canonical base64 of **32 raw Ed25519 public-key bytes**. Not PEM, a certificate or a private key. Use the genuine durable release key, never a test fixture key. |
+| `minimum_sequence` | `1` for the first channel initialized at sequence 1; agree a reviewed minimum if the published channel is already further along.                                                                                     |
 
 Also return the exact reviewed web commit, app version, paired Setup commit, manifest SHA-256, archive SHA-256, immutable manifest/archive URLs, signed channel sequence and expiry, supported manager/contract versions, and paired test results. Confirm the public key matches the signing environment's separately pinned public key. Setup does not generate a competing key pair.
 

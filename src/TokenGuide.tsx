@@ -78,95 +78,54 @@ export function TokenGuide({
       ) : (
         <>
           <p>
-            Name the token <b>Villow Setup</b> and choose an expiry that covers
-            setup and testing, for example <b>7 days</b>. This is a management
-            access token, not your database password or a project API key.
+            For this Alpha, use a <b>legacy management token</b>. This is the
+            path confirmed during account connection testing. It is different
+            from a database password or a project API key.
           </p>
-          <p>
-            Under <b>Resource access</b>, choose <b>Organization</b> (all
-            projects in selected organizations), then select only your dedicated
-            Villow organization. Setup creates a new project, so selecting an
-            existing project cannot cover it.
-          </p>
-          <p>
-            The <b>No access</b> preset and all-None defaults will not work.
-            Expand these permission groups and change only the following
-            entries:
-          </p>
-          <div className="permission-table-wrap">
-            <table className="permission-table">
-              <caption>Supabase permissions for Villow Setup</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Group</th>
-                  <th scope="col">Permission</th>
-                  <th scope="col">Access</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Project</td>
-                  <td>Project Settings</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Application services</td>
-                  <td>API Keys</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Application services</td>
-                  <td>API Key Secrets</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Account and organization</td>
-                  <td>Organizations</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Account and organization</td>
-                  <td>Projects (account-wide)</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Account and organization</td>
-                  <td>Organization Projects</td>
-                  <td>Read-write</td>
-                </tr>
-              </tbody>
-            </table>
+          <ol className="instructions">
+            <li>
+              On Access Tokens, click the main <b>Generate new token</b> button.
+              The small arrow beside it opens a different menu.
+            </li>
+            <li>
+              On the Generate token page, look directly under{" "}
+              <b>Resource access</b>, on the left. In “Need a token with full
+              access to your account?”, click the small, underlined{" "}
+              <b>Create legacy token</b> link. Do not choose “Generate token for
+              experimental API”.
+            </li>
+            <li>
+              Name it <b>Villow Setup Alpha</b> and choose an expiry covering
+              setup and testing, for example <b>7 days</b>. Generate the token.
+            </li>
+            <li>
+              Copy the complete token while it is shown, paste it below and
+              select <b>Save Supabase token &amp; read accounts</b>.
+            </li>
+          </ol>
+          <div className="guide-takeaway">
+            <strong>Use your dedicated test account</strong>
+            <p>
+              A legacy token has your account’s full access across all its
+              organizations and projects, including ones you join later. Use it
+              with the dedicated account for this Alpha and revoke it after
+              installation testing.
+            </p>
           </div>
-          <p>
-            Leave everything else at <b>None</b>, including Database and
-            Infrastructure and delivery. Setup uses its generated database
-            password for the later SQL step; it does not use this token’s SQL
-            permissions. Review the access, create the token and paste it below.
-          </p>
           <details>
             <summary>
-              If permissions are unavailable or access is refused
+              Already created a token with individual permissions?
             </summary>
             <p>
-              Your Supabase account must itself be allowed to create projects in
-              that organization. A token cannot grant more access than your
-              role. If an entry is unavailable, check your role and selected
-              organization.
+              That is a scoped token. Account testing encountered a refusal at
+              Setup’s profile check; a legacy replacement passed. The earlier
+              scoped-permission instructions are not a confirmed working path
+              for this Alpha. There is no verified extra checkbox to recommend.
             </p>
             <p>
-              Scoped tokens are still a Supabase alpha feature. These settings
-              follow its published permissions and Setup’s requests; a full live
-              installation with them has not yet been qualified. If access is
-              refused, check the selections and expiry before retrying. A
-              successful account list alone does not prove project creation and
-              key access.
-            </p>
-            <p>
-              “Create legacy token” grants your account’s full access across its
-              organizations and projects. It is not needed to follow the scoped
-              instructions above. If your account only offers legacy tokens, use
-              an account dedicated to this test, a short expiry and revoke the
-              token when finished.
+              Create the legacy token using the link above, then replace only
+              the Supabase token. Keep your saved Vercel token and current
+              setup. You do not need to recreate any cloud projects.
             </p>
           </details>
         </>

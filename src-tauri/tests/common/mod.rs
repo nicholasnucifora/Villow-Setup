@@ -15,6 +15,70 @@ use villow_setup::{
     vault::Vault,
 };
 use zeroize::Zeroizing;
+pub fn update_fixture() -> (VerifiedRelease, VerifiedRelease, Installation) {
+    let (old, _, mut s) = repair_fixture();
+    let mut new = old.clone();
+    new.manifest.app_version = "1.0.1".into();
+    new.manifest.minimum_manager = "0.2.0".into();
+    new.manifest.sequence = old.manifest.sequence + 1;
+    new.manifest.schema.compatible_apps = "=1.0.1".into();
+    let plan = villow_setup::update_contract::Plan {
+        id: "test-update".into(),
+        from_manifest_sha256: old.digest.clone(),
+        from_schema_revision: old.manifest.schema.revision.clone(),
+        to_schema_revision: old.manifest.schema.revision.clone(),
+        kind: "code_only".into(),
+        source_backup: "updates/test-update/source-backup.json".into(),
+        precondition: "updates/test-update/source.sql".into(),
+        migrations: vec![],
+        postcondition: old.manifest.schema.migrations[0].postcondition.clone(),
+        backup_required: true,
+        previous_app_compatible: true,
+    };
+    let descriptor = serde_json::json!({"format":1,"from_manifest_sha256":old.digest,"from_schema_revision":old.manifest.schema.revision,"restore_baseline_manifest_sha256":old.digest,"restore_baseline":old.manifest.schema.migrations[0].file,"restore_postcondition":old.manifest.schema.migrations[0].postcondition,"native_ledger_contract":1,"tables":[{"schema":"public","name":"synthetic","columns":[{"name":"id","type":"integer","identity":"","generated":""}],"rls":false,"force_rls":false}],"triggers":[]});
+    new.files.insert(
+        plan.source_backup.clone(),
+        serde_json::to_vec(&descriptor).unwrap(),
+    );
+    new.files.insert(
+        plan.precondition.clone(),
+        old.files[&old.manifest.schema.migrations[0].postcondition].clone(),
+    );
+    for (p, role) in [
+        (&plan.source_backup, "backup_descriptor"),
+        (&plan.precondition, "update_precondition"),
+    ] {
+        new.manifest.files.insert(
+            p.clone(),
+            FileSpec {
+                sha256: String::new(),
+                size: 0,
+                role: role.into(),
+            },
+        );
+    }
+    new.manifest.upgrade_from = vec![old.digest.clone()];
+    new.manifest.app_updates = vec![plan];
+    new = reseal(new);
+    s.step = Step::Complete;
+    s.update_lineage = Some(villow_setup::update_database::initial(&s, &old, None).unwrap());
+    (old, new, s)
+}
+pub fn pending_update(s: &mut Installation, new: &VerifiedRelease) {
+    s.app_update = Some(RepairIntent {
+        from: s.release_digest.clone(),
+        to: new.digest.clone(),
+        repair_id: new.manifest.app_updates[0].id.clone(),
+        operation_id: uuid::Uuid::new_v4().to_string(),
+        backup_confirmed_at: now(),
+        backup: None,
+        previous_operation_id: s.operation_id.clone(),
+        previous_deployment_id: s.deployment_id.clone().unwrap(),
+        phase: RepairPhase::Database,
+        deployment_id: None,
+        deployment_status: None,
+    });
+}
 pub fn fixtures() -> (Trust, Vec<u8>, Vec<u8>, Vec<u8>) {
     let signing = SigningKey::from_bytes(&[42; 32]); // Synthetic test key, never shipped as a trust root.
     let trust = Trust {
@@ -74,6 +138,9 @@ pub fn fixtures() -> (Trust, Vec<u8>, Vec<u8>, Vec<u8>) {
         channel: "stable".into(),
         minimum_manager: "0.1.0".into(),
         upgrade_from: vec![],
+        fresh_retry_from: vec![],
+        installed_repairs: vec![],
+        app_updates: vec![],
         archive_url: "https://github.com/test-owner/test-releases/releases/download/v1.0.0/app.zip"
             .into(),
         archive_sha256: hash(&archive),
@@ -156,6 +223,73 @@ pub fn installation(r: &VerifiedRelease) -> Installation {
     });
     s
 }
+pub fn fresh_retry_fixture() -> (VerifiedRelease, VerifiedRelease, Installation) {
+    let old = verified();
+    let (trust, _, _, archive) = fixtures();
+    let mut manifest = old.manifest.clone();
+    manifest.app_version = "1.0.1".into();
+    manifest.schema.compatible_apps = "=1.0.1".into();
+    manifest.minimum_manager = "0.1.1".into();
+    manifest.sequence = 2;
+    manifest.fresh_retry_from = vec![old.digest.clone()];
+    let bytes = serde_json::to_vec(&manifest).unwrap();
+    let channel = Channel {
+        format: 1,
+        channel: "stable".into(),
+        sequence: 5,
+        generated_at: "2026-09-09T00:00:00Z".into(),
+        expires_at: "2026-09-12T00:00:00Z".into(),
+        releases: vec![ReleasePointer {
+            version: "1.0.1".into(),
+            sha256: hash(&bytes),
+            url:
+                "https://github.com/test-owner/test-releases/releases/download/v1.0.1/manifest.json"
+                    .into(),
+        }],
+        revoked: vec![],
+    };
+    let (channel, _) = verify_channel(
+        &sign_channel(&channel),
+        &trust,
+        "2026-09-10T00:00:00Z".parse().unwrap(),
+    )
+    .unwrap();
+    let new = verify_bundle(&bytes, &archive, &channel.releases[0], &channel, &trust).unwrap();
+    let mut s = installation(&old);
+    s.step = Step::Database;
+    s.vercel = Some(Resource {
+        id: "prj_test".into(),
+        account_id: "team_1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "synthetic".into(),
+    });
+    s.database = Some(Resource {
+        id: "abcdefghijklmnopqrst".into(),
+        account_id: "org1".into(),
+        name: s.name.clone(),
+        operation_id: s.operation_id.clone(),
+        evidence: "synthetic".into(),
+    });
+    s.origin = Some("https://test-villow.vercel.app".into());
+    s.google = Some(Google {
+        project_id: "synthetic-google".into(),
+        client_id: "synthetic.apps.googleusercontent.com".into(),
+        api_enabled_confirmed: true,
+        audience: "external_testing".into(),
+        consent_published_confirmed: false,
+        testing_access_confirmed: true,
+    });
+    s.effects.insert(
+        "migrate".into(),
+        Effect {
+            status: EffectStatus::NeedsReview,
+            started_at: now(),
+            verified_at: None,
+        },
+    );
+    (old, new, s)
+}
 #[derive(Default)]
 pub struct MemoryVault {
     pub values: RefCell<BTreeMap<String, String>>,
@@ -197,6 +331,8 @@ pub struct Cloud {
     pub creates: u32,
     pub migrations: u32,
     pub deployment: Option<String>,
+    #[serde(default)]
+    pub deploys: u32,
 }
 pub struct Fake {
     pub path: PathBuf,
@@ -204,6 +340,8 @@ pub struct Fake {
     pub crash: Cell<bool>,
     pub before: Cell<bool>,
     pub health_ok: Cell<bool>,
+    pub deployment_status: Cell<DeploymentStatus>,
+    pub deployment_lost_response: Cell<bool>,
 }
 impl Fake {
     pub fn new(path: PathBuf) -> Self {
@@ -213,6 +351,8 @@ impl Fake {
             crash: Cell::new(false),
             before: Cell::new(false),
             health_ok: Cell::new(true),
+            deployment_status: Cell::new(DeploymentStatus::Ready),
+            deployment_lost_response: Cell::new(false),
         }
     }
     pub fn read(&self) -> Cloud {
@@ -314,7 +454,11 @@ impl Providers for Fake {
             return c.deployment.ok_or(Error::Uncertain);
         }
         c.deployment = Some("dpl_1".into());
+        c.deploys += 1;
         self.save(&c);
+        if self.deployment_lost_response.replace(false) {
+            return Err(Error::Uncertain);
+        }
         Ok("dpl_1".into())
     }
     fn health(&self, _s: &Installation, _r: &VerifiedRelease) -> Result<()> {
@@ -323,5 +467,165 @@ impl Providers for Fake {
         } else {
             Err(Error::Health)
         }
+    }
+    fn deployment_status(
+        &self,
+        _s: &Installation,
+        _r: &VerifiedRelease,
+    ) -> Result<DeploymentStatus> {
+        Ok(self.deployment_status.get())
+    }
+}
+
+// Sign every mutated fixture again: no production trust or release bytes change.
+pub fn reseal(mut r: VerifiedRelease) -> VerifiedRelease {
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (path, bytes) in &r.files {
+        zip.start_file(path, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(bytes).unwrap();
+        let spec = r.manifest.files.get_mut(path).unwrap();
+        spec.sha256 = hash(bytes);
+        spec.size = bytes.len() as u64;
+    }
+    let archive = zip.finish().unwrap().into_inner();
+    r.manifest.archive_size = archive.len() as u64;
+    r.manifest.archive_sha256 = hash(&archive);
+    let manifest = serde_json::to_vec(&r.manifest).unwrap();
+    let (trust, _, _, _) = fixtures();
+    let channel = Channel { format: 1, channel: "stable".into(), sequence: 6,
+        generated_at: "2026-09-09T00:00:00Z".into(), expires_at: "2026-09-12T00:00:00Z".into(),
+        releases: vec![ReleasePointer { version: r.manifest.app_version.clone(), sha256: hash(&manifest),
+            url: "https://github.com/test-owner/test-releases/releases/download/correction/manifest.json".into() }], revoked: vec![] };
+    let (channel, _) = verify_channel(
+        &sign_channel(&channel),
+        &trust,
+        "2026-09-10T00:00:00Z".parse().unwrap(),
+    )
+    .unwrap();
+    verify_bundle(&manifest, &archive, &channel.releases[0], &channel, &trust).unwrap()
+}
+pub fn repair_fixture() -> (VerifiedRelease, VerifiedRelease, Installation) {
+    let (mut old, _, mut s) = fresh_retry_fixture();
+    old.manifest.schema.revision = "villow-fresh-158".into();
+    old.manifest.schema.migrations[0].id = "villow-fresh-158".into();
+    old.files.get_mut("migrations/baseline.sql").unwrap().extend_from_slice(b"CREATE TABLE public.users(id uuid PRIMARY KEY, email text NOT NULL, google_id text NOT NULL, is_system_owner boolean NOT NULL, access_revoked_at timestamptz, encrypted_token text NOT NULL); CREATE TABLE public.user_settings(user_id uuid PRIMARY KEY REFERENCES public.users(id)); CREATE TABLE public.villow_installation(singleton boolean PRIMARY KEY, installation_id uuid NOT NULL, expected_owner_email text NOT NULL, owner_id uuid NOT NULL REFERENCES public.users(id), owner_email text NOT NULL, owner_google_id text NOT NULL, bootstrap_closed_at timestamptz, youtube_verified_at timestamptz);");
+    old.files.insert("migrations/verify.sql".into(), b"SELECT to_regclass('public.synthetic') IS NOT NULL AND NOT EXISTS(SELECT FROM information_schema.columns WHERE table_schema='public' AND table_name='user_settings' AND column_name='daily_watch_time_seconds');".to_vec());
+    old = reseal(old);
+    s.release_digest = old.digest.clone();
+    s.schema_revision = old.manifest.schema.revision.clone();
+    s.step = Step::Health;
+    s.deployment_id = Some("dpl_original".into());
+    s.deployment_status = Some(DeploymentStatus::Ready);
+    for key in [
+        "create_vercel",
+        "create_database",
+        "reserve_origin",
+        "migrate",
+        "configure",
+        "upload",
+        "deploy",
+    ] {
+        s.effects.insert(
+            key.into(),
+            Effect {
+                status: EffectStatus::Verified,
+                started_at: now(),
+                verified_at: Some(now()),
+            },
+        );
+    }
+    let mut new = old.clone();
+    new.manifest.app_version = "1.0.1".into();
+    new.manifest.commit = "2".repeat(40);
+    new.manifest.minimum_manager = "0.1.3".into();
+    new.manifest.sequence = 2;
+    new.manifest.schema.compatible_apps = "=1.0.1".into();
+    new.manifest.schema.revision = "villow-fresh-159".into();
+    new.manifest.schema.migrations[0].id = "villow-fresh-159".into();
+    new.manifest.schema.migrations[0].postcondition = "migrations/postcondition.sql".into();
+    let patch = b"ALTER TABLE public.user_settings ADD COLUMN daily_watch_time_seconds integer NOT NULL DEFAULT 0; ALTER TABLE public.user_settings ADD COLUMN daily_watch_reset_at timestamptz;".to_vec();
+    new.files
+        .get_mut("migrations/baseline.sql")
+        .unwrap()
+        .extend_from_slice(&patch);
+    new.files.insert("migrations/repair-159.sql".into(), patch);
+    new.files.insert("migrations/postcondition.sql".into(), b"SELECT EXISTS(SELECT FROM information_schema.columns WHERE table_schema='public' AND table_name='user_settings' AND column_name='daily_watch_time_seconds' AND data_type='integer' AND is_nullable='NO') AND EXISTS(SELECT FROM information_schema.columns WHERE table_schema='public' AND table_name='user_settings' AND column_name='daily_watch_reset_at');".to_vec());
+    for (path, role) in [
+        ("migrations/repair-159.sql", "repair"),
+        ("migrations/postcondition.sql", "postcondition"),
+    ] {
+        new.manifest.files.insert(
+            path.into(),
+            FileSpec {
+                sha256: String::new(),
+                size: 0,
+                role: role.into(),
+            },
+        );
+    }
+    new.manifest.installed_repairs = vec![InstalledRepair {
+        id: "villow-installed-159".into(),
+        from_manifest_sha256: old.digest.clone(),
+        from_schema_revision: "villow-fresh-158".into(),
+        file: "migrations/repair-159.sql".into(),
+        postcondition: "migrations/postcondition.sql".into(),
+        transactional: true,
+        backup_required: true,
+    }];
+    (old, reseal(new), s)
+}
+pub fn repair_vault(s: &Installation) -> MemoryVault {
+    let vault = MemoryVault::default();
+    for name in [
+        "encryption_key",
+        "bootstrap_token",
+        "db_password",
+        "google_secret",
+        "vercel_token",
+        "supabase_token",
+        "service_key",
+        "anon_key",
+    ] {
+        vault.put(&s.id, name, &format!("SENTINEL-{name}")).unwrap();
+    }
+    vault
+}
+pub fn pending_repair(s: &mut Installation, new: &VerifiedRelease) {
+    s.installed_repair = Some(RepairIntent {
+        from: s.release_digest.clone(),
+        to: new.digest.clone(),
+        repair_id: "villow-installed-159".into(),
+        operation_id: uuid::Uuid::new_v4().to_string(),
+        backup_confirmed_at: now(),
+        backup: None,
+        previous_operation_id: s.operation_id.clone(),
+        previous_deployment_id: s.deployment_id.clone().unwrap(),
+        phase: RepairPhase::Database,
+        deployment_id: None,
+        deployment_status: None,
+    });
+}
+
+pub fn backup_fixture(
+    dir: &std::path::Path,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+) -> BackupReceipt {
+    let path = dir.join(format!("synthetic-{}.villowbackup", uuid::Uuid::new_v4()));
+    let bytes = b"synthetic file receipt test only; crypto is tested separately";
+    std::fs::write(&path, bytes).unwrap();
+    BackupReceipt {
+        managed: false,
+        removed_at: None,
+        path: path.to_str().unwrap().into(),
+        sha256: hash(bytes),
+        bytes: bytes.len() as u64,
+        captured_at: now(),
+        installation_id: s.id.clone(),
+        operation_id: uuid::Uuid::new_v4().to_string(),
+        from: old.digest.clone(),
+        to: new.digest.clone(),
     }
 }

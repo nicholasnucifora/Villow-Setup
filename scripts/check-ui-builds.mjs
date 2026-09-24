@@ -46,6 +46,10 @@ for (const profile of ["normal", "testing", "alpha"]) {
   assert.ok(javascript.includes("Vercel access token"));
   assert.ok(javascript.includes("Supabase management token"));
   assert.equal(
+    javascript.includes("Repair my app"),
+    profile === "alpha",
+  );
+  assert.equal(
     javascript.includes("Unsigned alpha · Fresh test installations"),
     profile === "alpha",
   );

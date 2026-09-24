@@ -19,6 +19,9 @@ for (const item of [
   "build.rs",
   "rust-toolchain.toml",
   "trust.json",
+  "certs",
+  "backup-tables-0.1.1.json",
+  "backup-triggers-0.1.1.json",
   "src",
   "tests",
 ])

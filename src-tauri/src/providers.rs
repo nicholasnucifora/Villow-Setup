@@ -21,7 +21,45 @@ fn string(v: &Value, key: &str) -> Result<String> {
     }
     Ok(s.to_string())
 }
+// Authentication responses deliberately omit provider bodies. Add only fixed
+// context at these read-only checks; never turn a failed identity check into
+// a successful account discovery or change write/reconciliation error handling.
+fn account_access(error: Error, context: Error) -> Error {
+    if error == Error::Authentication {
+        context
+    } else {
+        error
+    }
+}
 impl LiveProviders<'_> {
+    pub fn database_connection(&self, s: &Installation) -> Result<DbConnection> {
+        let reference = &s.database()?.id;
+        if let Some(connection) = &s.db_connection {
+            migration::validate_connection(reference, connection)?;
+            return Ok(connection.clone());
+        }
+        // Read the actual cluster host; its index cannot be inferred from region.
+        // Both pooler modes share this host. connect() fixes port 5432 (session),
+        // regardless of the provider's default pool_mode/db_port values.
+        let value = self
+            .supabase(
+                s,
+                Method::GET,
+                &format!(
+                    "/v1/projects/{}/config/database/pooler",
+                    identifier(reference)?
+                ),
+                None,
+            )
+            .map_err(|e| {
+                if e == Error::Authentication {
+                    Error::DatabasePooler
+                } else {
+                    e
+                }
+            })?;
+        session_pooler_connection(reference, &value)
+    }
     fn vercel(
         &self,
         s: &Installation,
@@ -53,42 +91,54 @@ impl LiveProviders<'_> {
     pub fn accounts(&self, s: &Installation) -> Result<Accounts> {
         let vtoken = self.vault.require(&s.id, "vercel_token")?;
         let stoken = self.vault.require(&s.id, "supabase_token")?;
-        let user = self.http.provider(
-            Provider::Vercel,
-            Method::GET,
-            "/v2/user",
-            &[],
-            &vtoken,
-            None,
-        )?;
-        let teams = self.http.provider(
-            Provider::Vercel,
-            Method::GET,
-            "/v2/teams",
-            &[("limit", "100")],
-            &vtoken,
-            None,
-        )?;
+        let user = self
+            .http
+            .provider(
+                Provider::Vercel,
+                Method::GET,
+                "/v2/user",
+                &[],
+                &vtoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::VercelIdentityAccess))?;
+        let teams = self
+            .http
+            .provider(
+                Provider::Vercel,
+                Method::GET,
+                "/v2/teams",
+                &[("limit", "100")],
+                &vtoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::VercelTeamsAccess))?;
         // Do not silently present an incomplete account list as complete.
         if !teams["pagination"]["next"].is_null() {
             return Err(Error::Unsupported);
         }
-        let profile = self.http.provider(
-            Provider::Supabase,
-            Method::GET,
-            "/v1/profile",
-            &[],
-            &stoken,
-            None,
-        )?;
-        let organizations = self.http.provider(
-            Provider::Supabase,
-            Method::GET,
-            "/v1/organizations",
-            &[],
-            &stoken,
-            None,
-        )?;
+        let profile = self
+            .http
+            .provider(
+                Provider::Supabase,
+                Method::GET,
+                "/v1/profile",
+                &[],
+                &stoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::SupabaseIdentityAccess))?;
+        let organizations = self
+            .http
+            .provider(
+                Provider::Supabase,
+                Method::GET,
+                "/v1/organizations",
+                &[],
+                &stoken,
+                None,
+            )
+            .map_err(|e| account_access(e, Error::SupabaseOrganizationsAccess))?;
         let map = |v: &Value| -> Result<Account> {
             Ok(Account {
                 id: string(v, "id")?,
@@ -294,9 +344,10 @@ impl Providers for LiveProviders<'_> {
         )?;
         self.verify_database_resource(s, &v)?;
         if v["status"] != "ACTIVE_HEALTHY" {
-            return Err(Error::Precondition);
+            return Err(Error::DatabaseUnavailable);
         }
-        let mut client = migration::connect(s, self.vault)?;
+        let connection = self.database_connection(s)?;
+        let mut client = migration::connect(s, self.vault, &connection)?;
         migration::apply(&mut client, s, r)
     }
     fn configure(&self, s: &Installation, _r: &VerifiedRelease) -> Result<()> {
@@ -416,7 +467,7 @@ impl Providers for LiveProviders<'_> {
         identifier(&id)?;
         Ok(id)
     }
-    fn health(&self, s: &Installation, r: &VerifiedRelease) -> Result<()> {
+    fn deployment_status(&self, s: &Installation, r: &VerifiedRelease) -> Result<DeploymentStatus> {
         let deployment = s.deployment_id.as_ref().ok_or(Error::Precondition)?;
         let v = self.vercel(
             s,
@@ -424,19 +475,69 @@ impl Providers for LiveProviders<'_> {
             &format!("/v13/deployments/{}", identifier(deployment)?),
             None,
         )?;
-        if v["projectId"] != s.project()?.id
+        if v["id"] != *deployment
+            || v["projectId"] != s.project()?.id
             || v["meta"]["villowOperation"] != s.operation_id
             || v["meta"]["villowRelease"] != r.digest
-            || v["readyState"] != "READY"
             || v["target"] != "production"
         {
-            return Err(Error::Health);
+            return Err(Error::WrongTarget);
+        }
+        match v["readyState"].as_str() {
+            Some("QUEUED" | "INITIALIZING" | "NOT_BUILT") => return Ok(DeploymentStatus::Queued),
+            Some("BUILDING") => return Ok(DeploymentStatus::Building),
+            Some("ERROR") => return Ok(DeploymentStatus::Failed),
+            Some("CANCELED") => return Ok(DeploymentStatus::Canceled),
+            Some("READY") => {}
+            _ => return Err(Error::Provider),
+        }
+        if v.get("aliasError").is_some_and(|error| !error.is_null()) {
+            return Ok(DeploymentStatus::AddressFailed);
+        }
+        let aliases = self.vercel(
+            s,
+            Method::GET,
+            &format!("/v2/deployments/{}/aliases", identifier(deployment)?),
+            None,
+        )?;
+        let origin = crate::http::validate_origin(s.origin()?)?;
+        let expected = origin.host_str().ok_or(Error::Invalid)?;
+        let rows = aliases["aliases"].as_array().ok_or(Error::Provider)?;
+        if !rows
+            .iter()
+            .any(|alias| alias["alias"].as_str() == Some(expected))
+        {
+            return Ok(DeploymentStatus::AssigningAddress);
+        }
+        Ok(DeploymentStatus::Ready)
+    }
+    fn health(&self, s: &Installation, r: &VerifiedRelease) -> Result<()> {
+        if self.deployment_status(s, r)? != DeploymentStatus::Ready {
+            return Err(Error::DeploymentNotReady);
         }
         let nonce = uuid::Uuid::new_v4().to_string();
         let token = self.vault.require(&s.id, "bootstrap_token")?;
         let h = self.http.health(s.origin()?, &token, &nonce)?;
         validate_health(&h, s, r, &nonce)
     }
+}
+
+pub fn session_pooler_connection(reference: &str, value: &Value) -> Result<DbConnection> {
+    let rows = value.as_array().ok_or(Error::DatabasePooler)?;
+    let mut connections = rows.iter().filter(|row| row["database_type"] == "PRIMARY");
+    let row = connections.next().ok_or(Error::DatabasePooler)?;
+    if connections.next().is_some() || row["db_name"] != "postgres" {
+        return Err(Error::DatabasePooler);
+    }
+    let connection = DbConnection {
+        host: string(row, "db_host").map_err(|_| Error::DatabasePooler)?,
+        user: string(row, "db_user").map_err(|_| Error::DatabasePooler)?,
+    };
+    if !connection.host.ends_with(".pooler.supabase.com") {
+        return Err(Error::DatabasePooler);
+    }
+    migration::validate_connection(reference, &connection).map_err(|_| Error::DatabasePooler)?;
+    Ok(connection)
 }
 fn upload_digest(bytes: &[u8]) -> String {
     use sha1::{Digest, Sha1};

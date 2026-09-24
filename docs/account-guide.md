@@ -6,54 +6,78 @@ Setup creates its own Vercel and Supabase projects; users should not create eith
 
 Each token is saved with the existing typed native command, leaving the other token untouched. Inputs clear after success or failure. Saving Vercel access is storage only; both accounts are read after the Supabase token is saved. The user then selects and confirms targets/costs before creation. Reopening before account selection offers reuse of saved vault tokens without exposing their values to the renderer; missing or refused access still fails closed. A successful account list does not prove later project-creation/key permissions. No computer-use testing was performed for this revision, as requested by the maintainer.
 
+### Refused access during account discovery
+
+The Supabase page's read-accounts action checks **Vercel identity → Vercel teams → Supabase identity → Supabase organizations** in that order. It can therefore fail on Vercel before making any Supabase request. A future token expiry does not prove that its scope, role, revocation status or copied value permits a request. The previous generic error merged HTTP 401/403 without naming the provider. The diagnostic follow-up now labels these four read-only checks using fixed native messages, including which preceding checks passed or whether Supabase was not yet reached. It retains the original error classification for other failures and never displays provider response bodies or tokens.
+
+The maintainer's 2026-09-22 retry identified Supabase `GET /v1/profile`; the supplied token screen showed a scoped token. The maintainer then reported that a legacy replacement passed account connection. The guide now describes that working Alpha path and its full-account scope. This is evidence for account connection, not completed provider installation or proof that all scoped tokens are incompatible. No profile check is bypassed, and no credentials are changed automatically.
+
 ## Vercel token
 
 Open [personal account tokens](https://vercel.com/account/settings/tokens) directly. Team/project Settings can show Billing, Members and Key Management without a Tokens entry. Vercel's [official instructions](https://vercel.com/kb/guide/how-do-i-use-a-vercel-api-access-token) distinguish personal account settings from team settings. Name the token **Villow Setup**, scope it to the intended hosting account/team, and choose an expiry long enough for setup and testing (for example seven days). Paste and save it on the Vercel page before moving to Supabase.
 
-## Supabase scoped management token
+## Supabase management token for this Alpha
 
-Open [access tokens](https://supabase.com/dashboard/account/tokens), name it **Villow Setup**, and choose a suitable expiry (for example seven days). Under **Resource access**, choose **Organization** (all projects in selected organizations) and select only the dedicated Villow organization. The default existing-project selection cannot cover the project Setup will create. This scope includes the other projects in that organization too; use a dedicated organization for this test.
+Open [access tokens](https://supabase.com/dashboard/account/tokens) and click the main **Generate new token** button. On the Generate token page, directly under **Resource access** on the left, follow the small underlined **Create legacy token** link. The arrow menu's **Generate token for experimental API** is a different option. Name the token **Villow Setup Alpha**, use a short expiry covering testing (for example seven days), copy it once and paste it into Setup.
 
-Starting with **No access**, set these entries and leave all others at **None**:
+[Classic/legacy tokens](https://supabase.com/docs/guides/platform/personal-access-tokens) have all the account's permissions across current and future organizations/projects. Use a dedicated test account and revoke the management token after installation testing. The earlier six-permission scoped-token recipe is withdrawn as a confirmed setup path: the public permission mapping did not establish compatibility with the required profile check. The successful legacy retry does not establish the precise reason for the scoped refusal. Replacing only Supabase access preserves the Vercel credential and saved setup.
 
-| Group | Permission | Access | Setup use |
-| --- | --- | --- | --- |
-| Project | Project Settings | Read | Verify the created project's identity and health |
-| Application services | API Keys | Read | Retrieve the app's API keys |
-| Application services | API Key Secrets | Read | Read the server key value for the hosted app |
-| Account and organization | Organizations | Read | List and recheck the organization |
-| Account and organization | Projects (account-wide) | Read | List projects during reconciliation |
-| Account and organization | Organization Projects | Read-write | Create the dedicated project |
+## Database region
 
-Database and Infrastructure and delivery stay at None. Setup applies SQL through a PostgreSQL connection using its generated database password, not the Management API SQL/migrations endpoints. Tokens cannot exceed the user's own role; the account must be able to create projects in the selected organization.
+The [region](https://supabase.com/docs/guides/platform/regions) is where the primary database stores Villow data. Choose near most users; Sydney is the straightforward choice for Australia/New Zealand. The Alpha's native allowlist supports Sydney, Northern Virginia, Ireland and Singapore. This is a Setup limitation, not Supabase's full region list. It does not set Vercel's execution region, restrict who can use the app, or allow Setup to move an existing database.
 
-This mapping follows Supabase's [permission table](https://supabase.com/docs/guides/platform/personal-access-tokens), [API specification](https://api.supabase.com/api/v1-json) and [resource selector source](https://github.com/supabase/supabase/blob/master/apps/studio/components/interfaces/Account/AccessTokens/Scoped/Form/ResourceAccessStep.tsx), checked 2026-09-22 against `src-tauri/src/providers.rs`:
+## Google walkthrough
 
-- `GET /v1/organizations`: `organizations_read`.
-- `GET /v1/projects`: `projects_read`.
-- `POST /v1/projects`: `organization_projects_create`.
-- `GET /v1/projects/{ref}`: `project_admin_read`.
-- `GET /v1/projects/{ref}/api-keys`: `api_gateway_keys_read`, plus `api_gateway_keys_secret_read` for secret values.
-- `GET /v1/profile`: authenticated identity read, no additional named FGA permission in the current public specification. Setup pins `gotrue_id`; scoped tokens do not bypass this check.
+The form follows five numbered steps: project and Project ID; YouTube API; audience/data access; Web application client; copy credentials and save. Project ID appears next to project preparation, and client fields appear next to Google's creation dialog. Each is entered once. Unsaved values live only in the open form; the existing typed save writes the configuration and places the secret in Windows Credential Manager. The guide does not promise draft recovery after closing Setup.
 
-Scoped tokens are a Supabase alpha rollout; this is documented guidance, not completed live qualification. If access is refused, check expiry, resource selection and role/permissions before retrying; do not bypass identity checks or silently broaden grants. If only classic/legacy tokens are offered, they grant all the account's access, including other organizations. Use an account dedicated to testing, a short expiry and revoke after completion. The scoped instructions do not require a legacy token.
+Choose **External** and keep **Testing**, the single walkthrough path. In **Audience**, scroll below **OAuth user cap** to **Test users → + Add users**, enter the intended owner's Google email, save and check it appears in the table. Friends must be added before signing in. The supplied Audience screenshot is shown inline at this point. Acknowledge the seven-day Google access/refresh limit. There are no publishing instructions or collapsed Google guide sections. Previously saved internal/production configurations remain readable without being silently converted; only those saved setups see a compatibility notice and an explicit confirmation if they changed Google to Testing. See [Google's audience guide](https://support.google.com/cloud/answer/15549945) and [refresh expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
+
+Setup now accepts External Testing in the native engine only with the new explicit `testing_access_confirmed` acknowledgment, the API confirmation, actual Testing audience and a stored OAuth secret. It records `consent_published_confirmed: false`; Testing is never relabeled as production. The new field defaults to false on older checkpoints. Unknown audiences and unacknowledged Testing still fail. A reminder survives the remaining steps and completion. Google configuration remains a user declaration, not an API-verified Google-console status. The hosted release contract, provider writes, signature verification and fresh-database restrictions are unchanged.
+
+Google's disabled Publish app button and message about completing Branding do not block this Testing walkthrough. The earlier production/Branding troubleshooting sections were removed at the maintainer's request; no future publishing workflow is promised.
+
+Data Access now has a direct fixed dashboard link and a **Copy scope list** action sourced from the authenticated release's `google_scopes`. Paste into **Manually add scopes → Add to table**, then **Update**, and save on Data Access if offered. The two maintainer-supplied screenshots are bundled locally as received; they contain no visible account credentials. Captions explain the identity checkboxes, the final-page YouTube checkbox, and the priority of the release's live list over static references. The frozen 0.1.0 manifest's three scopes match these examples; its SHA-256 was rechecked against the supplied digest.
+
+The client instructions now name **Application type → Web application**, **Name → Villow Web**, **Add URI** for the origin and redirect, and **Create**. The client authorizes the hosted site. Copy buttons report pending/success/failure next to their own address; success changes the button to **Copied!**, and a clipboard failure gives a manual Ctrl+C fallback without claiming success.
+
+The creation dialog supplies Client ID and Client secret. Save both through Setup before closing it. No memorization or JSON download is required; a password-manager backup is optional. Creation date/status do not need to be copied. Client ID can be recovered under Clients; a lost unsaved secret requires a replacement. A test-user warning points back to Audience. See [Google's client guide](https://support.google.com/cloud/answer/15549257). The guide tells users to keep secrets out of screenshots and chats.
 
 ## Expiry and reconnecting
+
+### Database connection recovery
+
+Setup generates the database password before creating the Supabase project, sends it as that project's database password, and saves it in Windows Credential Manager. The user never needs to choose or remember it. **Replacement database password (usually leave blank)** retains that saved password when empty; only a user who manually reset the database password in Supabase should enter a replacement. This is separate from the Supabase account password and management token. The instructions explicitly say not to use Reset database password for the normal walkthrough.
+
+The supplied Session pooler screenshot shows Direct, Connection Method, Session pooler and the visible Connection parameters together. Its underlined host/user are placeholders; users must copy their own project's values. Install Agent Skills is not part of Setup.
+
+The former schema/ownership error also hid execution failures in the signed SQL, so it did not prove the user's database contained existing app data. Diagnostics now distinguish the pre-installation object counts, incomplete installation history, release-unit SQL/verification/history statement errors, and a new unit's false result check. Statement errors expose only a local plan ordinal, fixed stage and bounded five-character [PostgreSQL SQLSTATE](https://www.postgresql.org/docs/current/errcodes-appendix.html), never raw server messages, object names or SQL. Existing history/checksum/schema mismatches still stop for review. No freshness, ownership, TLS, signature, transaction or reset restriction was relaxed. The maintainer must retry to establish which case occurred; the reported old error alone cannot do that.
+
+The default asks Supabase for its actual PRIMARY pooler host/user via [Get pooler config](https://supabase.com/docs/reference/api/v1-get-pooler-config); the native connector always uses session mode on port 5432 with the saved database password. The API requires `database_pooling_config_read` for scoped tokens; this Alpha's working documented token path remains legacy. Explicit saved connection settings override discovery. The bundled public Supabase CA supplies certificate verification without changing Windows trust or requiring a certificate download from the user.
+
+If the step fails, use the always-visible **Supabase → project → Connect → Direct (Connection string) → Connection Method → Session pooler** instructions. The supplied project screenshot highlights the green Connect button. The Connect dialog initially opens Framework; its package-install commands are not part of this walkthrough. The Direct tab contains multiple connection methods, so it does not mean selecting the Direct connection method. Leave Type as URI, expand View parameters if needed, and check port 5432. Copy host/user, keep the password blank unless changed, save, then retry. Do not paste a full connection string or choose transaction mode. The displayed error distinguishes recognized network, TLS, login and availability causes from unknown connection and later SQL-operation failures. The previous generic message does not prove which cause the user encountered. Sources: [connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [official dashboard labels](https://github.com/supabase/supabase/blob/2f1ad03640d23006d7ba8f4b6e60da936b800ae2/apps/studio/components/interfaces/ConnectSheet/connect.schema.ts), [SSL verification](https://supabase.com/docs/guides/platform/ssl-enforcement).
+
+### Management tokens
 
 Vercel and Supabase management tokens stay with the desktop manager and are not copied into the hosted website's environment. Expiry/revocation prevents subsequent manager API calls; the deployed app keeps running with separate runtime credentials. Under **Recovery & settings → Reconnect expired provider access**, replace the expired token with one for the same identity/scope and leave the other field blank. Saved resource IDs, app secrets and progress remain intact. After installation checks finish, management tokens can be revoked at their providers. Google OAuth credentials, database password and app keys are separate and must not be revoked as part of that cleanup. Removing all local credentials is a different operation that also removes the local encryption-key copy.
 
 ## Screenshot slots
 
-The reusable `src/GuideImage.tsx` registry contains six named slots. Each currently shows an intentional illustrated placeholder and a caption describing the screenshot to supply. Capture clean examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. The user's supplied screenshots are reference material; they are not copied into the shipped app.
+The reusable `src/GuideImage.tsx` registry contains twelve named slots: six placeholders and six supplied screenshots (two scopes, Audience/Add users, the client-created dialog with synthetic placeholder values, the Supabase project Connect button and the Session pooler parameters). All six are shown inline. The maintainer supplied the Connect images for inclusion; their project identifiers are examples, not targets to copy. The earlier Framework screenshot is reference material only. Capture clean future examples with synthetic names and hide tokens, client secrets, emails and personal account IDs. Earlier screenshots containing credentials are not bundled.
 
 | Slot | Capture | Placement |
 | --- | --- | --- |
 | `vercel-account` | Dashboard account menu and stopping point before project creation | Vercel account/token page |
 | `supabase-organization` | Organization selector and route back from Create a new project | Supabase organization/token page |
+| `supabase-connect` | Supplied project screenshot highlighting the green Connect button | Database connection recovery, at the Connect instruction |
+| `supabase-session-pooler` | Supplied Direct/Session pooler/parameters screenshot with placeholder host and user | Database connection recovery, beside Connection parameters |
 | `google-project` | Project selector and Project ID in Project info | Google Cloud, alongside OAuth setup |
 | `vercel-token` | Personal token URL, team scope and expiry; hide value | Vercel → Screenshot guide |
-| `supabase-token` | Organization resource scope and six required permissions; hide value | Supabase → Screenshot guide |
-| `google-oauth` | OAuth Web application origin and redirect URI fields; hide secret | Connect Google |
+| `supabase-token` | Small Create legacy token link under Resource access, then name/expiry; hide value | Supabase → Screenshot guide |
+| `google-oauth` | Application type, Name, origins and redirect URI fields; hide credentials | Google step 4 |
+| `google-audience` | Supplied Audience screenshot highlighting Test users → + Add users | Google step 3 |
+| `google-client-created` | Supplied dialog with copy controls highlighted and placeholder values | Google step 5, before the matching fields |
+| `google-identity-scopes` | Supplied identity-scope checkboxes (bundled PNG) | Google Data Access reference |
+| `google-youtube-scope` | Supplied youtube.force-ssl checkbox on final page (bundled PNG) | Google Data Access reference |
 
 Save approved screenshots under `src/assets/account-guide/`, import them into `src/GuideImage.tsx`, and replace the relevant `src: null` with the imported URL. Update each caption to describe the finished image. Bundling local images keeps the desktop CSP and offline guidance intact. Recheck 760×620 and 1120×790 layouts after replacement.
 
