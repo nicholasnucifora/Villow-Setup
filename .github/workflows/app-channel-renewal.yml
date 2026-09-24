@@ -91,9 +91,11 @@ jobs:
         run: |
           'Automatic renewal did not complete. Existing hosted apps keep running. Review this failure before the current release listing expires; a failed or uncertain upload needs its public download checked.' | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: public-channel-renewal-evidence
           path: |
             artifacts/channel-renewal/channel.json
+            artifacts/channel-renewal/previous-channel.json
             artifacts/channel-renewal/renewal-plan.json
           retention-days: 30

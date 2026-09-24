@@ -8,6 +8,11 @@ import { sha256 } from './release-format.mjs';
 const repository = 'nicholasnucifora/Villow-Setup';
 const channelUrl = `https://github.com/${repository}/releases/download/villow-channel/channel.json`;
 const maxBytes = 1024 * 1024;
+const publicationDelays = [0, 5000, 10000, 20000, 30000, 45000, 60000];
+
+// Only these controlled diagnostics may reach logs; never print raw fetch errors
+// (which can include expiring redirect URLs) or downloaded response bodies.
+class PublicChannelError extends Error {}
 
 // No signing or publishing credentials are needed in this independent check.
 export function validateRenewal(previousBytes, candidateBytes, plan, options, now = Date.now()) {
@@ -25,20 +30,49 @@ export function validateRenewal(previousBytes, candidateBytes, plan, options, no
 }
 
 export async function downloadChannel(fetcher = fetch) {
-  const response = await fetcher(channelUrl, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok || !response.body) throw new Error('Public channel download failed');
+  let response;
+  try {
+    response = await fetcher(channelUrl, {
+      headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(30000),
+    });
+  } catch { throw new PublicChannelError('Public channel request failed or timed out'); }
+  if (!response.ok) throw new PublicChannelError(`Public channel returned HTTP ${response.status}`);
+  if (!response.body) throw new PublicChannelError('Public channel response has no body');
   const chunks = [];
   let length = 0;
-  for await (const chunk of response.body) {
-    length += chunk.length;
-    if (length > maxBytes) throw new Error('Public channel exceeds its size limit');
-    chunks.push(Buffer.from(chunk));
+  try {
+    for await (const chunk of response.body) {
+      length += chunk.length;
+      if (length > maxBytes) throw new PublicChannelError('Public channel exceeds its size limit');
+      chunks.push(Buffer.from(chunk));
+    }
+  } catch (error) {
+    if (error instanceof PublicChannelError) throw error;
+    throw new PublicChannelError('Public channel response was interrupted');
   }
   return Buffer.concat(chunks);
 }
 
 export async function verifyDownloadedHash(expected, fetcher = fetch) {
-  assert.equal(sha256(await downloadChannel(fetcher)), expected, 'Public channel differs from the expected bytes');
+  assert.match(expected, /^[a-f0-9]{64}$/, 'Expected a channel SHA-256');
+  const actual = sha256(await downloadChannel(fetcher));
+  if (actual !== expected) throw new PublicChannelError(`Public channel SHA-256 differs: expected ${expected}; received ${actual}`);
+}
+
+export async function verifyPublishedChannel(expected, {
+  fetcher = fetch, wait = ms => new Promise(done => setTimeout(done, ms)), onRetry = () => {},
+} = {}) {
+  // Replacement assets can briefly return old bytes or 404s. Retry only reads
+  // of the real user-facing URL; every success still requires the exact hash.
+  for (const [index, delay] of publicationDelays.entries()) {
+    if (delay) await wait(delay);
+    try { await verifyDownloadedHash(expected, fetcher); return; }
+    catch (error) {
+      if (!(error instanceof PublicChannelError)) throw error;
+      onRetry(`Public download check ${index + 1}/${publicationDelays.length}: ${error.message}`);
+      if (index === publicationDelays.length - 1) throw new PublicChannelError(`Published renewal could not be verified anonymously: ${error.message}`);
+    }
+  }
 }
 
 async function main() {
@@ -54,18 +88,14 @@ async function main() {
   if (mode === 'before') {
     await verifyDownloadedHash(plan.previous_channel_sha256);
   } else {
-    // Allow short CDN propagation delays. A stale or uncertain result never passes.
-    let passed = false;
-    for (const delay of [0, 3000, 5000, 10000]) {
-      if (delay) await new Promise(resolveDelay => setTimeout(resolveDelay, delay));
-      try { await verifyDownloadedHash(sha256(candidate)); passed = true; break; }
-      catch { /* Retry a bounded read, never a publishing write. */ }
-    }
-    if (!passed) throw new Error('Published renewal could not be verified anonymously');
+    await verifyPublishedChannel(sha256(candidate), { onRetry: message => console.log(message) });
   }
   console.log(mode === 'before' ? 'Renewal and unchanged public source verified.' : 'Published renewal verified anonymously.');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().catch(() => { console.error('Channel verification failed; inspect the renewal job before retrying publication.'); process.exitCode = 1; });
+  main().catch(error => {
+    console.error(error instanceof PublicChannelError ? error.message : 'Channel verification failed; inspect the renewal job before retrying publication.');
+    process.exitCode = 1;
+  });
 }

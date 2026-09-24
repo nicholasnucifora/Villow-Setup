@@ -23,6 +23,11 @@ Daily attempts provide retry time; GitHub schedules can be delayed or disabled.
 Retain GitHub Actions failure notifications for the account enabling the schedule.
 
 Every published renewal is downloaded anonymously and verified byte-for-byte.
+The public download check requests cache revalidation and retries reads with
+170 seconds of total backoff, plus bounded request timeouts, to allow replacement
+assets to propagate. A stale hash never passes. Failures include safe HTTP/hash
+diagnostics; public candidate, previous listing and plan artifacts are retained
+even on failure so an upload can be reconciled before any new publication.
 The job then commits the public signed listing and verification receipt to
 `codex/channel-renewal-records`, leaving application branches unchanged. This
 provides an audit history and repository activity during periods without feature
