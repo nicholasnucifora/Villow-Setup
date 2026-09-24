@@ -5,6 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { App } from "../src/App";
 import { DemoBridge } from "../src/demo";
 import type { Bridge, Snapshot } from "../src/types";
+import villowMark from "../src/assets/brand/villow-mark-on-dark.svg";
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   Element.prototype.scrollIntoView = vi.fn();
@@ -64,7 +65,9 @@ describe("owner-facing setup", () => {
     const { container } = render(<App initialBridge={bridge} />);
     await prepareAccounts(userEvent.setup());
     expect(await screen.findByText(attack)).toBeInTheDocument();
-    expect(container.querySelector("img")).toBeNull();
+    const images = container.querySelectorAll("img");
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute("src", villowMark);
     expect(container.querySelector("script")).toBeNull();
   });
   it("walks through the demo and exposes the exact callback", async () => {

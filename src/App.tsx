@@ -29,6 +29,7 @@ import type {
   Snapshot,
   Step,
 } from "./types";
+import villowMark from "./assets/brand/villow-mark-on-dark.svg";
 
 const TestingTools = __TESTING_TOOLS__
   ? lazy(() => import("./TestingTools"))
@@ -263,9 +264,7 @@ export function App({
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            v
-          </span>
+          <img src={villowMark} alt="" width={39} height={44} />
           <div>
             villow<span>SETUP</span>
           </div>

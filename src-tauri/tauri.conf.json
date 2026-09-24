@@ -30,7 +30,7 @@
     },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
-      "nsis": { "installMode": "currentUser", "displayLanguageSelector": false }
+      "nsis": { "installMode": "currentUser", "displayLanguageSelector": false, "installerIcon": "icons/icon.ico", "uninstallerIcon": "icons/icon.ico" }
     }
   }
 }

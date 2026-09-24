@@ -123,18 +123,6 @@ a {
   margin-top: 0;
   color: #b5c4ac;
 }
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 47px;
-  border: 1px solid #9cac83;
-  border-radius: 40% 60% 50% 25%;
-  font-family: Georgia, serif;
-  color: #e1e9bd;
-  font-size: 36px;
-  transform: rotate(-8deg);
-}
 .sidebar-intro {
   font-size: 15px;
   color: #bbc9b9;
