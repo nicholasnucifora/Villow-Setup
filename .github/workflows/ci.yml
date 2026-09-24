@@ -1,7 +1,13 @@
 name: Verify setup
 on:
   push:
+    paths-ignore:
+      - 'release-automation/**'
+      - '.github/workflows/app-channel-*.yml'
   pull_request:
+    paths-ignore:
+      - 'release-automation/**'
+      - '.github/workflows/app-channel-*.yml'
   workflow_dispatch:
 permissions:
   contents: read
