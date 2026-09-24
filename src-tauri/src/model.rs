@@ -197,6 +197,10 @@ pub struct Installation {
     pub fresh_retry: Option<FreshRetryIntent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub installed_repair: Option<RepairIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_update: Option<RepairIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update_lineage: Option<crate::update_database::Lineage>,
 }
 impl Installation {
     pub fn new(
@@ -244,6 +248,8 @@ impl Installation {
             credentials_removed: false,
             fresh_retry: None,
             installed_repair: None,
+            app_update: None,
+            update_lineage: None,
         })
     }
     pub fn selection(&self) -> Result<&Selection> {
@@ -279,6 +285,11 @@ impl Installation {
         self.installed_repair
             .as_ref()
             .is_some_and(|r| r.phase != RepairPhase::Complete)
+    }
+    pub fn update_pending(&self) -> bool {
+        self.app_update
+            .as_ref()
+            .is_some_and(|p| p.phase != RepairPhase::Complete)
     }
 }
 pub fn valid_email(s: &str) -> bool {

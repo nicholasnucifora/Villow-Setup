@@ -30,6 +30,9 @@ impl Engine<'_> {
         let _lock = self.store.lock()?;
         let mut s = self.store.load()?.ok_or(Error::Precondition)?;
         s.assert_writable()?;
+        if s.update_pending() {
+            return Err(Error::UpdatePending);
+        }
         if s.repair_pending() {
             return Err(Error::RepairPending);
         }
@@ -273,6 +276,10 @@ impl Engine<'_> {
 pub fn remove_credentials(store: &Store, vault: &dyn Vault) -> Result<()> {
     let _lock = store.lock()?;
     let mut s = store.load()?.ok_or(Error::Precondition)?;
+    if s.update_pending() {
+        return Err(Error::UpdatePending);
+    }
+    crate::managed_update_backup::require_removable(store, vault, &s)?;
     if s.repair_pending() {
         return Err(Error::RepairPending);
     }
@@ -284,6 +291,10 @@ pub fn remove_credentials(store: &Store, vault: &dyn Vault) -> Result<()> {
 pub fn forget(store: &Store, vault: &dyn Vault, confirmation: &str) -> Result<()> {
     let _lock = store.lock()?;
     let s = store.load()?.ok_or(Error::Precondition)?;
+    if s.update_pending() {
+        return Err(Error::UpdatePending);
+    }
+    crate::managed_update_backup::require_removable(store, vault, &s)?;
     if s.repair_pending() {
         return Err(Error::RepairPending);
     }

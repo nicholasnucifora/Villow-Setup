@@ -7,6 +7,8 @@ fn main() {
             "check_fresh_retry",
             "use_fresh_retry",
             "check_installed_repair",
+            "check_app_update",
+            "update_app",
             "apply_installed_repair",
             "backup_and_repair",
             "start_installation",

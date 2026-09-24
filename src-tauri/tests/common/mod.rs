@@ -15,6 +15,70 @@ use villow_setup::{
     vault::Vault,
 };
 use zeroize::Zeroizing;
+pub fn update_fixture() -> (VerifiedRelease, VerifiedRelease, Installation) {
+    let (old, _, mut s) = repair_fixture();
+    let mut new = old.clone();
+    new.manifest.app_version = "1.0.1".into();
+    new.manifest.minimum_manager = "0.2.0".into();
+    new.manifest.sequence = old.manifest.sequence + 1;
+    new.manifest.schema.compatible_apps = "=1.0.1".into();
+    let plan = villow_setup::update_contract::Plan {
+        id: "test-update".into(),
+        from_manifest_sha256: old.digest.clone(),
+        from_schema_revision: old.manifest.schema.revision.clone(),
+        to_schema_revision: old.manifest.schema.revision.clone(),
+        kind: "code_only".into(),
+        source_backup: "updates/test-update/source-backup.json".into(),
+        precondition: "updates/test-update/source.sql".into(),
+        migrations: vec![],
+        postcondition: old.manifest.schema.migrations[0].postcondition.clone(),
+        backup_required: true,
+        previous_app_compatible: true,
+    };
+    let descriptor = serde_json::json!({"format":1,"from_manifest_sha256":old.digest,"from_schema_revision":old.manifest.schema.revision,"restore_baseline_manifest_sha256":old.digest,"restore_baseline":old.manifest.schema.migrations[0].file,"restore_postcondition":old.manifest.schema.migrations[0].postcondition,"native_ledger_contract":1,"tables":[{"schema":"public","name":"synthetic","columns":[{"name":"id","type":"integer","identity":"","generated":""}],"rls":false,"force_rls":false}],"triggers":[]});
+    new.files.insert(
+        plan.source_backup.clone(),
+        serde_json::to_vec(&descriptor).unwrap(),
+    );
+    new.files.insert(
+        plan.precondition.clone(),
+        old.files[&old.manifest.schema.migrations[0].postcondition].clone(),
+    );
+    for (p, role) in [
+        (&plan.source_backup, "backup_descriptor"),
+        (&plan.precondition, "update_precondition"),
+    ] {
+        new.manifest.files.insert(
+            p.clone(),
+            FileSpec {
+                sha256: String::new(),
+                size: 0,
+                role: role.into(),
+            },
+        );
+    }
+    new.manifest.upgrade_from = vec![old.digest.clone()];
+    new.manifest.app_updates = vec![plan];
+    new = reseal(new);
+    s.step = Step::Complete;
+    s.update_lineage = Some(villow_setup::update_database::initial(&s, &old, None).unwrap());
+    (old, new, s)
+}
+pub fn pending_update(s: &mut Installation, new: &VerifiedRelease) {
+    s.app_update = Some(RepairIntent {
+        from: s.release_digest.clone(),
+        to: new.digest.clone(),
+        repair_id: new.manifest.app_updates[0].id.clone(),
+        operation_id: uuid::Uuid::new_v4().to_string(),
+        backup_confirmed_at: now(),
+        backup: None,
+        previous_operation_id: s.operation_id.clone(),
+        previous_deployment_id: s.deployment_id.clone().unwrap(),
+        phase: RepairPhase::Database,
+        deployment_id: None,
+        deployment_status: None,
+    });
+}
 pub fn fixtures() -> (Trust, Vec<u8>, Vec<u8>, Vec<u8>) {
     let signing = SigningKey::from_bytes(&[42; 32]); // Synthetic test key, never shipped as a trust root.
     let trust = Trust {
@@ -76,6 +140,7 @@ pub fn fixtures() -> (Trust, Vec<u8>, Vec<u8>, Vec<u8>) {
         upgrade_from: vec![],
         fresh_retry_from: vec![],
         installed_repairs: vec![],
+        app_updates: vec![],
         archive_url: "https://github.com/test-owner/test-releases/releases/download/v1.0.0/app.zip"
             .into(),
         archive_sha256: hash(&archive),

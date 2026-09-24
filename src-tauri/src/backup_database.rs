@@ -52,13 +52,13 @@ pub struct DatabaseSnapshot {
     pub tables: Vec<Table>,
 }
 
-fn ident(value: &str) -> String {
+pub(crate) fn ident(value: &str) -> String {
     format!("\"{}\"", value.replace('"', "\"\""))
 }
-fn name(table: &TableSchema) -> String {
+pub(crate) fn name(table: &TableSchema) -> String {
     format!("{}.{}", ident(&table.schema), ident(&table.name))
 }
-fn columns(table: &TableSchema) -> String {
+pub(crate) fn columns(table: &TableSchema) -> String {
     table
         .columns
         .iter()
@@ -66,10 +66,10 @@ fn columns(table: &TableSchema) -> String {
         .collect::<Vec<_>>()
         .join(",")
 }
-fn copy_query(table: &TableSchema) -> String {
+pub(crate) fn copy_query(table: &TableSchema) -> String {
     format!("COPY (SELECT {} FROM ONLY {} v ORDER BY to_jsonb(v)::text COLLATE \"C\") TO STDOUT WITH (FORMAT text)",columns(table),name(table))
 }
-fn settings(tx: &mut Transaction<'_>) -> Result<()> {
+pub(crate) fn settings(tx: &mut Transaction<'_>) -> Result<()> {
     tx.batch_execute("SET LOCAL row_security=off; SET LOCAL TimeZone='UTC'; SET LOCAL DateStyle='ISO, YMD'; SET LOCAL IntervalStyle='postgres'; SET LOCAL extra_float_digits=3; SET LOCAL bytea_output='hex'; SET LOCAL client_encoding='UTF8'; SET LOCAL standard_conforming_strings=on; SET LOCAL search_path=public,pg_catalog; SET LOCAL lock_timeout='10s'; SET LOCAL statement_timeout='120s'").map_err(|_|Error::BackupDatabase)
 }
 fn expected() -> Result<Vec<TableSchema>> {
@@ -159,7 +159,7 @@ fn restore_order(tx: &mut Transaction<'_>, tables: &[TableSchema]) -> Result<Vec
     }
     Ok(order)
 }
-fn read_table(
+pub(crate) fn read_table(
     tx: &mut Transaction<'_>,
     table: &TableSchema,
     remaining: usize,

@@ -1,10 +1,11 @@
 mod common;
 use common::*;
 use villow_setup::{
+    app_update_engine as repair,
     backup_database::DatabaseSnapshot,
     backup_file,
     error::{Error, Result},
-    installed_repair as repair, managed_backup as managed,
+    managed_update_backup as managed,
     model::*,
     repair_backup::Package,
     store::Store,
@@ -21,7 +22,7 @@ fn backup(store: &Store, vault: &MemoryVault, s: &Installation, to: &str) -> Bac
     let package = Package {
         update_manifest_base64: String::new(),
         update_archive_base64: String::new(),
-        format: 1,
+        format: 2,
         captured_at: at.clone(),
         repair_operation_id: op.clone(),
         destination_digest: to.into(),
@@ -55,7 +56,7 @@ fn backup(store: &Store, vault: &MemoryVault, s: &Installation, to: &str) -> Bac
 
 #[test]
 fn failed_or_interrupted_repair_retains_protection_until_saved_authenticated_success() {
-    let (old, new, s) = repair_fixture();
+    let (old, new, s) = update_fixture();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.save(&s).unwrap();
@@ -82,7 +83,7 @@ fn failed_or_interrupted_repair_retains_protection_until_saved_authenticated_suc
     assert!(managed::prepare(&store, &vault, &pending, &new.digest).is_err());
     let exported =
         villow_setup::recovery::import(&villow_setup::recovery::export(&pending).unwrap()).unwrap();
-    assert!(exported.read_only && exported.installed_repair.is_none());
+    assert!(exported.read_only && exported.app_update.is_none());
     // Resume after the uncertain SQL response, then submit only one deployment.
     for _ in 0..2 {
         pending = repair::advance(&store, &vault, &fake, pending, &old, &new, None, |_, _| {
@@ -107,7 +108,7 @@ fn failed_or_interrupted_repair_retains_protection_until_saved_authenticated_suc
     .unwrap();
     assert_eq!(completed.step, Step::Complete);
     assert!(completed
-        .installed_repair
+        .app_update
         .as_ref()
         .unwrap()
         .backup
@@ -126,7 +127,7 @@ fn failed_or_interrupted_repair_retains_protection_until_saved_authenticated_suc
 
 #[test]
 fn missing_wrong_key_and_tampered_file_block_sql_and_never_regenerate_pending_protection() {
-    let (old, new, s) = repair_fixture();
+    let (old, new, s) = update_fixture();
     for kind in 0..4 {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path()).unwrap();
@@ -176,15 +177,15 @@ fn complete_projection(
     r: BackupReceipt,
 ) -> Installation {
     let mut s = s.clone();
-    pending_repair(&mut s, new);
-    let p = s.installed_repair.as_mut().unwrap();
+    pending_update(&mut s, new);
+    let p = s.app_update.as_mut().unwrap();
     p.operation_id = r.operation_id.clone();
     p.backup = Some(r);
     p.phase = RepairPhase::Verify;
     p.deployment_id = Some("dpl_repair".into());
     p.deployment_status = Some(DeploymentStatus::Ready);
     let mut target = repair::destination(&s, new).unwrap();
-    target.installed_repair.as_mut().unwrap().phase = RepairPhase::Complete;
+    target.app_update.as_mut().unwrap().phase = RepairPhase::Complete;
     target.step = Step::Complete;
     target.check("app", "Synthetic successful health");
     target
@@ -207,7 +208,7 @@ impl Vault for DeleteFails<'_> {
 fn removing_credentials_or_forgetting_never_strands_pre_intent_or_pending_cleanup_protection() {
     use villow_setup::engine;
     for kind in 0..4 {
-        let (_, new, s) = repair_fixture();
+        let (_, new, s) = update_fixture();
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path()).unwrap();
         store.save(&s).unwrap();
@@ -247,7 +248,7 @@ fn removing_credentials_or_forgetting_never_strands_pre_intent_or_pending_cleanu
 
 #[test]
 fn pre_intent_staging_is_discoverable_and_only_its_exact_name_is_discarded() {
-    let (_, new, s) = repair_fixture();
+    let (_, new, s) = update_fixture();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.save(&s).unwrap();
@@ -279,7 +280,7 @@ fn pre_intent_staging_is_discoverable_and_only_its_exact_name_is_discarded() {
 
 #[test]
 fn cleanup_requires_durable_success_and_retries_after_file_or_key_deletion_failure() {
-    let (_, new, s) = repair_fixture();
+    let (_, new, s) = update_fixture();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.save(&s).unwrap();
@@ -312,7 +313,7 @@ fn cleanup_requires_durable_success_and_retries_after_file_or_key_deletion_failu
     assert!(vault.require(&s.id, managed::KEY).is_ok());
     let mut reopened = store.load().unwrap().unwrap();
     assert!(reopened
-        .installed_repair
+        .app_update
         .as_ref()
         .unwrap()
         .backup
@@ -323,7 +324,7 @@ fn cleanup_requires_durable_success_and_retries_after_file_or_key_deletion_failu
     managed::cleanup(&store, &vault, &mut reopened).unwrap();
     assert!(vault.get(&s.id, managed::KEY).unwrap().is_none());
     assert!(reopened
-        .installed_repair
+        .app_update
         .unwrap()
         .backup
         .unwrap()
@@ -333,7 +334,7 @@ fn cleanup_requires_durable_success_and_retries_after_file_or_key_deletion_failu
 
 #[test]
 fn pre_intent_interruption_is_discoverable_and_recaptured_without_changing_original_secrets() {
-    let (_, new, s) = repair_fixture();
+    let (_, new, s) = update_fixture();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.save(&s).unwrap();
@@ -355,7 +356,7 @@ fn pre_intent_interruption_is_discoverable_and_recaptured_without_changing_origi
 
 #[test]
 fn portable_readonly_or_outside_path_receipts_never_authorize_cleanup() {
-    let (old, new, s) = repair_fixture();
+    let (old, new, s) = update_fixture();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.save(&s).unwrap();
@@ -365,7 +366,7 @@ fn portable_readonly_or_outside_path_receipts_never_authorize_cleanup() {
     store.save(&done).unwrap();
     managed::cleanup(&store, &vault, &mut done).unwrap();
     assert!(std::path::Path::new(&portable.path).exists());
-    done.installed_repair
+    done.app_update
         .as_mut()
         .unwrap()
         .backup

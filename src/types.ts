@@ -82,6 +82,7 @@ export interface Installation {
   credentials_removed: boolean;
   fresh_retry?: { from: string; to: string } | null;
   installed_repair?: RepairIntent | null;
+  app_update?: RepairIntent | null;
 }
 export interface RepairIntent {
   from: string;
@@ -125,6 +126,15 @@ export interface Snapshot {
   message: string;
   fresh_retry?: { digest: string; app_version: string } | null;
   installed_repair?: { digest: string; app_version: string } | null;
+  app_update?: {
+    status: "current" | "manager_required" | "unsupported" | "available";
+    digest?: string;
+    downtime?: string;
+    app_version: string;
+    minimum_manager: string;
+    message: string;
+    notes: string;
+  } | null;
 }
 export interface Bridge {
   call<T>(command: string, args?: Record<string, unknown>): Promise<T>;

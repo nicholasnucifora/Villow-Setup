@@ -20,6 +20,7 @@ import { GoogleScopes } from "./GoogleScopes";
 import { ReconciliationForm } from "./ReconciliationForm";
 import { DeploymentStep, LaunchProgress } from "./LaunchProgress";
 import { InstalledRepair } from "./InstalledRepair";
+import { AppUpdates } from "./AppUpdates";
 import type {
   Accounts,
   Bridge,
@@ -755,9 +756,19 @@ export function App({
                       <p className="lead">
                         {__TESTING_TOOLS__ && bridge.demo
                           ? "The simulated checks passed. A real installation must pass them against your provider accounts and hosted app."
-                          : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
+                          : s.app_update && s.app_update.phase !== "complete"
+                            ? "An app update is in progress. Follow its progress below."
+                            : "Your cloud instance passed its required checks. You can close this app and switch off your computer."}
                       </p>
                       <div className="address">{s.origin}</div>
+                      {__UNSIGNED_ALPHA__ && (
+                        <AppUpdates
+                          s={s}
+                          result={data?.app_update}
+                          busy={busy}
+                          action={action}
+                        />
+                      )}
                       <p>
                         Only the owner needs Villow Setup. Your friends use your
                         hosted web address. Optional Google Tasks and Todoist
@@ -765,7 +776,8 @@ export function App({
                       </p>
                     </>
                   )}
-                  {s.step !== "google" &&
+                  {(!s.app_update || s.app_update.phase === "complete") &&
+                    s.step !== "google" &&
                     (!s.installed_repair ||
                       s.installed_repair.phase === "complete") &&
                     !data?.installed_repair &&
@@ -931,10 +943,13 @@ export function App({
                   </button>
                   <h3>Maintenance</h3>
                   <p>
-                    Automated upgrades, repair and cloud removal are not
-                    available in this version. Use your provider dashboards to
-                    inspect resources, bills and backups. Uninstalling Setup
-                    does not close those accounts.
+                    {__UNSIGNED_ALPHA__
+                      ? "Supported app updates appear on the completed installation page. "
+                      : "App updates are available in the separate Alpha build. "}
+                    Cloud removal and restoring onto another computer require
+                    separate support. Use your provider dashboards to inspect
+                    resources, bills and backups. Uninstalling Setup does not
+                    close those accounts.
                   </p>
                   <div className="link-row">
                     {["vercel", "supabase", "google"].map((p) => (
@@ -970,6 +985,12 @@ type Action = (
   onSuccess?: () => void,
 ) => Promise<boolean>;
 function operationTitle(command: string, s?: Installation | null): string {
+  if (command === "update_app")
+    return s?.app_update
+      ? "Updating and checking your app"
+      : "Saving and verifying your recovery copy";
+  if (command === "check_app_update")
+    return "Checking for a newer approved Villow release";
   if (command === "backup_and_repair")
     return "Protecting your data automatically, then starting the repair";
   if (command === "check_installed_repair")

@@ -1,5 +1,18 @@
 # Villow Setup: maintainer release checklist
 
+## Completed-installation updater — Alpha 0.2.0 candidate
+
+The maintainer authorized compatible app updates and web-task coordination.
+The new [updater contract](app-updater.md) supersedes v1's no-upgrade boundary
+only for exact signed plans. Preserve genuine trust and unfinished qualification.
+Before releasing this candidate, require UI/build/profile/security checks, full
+native tests (including Windows-vault tests), `managed_update_backup`, and the
+web-owned paired updater runner on clean exact commits. The paired runner must
+observe the named protocol test, lifecycle marker and stopped disposable cluster.
+No new genuine app release, live update/restore, Windows signing or publication
+is authorized by passing synthetic tests. Record the actual installer hash and
+source separately; the existing app remains on its published version.
+
 ## Temporary repair protection — manager 0.1.5, 2026-09-23
 
 The maintainer requested automatic temporary protection instead of a password

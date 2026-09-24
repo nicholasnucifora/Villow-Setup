@@ -42,6 +42,10 @@ pub struct Package {
     pub channel_base64: String,
     pub manifest_base64: String,
     pub archive_base64: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub update_manifest_base64: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub update_archive_base64: String,
     pub database: DatabaseSnapshot,
 }
 
@@ -90,6 +94,73 @@ pub fn save(
     {
         return Err(Error::BackupDatabase);
     }
+    save_package(
+        path,
+        password,
+        s,
+        old,
+        new,
+        trust,
+        channel_bytes,
+        manifest,
+        archive,
+        vault,
+        managed,
+        None,
+        capture,
+    )
+}
+pub fn save_update(
+    path: &Path,
+    password: &str,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+    trust: &Trust,
+    channel_bytes: &[u8],
+    manifest: &[u8],
+    archive: &[u8],
+    update_manifest: &[u8],
+    update_archive: &[u8],
+    vault: &dyn Vault,
+    capture: impl FnOnce() -> Result<DatabaseSnapshot>,
+) -> Result<BackupReceipt> {
+    crate::app_update_engine::validate(s, old, new)?;
+    if s.app_update.is_some() || s.update_lineage.is_none() {
+        return Err(Error::UpdateRefused);
+    }
+    save_package(
+        path,
+        password,
+        s,
+        old,
+        new,
+        trust,
+        channel_bytes,
+        manifest,
+        archive,
+        vault,
+        true,
+        Some((update_manifest, update_archive)),
+        capture,
+    )
+}
+fn save_package(
+    path: &Path,
+    password: &str,
+    s: &Installation,
+    old: &VerifiedRelease,
+    new: &VerifiedRelease,
+    trust: &Trust,
+    channel_bytes: &[u8],
+    manifest: &[u8],
+    archive: &[u8],
+    vault: &dyn Vault,
+    managed: bool,
+    update: Option<(&[u8], &[u8])>,
+    capture: impl FnOnce() -> Result<DatabaseSnapshot>,
+) -> Result<BackupReceipt> {
+    backup_file::validate_password(password)?;
     let (channel, _) = release::verify_channel(channel_bytes, trust, chrono::Utc::now())?;
     let pointer = channel
         .releases
@@ -102,6 +173,18 @@ pub fn save(
         || archive.len() > 32 * 1024 * 1024
     {
         return Err(Error::BackupTooLarge);
+    }
+    if let Some((m, a)) = update {
+        let pointer = channel
+            .releases
+            .iter()
+            .find(|r| r.sha256 == new.digest)
+            .ok_or(Error::Release)?;
+        let verified = release::verify_bundle(m, a, pointer, &channel, trust)?;
+        crate::update_contract::transition(&authenticated, &verified)?;
+        if m.len() > 4_000_000 || a.len() > 32 * 1024 * 1024 {
+            return Err(Error::BackupTooLarge);
+        }
     }
     let mut credentials = Vec::new();
     for key in SECRETS {
@@ -156,7 +239,7 @@ pub fn save(
     })
     .collect();
     let package = Package {
-        format: 1,
+        format: if update.is_some() { 2 } else { 1 },
         captured_at: captured_at.clone(),
         repair_operation_id: operation.clone(),
         destination_digest: new.digest.clone(),
@@ -166,6 +249,8 @@ pub fn save(
         channel_base64: STANDARD.encode(channel_bytes),
         manifest_base64: STANDARD.encode(manifest),
         archive_base64: STANDARD.encode(archive),
+        update_manifest_base64: update.map(|(m, _)| STANDARD.encode(m)).unwrap_or_default(),
+        update_archive_base64: update.map(|(_, a)| STANDARD.encode(a)).unwrap_or_default(),
         database: capture()?,
     };
     let saved = if managed {

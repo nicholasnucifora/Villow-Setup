@@ -29,6 +29,14 @@ Manager 0.1.5 creates and verifies a temporary encrypted recovery copy automatic
 
 ## Implemented
 
+Setup Alpha 0.2.0 adds completed-installation **Check for updates**, **Update my
+app** and **Resume update**, with signed source-to-target plans, temporary
+encrypted protection and preserved migration history. No genuine future app
+release is published yet; 0.1.2 still reports up to date. See [the updater
+contract and qualification limits](docs/app-updater.md). Earlier references to
+deferred general upgrades describe v1. Automatic EXE updates and writable
+adoption remain deferred.
+
 - Native Rust orchestration, React interface and per-user Tauri/NSIS packaging.
 - Guided provider tokens stored in Windows Credential Manager; selected provider identities, organizations and resource IDs checked before operations.
 - Dedicated project creation, permanent production domain, Google Cloud instructions and exact OAuth callback, signed SQL migration plan, production environment configuration, source upload and deployment adapters.

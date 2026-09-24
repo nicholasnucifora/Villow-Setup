@@ -151,17 +151,17 @@ fn ledger(tx: &mut Transaction<'_>, old: &VerifiedRelease) -> Result<()> {
     }
     Ok(())
 }
-fn owner(tx: &mut Transaction<'_>, s: &Installation) -> Result<()> {
+pub(crate) fn owner(tx: &mut Transaction<'_>, s: &Installation) -> Result<()> {
     let matches: bool = tx.query_one("SELECT (SELECT count(*)=1 FROM public.villow_installation) AND (SELECT count(*)=1 FROM public.users WHERE is_system_owner) AND (SELECT count(*)=1 FROM public.villow_installation i JOIN public.users u ON u.id=i.owner_id JOIN public.user_settings x ON x.user_id=u.id WHERE i.singleton AND i.installation_id::text=$1 AND i.expected_owner_email=$2 AND i.owner_email=$2 AND lower(trim(u.email))=$2 AND i.owner_google_id=u.google_id AND i.owner_google_id<>'' AND u.is_system_owner AND u.access_revoked_at IS NULL AND i.bootstrap_closed_at IS NOT NULL AND i.youtube_verified_at IS NOT NULL)", &[&s.id, &s.owner_email]).map_err(|_| Error::RepairDatabase)?.get(0);
     if !matches {
         return Err(Error::RepairDatabase);
     }
     Ok(())
 }
-fn text<'a>(r: &'a VerifiedRelease, path: &str) -> Result<&'a str> {
+pub(crate) fn text<'a>(r: &'a VerifiedRelease, path: &str) -> Result<&'a str> {
     std::str::from_utf8(r.files.get(path).ok_or(Error::Release)?).map_err(|_| Error::Release)
 }
-fn check(tx: &mut Transaction<'_>, sql: &str) -> Result<()> {
+pub(crate) fn check(tx: &mut Transaction<'_>, sql: &str) -> Result<()> {
     let rows = tx.query(sql, &[]).map_err(|_| Error::RepairDatabase)?;
     if rows.len() != 1 || rows[0].len() != 1 || rows[0].try_get::<_, bool>(0).ok() != Some(true) {
         return Err(Error::RepairDatabase);

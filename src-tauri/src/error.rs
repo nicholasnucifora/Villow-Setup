@@ -15,6 +15,12 @@ pub enum MigrationStage {
 #[derive(Debug, Clone, Serialize, thiserror::Error, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Error {
+    #[error("This release does not include a supported update for your installed version. Your app has not been changed.")]
+    UpdateRefused,
+    #[error("An app update is in progress. Use Resume update to finish the saved release; your existing projects and access are retained.")]
+    UpdatePending,
+    #[error("The update's database checks did not match its verified plan. Keep this database and the saved recovery copy. Report this message; do not reset your database.")]
+    UpdateDatabase,
     #[error("Reconnect the provider: access has expired or was refused.")]
     Authentication,
     #[error("Vercel refused access while checking your account identity (GET /v2/user). Supabase has not been checked yet. Check that your Vercel token was copied in full, is still valid, and permits account access. Replace only the Vercel token on its page or in Recovery & settings; an expiry date in the future does not rule out a scope or access restriction.")]
@@ -81,7 +87,7 @@ pub enum Error {
     RepairPending,
     #[error("Setup could not verify the recovery copy for this repair. Keep your saved setup and use Repair my app to start, or Resume repair if already started. If this continues, report this message; do not reset the database.")]
     RepairBackupRequired,
-    #[error("Setup still holds temporary recovery protection for this app. Finish Repair my app or Resume repair before removing saved access. If the repair already passed, reopen Setup to finish its cleanup. Keep this PC's saved data if cleanup still needs attention.")]
+    #[error("Setup still holds temporary recovery protection for this app. Finish the saved update or repair before removing saved access. If it already passed, reopen Setup to finish cleanup. Keep this PC's saved data if cleanup still needs attention.")]
     BackupRetained,
     #[error("Choose a backup password of at least 12 characters and save it in your password manager. This protects your Villow data backup; it is separate from the developer's signing passphrase.")]
     BackupPassword,
@@ -91,7 +97,7 @@ pub enum Error {
     BackupInvalid,
     #[error("This backup exceeds this Alpha's limit of 128 MiB of app database data or 256 MiB for the recovery package. Keep your database and ask for help with a larger backup; this operation stopped.")]
     BackupTooLarge,
-    #[error("Setup could not make a complete, restorable copy of this database. The database layout, access or dependencies need review. No repair has started; keep the existing database.")]
+    #[error("Setup could not verify a complete, restorable copy of this database. Its layout, access or dependencies need review. This operation stopped; keep the existing database and saved recovery files.")]
     BackupDatabase,
     #[error("The repair's database check failed. The schema, installation history or owner differs from the authenticated repair plan. Keep this database and report this message; do not reset it or repeat fresh preparation.")]
     RepairDatabase,

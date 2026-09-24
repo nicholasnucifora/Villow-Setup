@@ -1,3 +1,5 @@
+pub mod app_update_engine;
+pub mod app_updates;
 pub mod backup_database;
 pub mod backup_file;
 #[cfg(feature = "desktop")]
@@ -8,6 +10,7 @@ pub mod fresh_retry;
 pub mod http;
 pub mod installed_repair;
 pub mod managed_backup;
+pub mod managed_update_backup;
 pub mod manager;
 pub mod migration;
 pub mod model;
@@ -19,6 +22,9 @@ pub mod repair_backup;
 pub mod repair_database;
 pub mod sql_guard;
 pub mod store;
+pub mod update_backup_database;
+pub mod update_contract;
+pub mod update_database;
 pub mod vault;
 #[cfg(feature = "desktop")]
 pub use desktop::run;

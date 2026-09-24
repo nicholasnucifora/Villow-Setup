@@ -1,6 +1,16 @@
 # Maintenance, recovery and release responsibilities
 
+For the maintainer's release steps, division of responsibilities and explanation
+of channel renewal, start with [the practical workflow](maintainer-workflow.md).
+The technical requirements below remain the engineering reference.
+
 ## What exists now
+
+**0.2.0 Alpha:** completed installations can check and apply compatible signed
+app releases. See [the updater contract](app-updater.md) for source plans,
+temporary protection, schema limits and qualification. Original v1/0.1.x
+boundaries below remain historical; unrestricted upgrades, automatic EXE updates
+and writable adoption remain unsupported.
 
 Setup versions, app release versions and schema identities are separate. New app feature releases can use the existing manager while they satisfy the same environment/bootstrap/health/archive/schema contracts. The first manager version automates fresh installations; Alpha 0.1.3 additionally supports the narrow authenticated correction for the known unfinished installed Alpha. It does not implement general app updates, adoption, cloud deletion, protocol handlers or its own updates.
 

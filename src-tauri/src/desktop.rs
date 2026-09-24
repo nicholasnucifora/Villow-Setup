@@ -47,6 +47,27 @@ async fn check_fresh_retry(
     work(app, &gate, |m| m.check_fresh_retry()).await
 }
 #[tauri::command]
+async fn check_app_update(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, |m| m.check_app_update()).await
+}
+#[tauri::command]
+async fn update_app(
+    app: AppHandle,
+    gate: State<'_, Gate>,
+    digest: String,
+) -> std::result::Result<Snapshot, String> {
+    if app.config().identifier != "app.villow.setup.alpha" {
+        return Err(Error::Unsupported.to_string());
+    }
+    work(app, &gate, move |m| m.update_app(digest)).await
+}
+#[tauri::command]
 async fn use_fresh_retry(
     app: AppHandle,
     gate: State<'_, Gate>,
@@ -257,6 +278,8 @@ pub fn run() {
             check_fresh_retry,
             use_fresh_retry,
             check_installed_repair,
+            check_app_update,
+            update_app,
             apply_installed_repair,
             backup_and_repair,
             start_installation,
