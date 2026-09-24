@@ -80,6 +80,18 @@ OR EXISTS (
  OR t.typnamespace<>'pg_catalog'::regnamespace OR (t.typelem<>0 AND e.typnamespace<>'pg_catalog'::regnamespace))
 )
 OR EXISTS (
+ SELECT FROM pg_class c
+ CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) privilege
+ WHERE c.relnamespace='public'::regnamespace AND c.relkind='r'
+ AND NOT EXISTS(SELECT FROM pg_depend d WHERE d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype='e')
+ AND NOT EXISTS(SELECT FROM aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a WHERE a.grantee=c.relowner AND a.privilege_type=privilege)
+)
+OR EXISTS (
+ SELECT FROM pg_proc p WHERE p.pronamespace='public'::regnamespace
+ AND NOT EXISTS(SELECT FROM pg_depend d WHERE d.classid='pg_proc'::regclass AND d.objid=p.oid AND d.deptype='e')
+ AND NOT EXISTS(SELECT FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee=p.proowner AND a.privilege_type='EXECUTE')
+)
+OR EXISTS (
  SELECT FROM pg_proc p
  CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
  WHERE p.pronamespace='public'::regnamespace

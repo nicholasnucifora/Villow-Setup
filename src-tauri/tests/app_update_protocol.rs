@@ -129,6 +129,8 @@ fn authenticated_updates_preserve_fresh_and_repaired_history_and_restore_data() 
                 ("REVOKE MAINTAIN ON public.users FROM service_role","GRANT MAINTAIN ON public.users TO service_role"),
                 ("GRANT MAINTAIN ON public.users TO authenticated","REVOKE MAINTAIN ON public.users FROM authenticated"),
                 ("GRANT SELECT ON villow_setup.instance TO anon","REVOKE SELECT ON villow_setup.instance FROM anon"),
+                ("REVOKE UPDATE ON public.users FROM update_owner","GRANT UPDATE ON public.users TO update_owner"),
+                ("REVOKE EXECUTE ON FUNCTION public.villow_setup_probe() FROM update_owner","GRANT EXECUTE ON FUNCTION public.villow_setup_probe() TO update_owner"),
                 ("ALTER TABLE public.user_settings ALTER COLUMN social_display_name TYPE text COLLATE \"C\"","ALTER TABLE public.user_settings ALTER COLUMN social_display_name TYPE text COLLATE \"default\""),
                 ("ALTER TABLE public.user_settings ALTER COLUMN social_display_name SET (n_distinct=10)","ALTER TABLE public.user_settings ALTER COLUMN social_display_name RESET (n_distinct)"),
                 ("CREATE SCHEMA app_update_external; CREATE DOMAIN app_update_external.label AS text; ALTER TABLE public.user_settings ALTER COLUMN social_display_name TYPE app_update_external.label","ALTER TABLE public.user_settings ALTER COLUMN social_display_name TYPE text; DROP DOMAIN app_update_external.label; DROP SCHEMA app_update_external"),
