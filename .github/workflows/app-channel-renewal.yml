@@ -1,0 +1,99 @@
+# Distribution maintenance only. New app releases remain web-owned.
+name: Keep Villow downloads available
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the renewed listing (off means a signing dry run only)'
+        type: boolean
+        default: false
+  schedule:
+    # Daily attempts leave multiple retry days within the existing six-day life.
+    - cron: '17 1 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: villow-channel-publication
+  cancel-in-progress: false
+jobs:
+  renew:
+    if: >-
+      github.repository == 'nicholasnucifora/Villow-Setup' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_dispatch' || vars.VILLOW_CHANNEL_RENEWAL_ENABLED == 'true')
+    runs-on: windows-2022
+    environment: villow-channel-renewal
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VILLOW_RELEASE_PUBLIC_KEY: '0krJkLcRpwiVW/ylclRklRX/YFNXE5CkcC6S1CK3+XU='
+      VILLOW_RELEASE_KEY_ID: villow-app-2026-01
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          clean: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Check renewal rules with disposable test keys
+        run: |
+          node --test release-automation/tests/*.checks.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch the original authenticated release
+        run: |
+          node release-automation/prepare-channel-renewal.mjs artifacts/channel-renewal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Sign renewal of the same releases
+        env:
+          VILLOW_RELEASE_SIGNING_KEY: ${{ secrets.VILLOW_RELEASE_SIGNING_KEY }}
+        run: |
+          $plan = Get-Content artifacts/channel-renewal/renewal-plan.json -Raw | ConvertFrom-Json
+          $env:VILLOW_PREVIOUS_CHANNEL = (Resolve-Path artifacts/channel-renewal/previous-channel.json).Path
+          node release-automation/renew-app-channel.mjs artifacts/channel-renewal $env:VILLOW_RELEASE_KEY_ID $plan.next_sequence
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify the candidate and check for another publisher
+        run: |
+          node release-automation/verify-channel-publication.mjs before artifacts/channel-renewal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish only the renewed listing
+        if: github.event_name == 'schedule' || inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) { throw 'Distribution publishing access has not been configured.' }
+          gh release upload villow-channel artifacts/channel-renewal/channel.json --repo nicholasnucifora/Villow-Setup --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify the published download without authentication
+        if: github.event_name == 'schedule' || inputs.publish
+        run: |
+          node release-automation/verify-channel-publication.mjs after artifacts/channel-renewal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Save the public renewal receipt
+        if: github.event_name == 'schedule' || inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node release-automation/record-renewal.mjs artifacts/channel-renewal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Report the result
+        env:
+          DID_PUBLISH: ${{ github.event_name == 'schedule' || inputs.publish }}
+        run: |
+          $envelope = Get-Content artifacts/channel-renewal/channel.json -Raw | ConvertFrom-Json
+          $channel = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($envelope.payload)) | ConvertFrom-Json
+          $outcome = if ($env:DID_PUBLISH -eq 'true') { 'Renewed and independently downloaded successfully.' } else { 'Dry run passed. Nothing was published and the live expiry is unchanged.' }
+          @($outcome, '', "Candidate expiry (UTC): $($channel.expires_at)", 'App releases and hosted installations were not changed.') | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+      - name: Report a failure that needs attention
+        if: failure()
+        run: |
+          'Automatic renewal did not complete. Existing hosted apps keep running. Review this failure before the current release listing expires; a failed or uncertain upload needs its public download checked.' | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-channel-renewal-evidence
+          path: |
+            artifacts/channel-renewal/channel.json
+            artifacts/channel-renewal/renewal-plan.json
+          retention-days: 30
